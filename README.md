@@ -2,7 +2,7 @@
 
 This is a copy of the [Melting Pot](https://github.com/deepmind/meltingpot) project by DeepMind. 
 
----------
+---
 
 ## About
 We are currently adding a new substrate + scenario called "commons_harvest_territory_pollution" visible under the following paths:
