@@ -1679,6 +1679,23 @@ SCENARIO_CONFIGS: Mapping[str, ScenarioConfig] = immutabledict.immutabledict(
                         'commons_harvest__partnership__free_2',},
         },
     ),
+    commons_harvest_territory_pollution=ScenarioConfig(
+        # TODO
+        description='TODO',
+        tags={
+            'visitor',
+            'dyadic_trust',
+            'ownership',
+        },
+        substrate='commons_harvest_territory_pollution',
+        roles=('default',) * 7,
+        is_focal=(True,) * 2 + (False,) * 5,
+        bots_by_role={
+            'default': {'commons_harvest_territory_pollution_free_0',
+                        'commons_harvest_territory_pollution_free_1',
+                        'commons_harvest_territory_pollution_free_2',},
+        },
+    ),
     coop_mining_0=ScenarioConfig(
         description='visiting cooperators',
         tags={
