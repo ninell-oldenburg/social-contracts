@@ -90,19 +90,40 @@ function DensityRegrow:reset()
   self._started = false
 end
 
+function DensityRegrow:updateBasedOnPollution()
+  local dirtCount = self._riverMonitor:getDirtCount()
+  local cleanCount = self._riverMonitor:getCleanCount()
+  
+  local dirtFraction = dirtCount / (dirtCount + cleanCount)
+
+  local depletion = self._config.thresholdDepletion
+  local restoration = self._config.thresholdRestoration
+  local interpolation = (dirtFraction - depletion) / (restoration - depletion)
+  -- By setting `thresholdRestoration` > 0.0 it would be possible to push
+  -- the interpolation factor above 1.0, but we disallow that.
+  interpolation = math.min(interpolation, 1.0)
+  local probability = self._config.maxAppleGrowthRate * interpolation
+
+  if random:uniformReal(0.0, 1.0) < probability then
+    self.gameObject:setState(self._config.liveState)
+  end
+end
+
 function DensityRegrow:registerUpdaters(updaterRegistry)
   local function sprout()
+
     if self._config.canRegrowIfOccupied then
-      self.gameObject:setState(self._config.liveState)
+      self:updateBasedOnPollution()
     else
       -- Only setState if no player is at the same position.
       local transform = self.gameObject:getComponent('Transform')
       local players = transform:queryDiamond('upperPhysical', 0)
       if #players == 0 then
-        self.gameObject:setState(self._config.liveState)
+        self:updateBasedOnPollution()
       end
     end
   end
+
   -- Add an updater for each `wait` regrowth rate category.
   for numNear = 0, self._config.upperBoundPossibleNeighbors - 1 do
     -- Cannot directly index the table with numNear since Lua is 1-indexed.
@@ -127,6 +148,7 @@ end
 function DensityRegrow:start()
   local sceneObject = self.gameObject.simulation:getSceneObject()
   local neighborhoods = sceneObject:getComponent('Neighborhoods')
+  self._riverMonitor = sceneObject:getComponent('RiverMonitor')
   self._variables.pieceToNumNeighbors = neighborhoods:getPieceToNumNeighbors()
   self._variables.pieceToNumNeighbors[self.gameObject:getPiece()] = 0
 end
@@ -136,28 +158,11 @@ function DensityRegrow:postStart()
   self._started = true
   self._underlyingGrass = self.gameObject:getComponent(
       'Transform'):queryPosition('background')
-  local sceneObject = self.gameObject.simulation:getSceneObject()
-  self._riverMonitor = sceneObject:getComponent('RiverMonitor')
 end
 
 function DensityRegrow:update()
   if self.gameObject:getLayer() == 'logic' then
     self:_updateWaitState()
-  end
-  local dirtCount = self._riverMonitor:getDirtCount()
-  local cleanCount = self._riverMonitor:getCleanCount()
-  local dirtFraction = dirtCount / (dirtCount + cleanCount)
-
-  local depletion = self._config.thresholdDepletion
-  local restoration = self._config.thresholdRestoration
-  local interpolation = (dirtFraction - depletion) / (restoration - depletion)
-  -- By setting `thresholdRestoration` > 0.0 it would be possible to push
-  -- the interpolation factor above 1.0, but we disallow that.
-  interpolation = math.min(interpolation, 1.0)
-
-  local probability = self._config.maxAppleGrowthRate * interpolation
-  if random:uniformReal(0.0, 1.0) < probability then
-    self.gameObject:setState('apple')
   end
 end
 
@@ -682,6 +687,14 @@ function AllNonselfCumulants:registerUpdaters(updaterRegistry)
   }
 end
 
+function AllNonselfCumulants:getOthersWhoCleanedThisStep()
+  return self.num_others_who_cleaned_this_step
+end
+
+function AllNonselfCumulants:getOthersWhoAteThisStep()
+  return self.num_others_who_ate_this_step
+end
+
 --[[ The Cleaner component provides a beam that can be used to clean dirt.
 
 Arguments:
@@ -1028,8 +1041,6 @@ end
 function RiverMonitor:getCleanCount()
   return self._cleanCount
 end
-
-
 
 local allComponents = {
   -- Non-avatar components.

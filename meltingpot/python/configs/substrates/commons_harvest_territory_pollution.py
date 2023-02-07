@@ -530,6 +530,13 @@ def get_brush_palette(
       "x": shapes.ALPHA,
   }
 
+def get_dry_painted_wall_palette(base_color: shapes.Color
+                                 ) -> Mapping[str, shapes.ColorRGBA]:
+  return {
+      "*": shapes.scale_color(base_color, 0.75, 200),
+      "#": shapes.scale_color(base_color, 0.90, 150),
+  }
+
 PLAYER_COLOR_PALETTES = []
 BRUSH_PALETTES = []
 for human_readable_color in colors.human_readable:
@@ -594,6 +601,95 @@ def create_resource(num_players: int) -> PrefabConfig:
                   "delayTillSelfRepair": 15,
                   "selfRepairProbability": 0.1,
               }
+          },
+      ]
+  }
+  return prefab
+
+def create_resource_texture() -> PrefabConfig:
+  """Configure the background texture for a resource. It looks like a wall."""
+  prefab = {
+      "name": "resource_texture",
+      "components": [
+          {
+              "component": "StateManager",
+              "kwargs": {
+                  "initialState": "unclaimed",
+                  "stateConfigs": [
+                      {"state": "unclaimed",
+                       "layer": "lowerPhysical",
+                       "sprite": "UnclaimedResourceSprite"},
+                      {"state": "destroyed"},
+                  ],
+              }
+          },
+          {
+              "component": "Appearance",
+              "kwargs": {
+                  "renderMode": "ascii_shape",
+                  "spriteNames": ["UnclaimedResourceSprite",],
+                  "spriteShapes": [shapes.WALL],
+                  "palettes": [{"*": (61, 61, 61, 255),
+                                "#": (80, 80, 80, 255)}],
+                  "noRotates": [True]
+              }
+          },
+          {
+              "component": "Transform",
+          },
+      ]
+  }
+  return prefab
+
+
+def create_reward_indicator(num_players) -> PrefabConfig:
+  """Configure object indicating if a resource is currently providing reward."""
+  # Setup unique states corresponding to each player who can claim the resource.
+  claim_state_configs = []
+  claim_sprite_names = []
+  claim_sprite_shapes = []
+  claim_palettes = []
+  claim_no_rotates = []
+  for player_idx in range(num_players):
+    lua_player_idx = player_idx + 1
+    player_color = colors.human_readable[player_idx]
+    dry_sprite_name = "Color" + str(lua_player_idx) + "DryPaintSprite"
+    claim_state_configs.append({
+        "state": "dry_claimed_by_" + str(lua_player_idx),
+        "layer": "overlay",
+        "sprite": dry_sprite_name,
+    })
+    claim_sprite_names.append(dry_sprite_name)
+    claim_sprite_shapes.append(shapes.WALL)
+    claim_palettes.append(get_dry_painted_wall_palette(player_color))
+    claim_no_rotates.append(True)
+  prefab = {
+      "name": "reward_indicator",
+      "components": [
+          {
+              "component": "StateManager",
+              "kwargs": {
+                  "initialState": "inactive",
+                  "stateConfigs": [
+                      {"state": "inactive"},
+                  ] + claim_state_configs,
+              }
+          },
+          {
+              "component": "Appearance",
+              "kwargs": {
+                  "renderMode": "ascii_shape",
+                  "spriteNames": claim_sprite_names,
+                  "spriteShapes": claim_sprite_shapes,
+                  "palettes": claim_palettes,
+                  "noRotates": claim_no_rotates
+              }
+          },
+          {
+              "component": "Transform",
+          },
+          {
+              "component": "RewardIndicator",
           },
       ]
   }
@@ -729,8 +825,8 @@ def create_apple_prefab(regrowth_radius=-1.0,  # pylint: disable=dangerous-defau
                   "waitState": "appleWait",
                   "radius": regrowth_radius,
                   "regrowthProbabilities": regrowth_probabilities,
-                  "maxAppleGrowthRate": 0.05,
-                  "thresholdDepletion": 0.4,
+                  "maxAppleGrowthRate": 0.9,
+                  "thresholdDepletion": 0.01,
                   "thresholdRestoration": 0.0,
               }
           },
@@ -756,6 +852,8 @@ def create_prefabs(regrowth_radius=-1.0,
       "shadow_e": SHADOW_E,
       "shadow_n": SHADOW_N,
       "river": get_water(),
+      "resource_texture": create_resource_texture(),
+      "reward_indicator": create_reward_indicator(num_players),
       "potential_dirt": create_dirt_prefab("dirtWait"),
       "actual_dirt": create_dirt_prefab("dirt"),
       "resource": create_resource(num_players=num_players),
