@@ -19,6 +19,11 @@
 `TAB` to switch between players.
 `NUMBER 1` to clean the river from pollution.
 `NUMBER 2` to claim resources.
+`X KEY` to pickup apples.
+`C KEY` to grasp apples.
+`Z KEY` to hold apples.
+`LEFT SHIFT` to shove apples.
+`RIGHT SHIFT` to pull apples.
 
 """
 
@@ -34,12 +39,25 @@ environment_configs = {
     'commons_harvest_territory_pollution': commons_harvest_territory_pollution,
 }
 
+def get_push_pull() -> int:
+  """Sets shove to either -1, 0, or 1."""
+  if level_playing_utils.get_right_shift_pressed():
+    return 1
+  if level_playing_utils.get_left_control_pressed():
+    return -1
+  return 0
+
 _ACTION_MAP = {
     'move': level_playing_utils.get_direction_pressed,
     'turn': level_playing_utils.get_turn_pressed,
     'fireZap': level_playing_utils.get_space_key_pressed,
     'fireClean': level_playing_utils.get_key_number_one_pressed,
     'fireClaim': level_playing_utils.get_key_number_two_pressed,
+    'pickup': level_playing_utils.get_key_x_pressed,
+    'grasp': level_playing_utils.get_key_c_pressed,
+    # Grappling actions
+    'hold': level_playing_utils.get_key_z_pressed,
+    'shove': get_push_pull,
 }
 
 

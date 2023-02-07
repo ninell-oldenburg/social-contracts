@@ -484,16 +484,22 @@ def create_dirt_prefab(initial_state):
 # Primitive action components.
 # pylint: disable=bad-whitespace
 # pyformat: disable
-NOOP        = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-FORWARD     = {"move": 1, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-STEP_RIGHT  = {"move": 2, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-BACKWARD    = {"move": 3, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-STEP_LEFT   = {"move": 4, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-TURN_LEFT   = {"move": 0, "turn": -1, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-TURN_RIGHT  = {"move": 0, "turn":  1, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-FIRE_ZAP    = {"move": 0, "turn":  0, "fireZap": 1, "fireClean": 0, "fireClaim": 0}
-FIRE_CLEAN  = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 1, "fireClaim": 0}
-FIRE_CLAIM  = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 1}
+NOOP        = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "pickup": 0, "grasp": 0, "hold": 0, "shove":  0}
+FORWARD     = {"move": 1, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "pickup": 0, "grasp": 0, "hold": 0, "shove":  0}
+STEP_RIGHT  = {"move": 2, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "pickup": 0, "grasp": 0, "hold": 0, "shove":  0}
+BACKWARD    = {"move": 3, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "pickup": 0, "grasp": 0, "hold": 0, "shove":  0}
+STEP_LEFT   = {"move": 4, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "pickup": 0, "grasp": 0, "hold": 0, "shove":  0}
+TURN_LEFT   = {"move": 0, "turn": -1, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "pickup": 0, "grasp": 0, "hold": 0, "shove":  0}
+TURN_RIGHT  = {"move": 0, "turn":  1, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "pickup": 0, "grasp": 0, "hold": 0, "shove":  0}
+FIRE_ZAP    = {"move": 0, "turn":  0, "fireZap": 1, "fireClean": 0, "fireClaim": 0, "pickup": 0, "grasp": 0, "hold": 0, "shove":  0}
+FIRE_CLEAN  = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 1, "fireClaim": 0, "pickup": 0, "grasp": 0, "hold": 0, "shove":  0}
+FIRE_CLAIM  = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 1, "pickup": 0, "grasp": 0, "hold": 0, "shove":  0}
+PICKUP      = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "pickup": 1, "grasp": 0, "hold": 0, "shove":  0}
+GRASP       = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "pickup": 0, "grasp": 1, "hold": 0, "shove":  0}
+HOLD        = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "pickup": 0, "grasp": 0, "hold": 1, "shove":  0}
+# Notice that SHOVE includes both `hold` and `shove` parts.
+SHOVE       = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "pickup": 0, "grasp": 0, "hold": 1, "shove":  1}
+PULL        = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "pickup": 0, "grasp": 0, "hold": 1, "shove": -1}
 # pyformat: enable
 # pylint: enable=bad-whitespace
 
@@ -507,14 +513,40 @@ ACTION_SET = (
     TURN_RIGHT,
     FIRE_ZAP,
     FIRE_CLEAN,
-    FIRE_CLAIM
+    FIRE_CLAIM,
+    PICKUP,
+    GRASP,
+    HOLD,
+    SHOVE,
+    PULL,
 )
 
+human_readable_colors = list(colors.human_readable)
+target_sprite_color = human_readable_colors.pop(0)
+grappling_target_color_palette = shapes.get_palette(target_sprite_color)
+# Add character mappings to avatar pallete for Magic Beam overlay
+grappling_target_color_palette["P"] = (196, 77, 190, 130)
+grappling_target_color_palette["p"] = (184, 72, 178, 80)
+print(grappling_target_color_palette)
 TARGET_SPRITE_SELF = {
-    "name": "Self",
-    "shape": shapes.CUTE_AVATAR,
-    "palette": shapes.get_palette((50, 100, 200)),
-    "noRotate": True,
+    "default": {
+        "name": "Self",
+        "shape": shapes.CUTE_AVATAR,
+        "palette": shapes.get_palette(target_sprite_color),
+        "noRotate": True,
+    },
+    "grappling": {
+        "name": "SelfGrappling",
+        "shape": shapes.CUTE_AVATAR_ARMS_UP,
+        "palette": grappling_target_color_palette,
+        "noRotate": True,
+    },
+    "grappled": {
+        "name": "SelfGrappled",
+        "shape": shapes.MAGIC_GRAPPLED_AVATAR,
+        "palette": grappling_target_color_palette,
+        "noRotate": True,
+    },
 }
 
 def get_brush_palette(
@@ -830,6 +862,13 @@ def create_apple_prefab(regrowth_radius=-1.0,  # pylint: disable=dangerous-defau
                   "thresholdRestoration": 0.0,
               }
           },
+          {
+            "component": "Graspable",
+            "kwargs": {
+                "graspableStates": ("apple",),
+                "disconnectStates": growth_rate_states,
+            }
+        },
       ]
   }
 
@@ -911,6 +950,16 @@ def create_scene():
   }
   return scene
 
+GRASP_SHAPE = """
+xxxxxxxx
+xxxxxxxx
+xxxxxxxx
+xxxxxxxx
+xxxxxxxx
+xxxxxxxx
+xoxxxxox
+xxooooxx
+"""
 
 def create_avatar_object(player_idx: int,
                          target_sprite_self: Dict[str, Any],
@@ -921,12 +970,23 @@ def create_avatar_object(player_idx: int,
 
   # Setup the self vs other sprite mapping.
   source_sprite_self = "Avatar" + str(lua_index)
-  custom_sprite_map = {source_sprite_self: target_sprite_self["name"]}
+  grappling_sprite = "AvatarGrappling" + str(lua_index)
+  grappled_sprite = "AvatarGrappled" + str(lua_index)
+
+  # Setup the self vs other sprite mapping.
+  custom_sprite_map = {
+    source_sprite_self: target_sprite_self["default"]["name"],
+    grappling_sprite: target_sprite_self["grappling"]["name"],
+    grappled_sprite: target_sprite_self["grappled"]["name"],
+    }
 
   color_palette = PLAYER_COLOR_PALETTES[player_idx]
   paintbrush_palette = BRUSH_PALETTES[player_idx]
 
   live_state_name = "player{}".format(lua_index)
+  grappling_state_name = f"player{lua_index}_grappling"
+  grappled_state_name = f"player{lua_index}_grappled"
+
   avatar_object = {
       "name": "avatar",
       "components": [
@@ -936,15 +996,32 @@ def create_avatar_object(player_idx: int,
                   "initialState": live_state_name,
                   "stateConfigs": [
                       # Initial player state.
-                      {"state": live_state_name,
-                       "layer": "upperPhysical",
-                       "sprite": source_sprite_self,
-                       "contact": "avatar",
-                       "groups": ["players"]},
-
+                        {
+                        "state": live_state_name,
+                        "layer": "upperPhysical",
+                        "sprite": source_sprite_self,
+                        "contact": "avatar",
+                        "groups": ["players"]
+                        },
+                        {
+                        "state": grappling_state_name,
+                        "layer": "upperPhysical",
+                        "sprite": grappling_sprite,
+                        "contact": "avatar",
+                        "groups": ["players"]
+                        },
+                        {
+                        "state": grappled_state_name,
+                        "layer": "upperPhysical",
+                        "sprite": grappled_sprite,
+                        "contact": "avatar",
+                        "groups": ["players"]
+                        },
                       # Player wait state used when they have been zapped out
-                      {"state": "playerWait",
-                       "groups": ["playerWaits"]},
+                        {
+                        "state": "playerWait",
+                        "groups": ["playerWaits"]
+                        },
                   ]
               }
           },
@@ -955,20 +1032,40 @@ def create_avatar_object(player_idx: int,
               "component": "Appearance",
               "kwargs": {
                   "renderMode": "ascii_shape",
-                  "spriteNames": [source_sprite_self],
-                  "spriteShapes": [shapes.CUTE_AVATAR_HOLDING_PAINTBRUSH],
-                  "palettes": [{**color_palette, **paintbrush_palette}],
-                  "noRotates": [True]
+                  "spriteNames": [source_sprite_self, grappling_sprite,
+                                  grappled_sprite],
+                  "spriteShapes": [shapes.CUTE_AVATAR_HOLDING_PAINTBRUSH,
+                                   shapes.CUTE_AVATAR_ARMS_UP,
+                                   shapes.MAGIC_GRAPPLED_AVATAR],
+                  "palettes": [{**color_palette, **paintbrush_palette}, 
+                               color_palette, color_palette],
+                  "noRotates": [True] * 3
               }
           },
           {
               "component": "AdditionalSprites",
               "kwargs": {
                   "renderMode": "ascii_shape",
-                  "customSpriteNames": [target_sprite_self["name"]],
-                  "customSpriteShapes": [target_sprite_self["shape"]],
-                  "customPalettes": [target_sprite_self["palette"]],
-                  "customNoRotates": [target_sprite_self["noRotate"]],
+                  "customSpriteNames": [
+                      target_sprite_self["default"]["name"],
+                      target_sprite_self["grappling"]["name"],
+                      target_sprite_self["grappled"]["name"],
+                    ],
+                  "customSpriteShapes": [
+                      target_sprite_self["default"]["shape"],
+                      target_sprite_self["grappling"]["shape"],
+                      target_sprite_self["grappled"]["shape"],
+                    ],
+                  "customPalettes": [
+                      target_sprite_self["default"]["palette"],
+                      target_sprite_self["grappling"]["palette"],
+                      target_sprite_self["grappled"]["palette"],
+                    ],
+                  "customNoRotates": [
+                      target_sprite_self["default"]["noRotate"],
+                      target_sprite_self["grappling"]["noRotate"],
+                      target_sprite_self["grappled"]["noRotate"],
+                    ],
               }
           },
           {
@@ -976,6 +1073,8 @@ def create_avatar_object(player_idx: int,
               "kwargs": {
                   "index": lua_index,
                   "aliveState": live_state_name,
+                  "additionalLiveStates": [grappled_state_name,
+                                           grappling_state_name],
                   "waitState": "playerWait",
                   "speed": 1.0,
                   "spawnGroup": spawn_group,
@@ -984,13 +1083,24 @@ def create_avatar_object(player_idx: int,
                                   "turn", 
                                   "fireZap",
                                   "fireClean",
-                                  "fireClaim"],
+                                  "fireClaim",
+                                  "pickup",
+                                  "grasp",
+                                  # Grappling actions
+                                  "hold",
+                                  "shove",
+                                  ],
                   "actionSpec": {
                       "move": {"default": 0, "min": 0, "max": len(_COMPASS)},
                       "turn": {"default": 0, "min": -1, "max": 1},
                       "fireZap": {"default": 0, "min": 0, "max": 1},
                       "fireClean": {"default": 0, "min": 0, "max": 1},
                       "fireClaim": {"default": 0, "min": 0, "max": 1},
+                      "pickup": {"default": 0, "min": 0, "max": 1},
+                      "grasp": {"default": 0, "min": 0, "max": 1},
+                      # Grappling actions
+                      "hold": {"default": 0, "min": 0, "max": 1},
+                      "shove": {"default": 0, "min": -1, "max": 1},
                   },
                   "view": {
                       "left": 5,
@@ -1000,6 +1110,25 @@ def create_avatar_object(player_idx: int,
                       "centered": False
                   },
                   "spriteMap": custom_sprite_map,
+              }
+          },
+          {
+            "component": "AvatarGrasp",
+            "kwargs": {
+                "shape": GRASP_SHAPE,
+                "palette": color_palette,
+                "graspAction": "grasp",
+                "precedenceOrder": ("appleLayer", "lowerPhysical",),
+            }
+          },
+          {
+              "component": "Grappling",
+              "kwargs": {
+                  "shape": shapes.MAGIC_BEAM,
+                  "palette": shapes.MAGIC_BEAM_PALETTE,
+                  "liveState": live_state_name,
+                  "grappledState": grappled_state_name,
+                  "grapplingState": grappling_state_name,
               }
           },
           {
@@ -1027,7 +1156,7 @@ def create_avatar_object(player_idx: int,
                   "color": color_palette["*"],
                   "playerIndex": lua_index,
                   "beamLength": 2,
-                  "beamRadius": 0,
+                  "beamRadius": 1,
                   "beamWait": 0,
               }
           },

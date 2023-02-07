@@ -22,6 +22,8 @@ local simulation = require(meltingpot .. 'base_simulation')
 -- Required to be able to use the components in the level
 local component_library = require(meltingpot .. 'component_library')
 local avatar_library = require(meltingpot .. 'avatar_library')
+local avatar_grasp = require(meltingpot .. 'avatar_grasp')
+local avatar_grappling = require(meltingpot .. 'avatar_grappling')
 local components = require 'components'
 
 return api_factory.apiFactory{
