@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Configuration for Commons Harvest with Territory and Pollution.
+"""Configuration for Commons Harvest with Territory.
 
 Example video: TBD
 
@@ -75,18 +75,6 @@ REGROWTH_PROBABILITIES = [0.0, 0.0025, 0.005, 0.025]
 
 ASCII_MAP = """
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-WHFFFHFFHFHFHFHFHFHFHHFHFFFHFW
-WHFHFHFFHFHFHFHFHFHFHHFHFFFHFW
-WHFFHFFHHFHFHFHFHFHFHHFHFFFHFW
-WHFHFHFFHFHFHFHFHFHFHHFHFFFHFW
-WHFFFFFFHFHFHFHFHFHFHHFHFFFHFW
-W==============+~FHHHHHHf====W
-W   P    P      ===+~SSf     W
-W     P     P   P  <~Sf  P   W
-W             P   P<~S>      W
-W           P      <~S> P    W
-W  P             P <~S>      W
-W^T^T^T^T^T^T^T^T^T;~S,^T^T^TW
 WAAA____A_____________A____AAW
 WAA____AAA___________AAA____AW
 WA____AAAAA_________AAAAA____W
@@ -107,21 +95,7 @@ WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 # ascii map.
 CHAR_PREFAB_MAP = {
     "W": "wall",
-    " ": "sand",
-    "P": {"type": "all", "list": ["sand", "spawn_point", ]},
-    "+": {"type": "all", "list": ["sand", "shadow_e", "shadow_n"]},
-    "f": {"type": "all", "list": ["sand", "shadow_w", "shadow_n"]},
-    ";": {"type": "all", "list": ["sand", "grass_edge", "shadow_e"]},
-    ",": {"type": "all", "list": ["sand", "grass_edge", "shadow_w"]},
-    "^": {"type": "all", "list": ["sand", "grass_edge",]},
-    "=": {"type": "all", "list": ["sand", "shadow_n",]},
-    ">": {"type": "all", "list": ["sand", "shadow_w",]},
-    "<": {"type": "all", "list": ["sand", "shadow_e",]},
-    "T": {"type": "all", "list": ["sand", "grass_edge"]},
     "S": "river",
-    "H": {"type": "all", "list": ["river", "potential_dirt"]},
-    "F": {"type": "all", "list": ["river", "actual_dirt"]},
-    "~": {"type": "all", "list": ["river", "shadow_w",]},
     "_": "grass",
     "Q": {"type": "all", "list": ["grass", "inside_spawn_point"]},
     "s": {"type": "all", "list": ["grass", "shadow_n"]},
@@ -192,37 +166,6 @@ WALL = {
     ]
 }
 
-SAND = {
-    "name": "sand",
-    "components": [
-        {
-            "component": "StateManager",
-            "kwargs": {
-                "initialState": "sand",
-                "stateConfigs": [{
-                    "state": "sand",
-                    "layer": "background",
-                    "sprite": "Sand",
-                }],
-            }
-        },
-        {
-            "component": "Appearance",
-            "kwargs": {
-                "renderMode": "ascii_shape",
-                "spriteNames": ["Sand"],
-                "spriteShapes": [shapes.GRAINY_FLOOR],
-                "palettes": [{"+": (222, 221, 189, 255),
-                              "*": (219, 218, 186, 255)}],
-                "noRotates": [False]
-            }
-        },
-        {
-            "component": "Transform",
-        },
-    ]
-}
-
 GRASS = {
     "name":
         "grass",
@@ -270,38 +213,6 @@ GRASS = {
     ]
 }
 
-GRASS_EDGE = {
-    "name": "grass_edge",
-    "components": [
-        {
-            "component": "StateManager",
-            "kwargs": {
-                "initialState": "grass_edge",
-                "stateConfigs": [{
-                    "state": "grass_edge",
-                    "layer": "lowerPhysical",
-                    "sprite": "GrassEdge",
-                }],
-            }
-        },
-        {
-            "component": "Appearance",
-            "kwargs": {
-                "renderMode": "ascii_shape",
-                "spriteNames": ["GrassEdge"],
-                "spriteShapes": [shapes.GRASS_STRAIGHT_N_EDGE],
-                "palettes": [{"*": (158, 194, 101, 255),
-                              "@": (170, 207, 112, 255),
-                              "x": (0, 0, 0, 0)}],
-                "noRotates": [False]
-            }
-        },
-        {
-            "component": "Transform",
-        },
-    ]
-}
-
 SPAWN_POINT = {
     "name": "spawnPoint",
     "components": [
@@ -341,145 +252,6 @@ INSIDE_SPAWN_POINT = {
         },
     ]
 }
-
-SHADOW_W = {
-    "name": "shadow_w",
-    "components": [
-        {
-            "component": "StateManager",
-            "kwargs": {
-                "initialState": "shadow_w",
-                "stateConfigs": [{
-                    "state": "shadow_w",
-                    "layer": "upperPhysical",
-                    "sprite": "ShadowW",
-                }],
-            }
-        },
-        {
-            "component": "Appearance",
-            "kwargs": {
-                "renderMode": "ascii_shape",
-                "spriteNames": ["ShadowW"],
-                "spriteShapes": [shapes.SHADOW_W],
-                "palettes": [shapes.SHADOW_PALETTE],
-                "noRotates": [False]
-            }
-        },
-        {
-            "component": "Transform",
-        },
-    ]
-}
-
-SHADOW_E = {
-    "name": "shadow_e",
-    "components": [
-        {
-            "component": "StateManager",
-            "kwargs": {
-                "initialState": "shadow_e",
-                "stateConfigs": [{
-                    "state": "shadow_e",
-                    "layer": "upperPhysical",
-                    "sprite": "ShadowE",
-                }],
-            }
-        },
-        {
-            "component": "Appearance",
-            "kwargs": {
-                "renderMode": "ascii_shape",
-                "spriteNames": ["ShadowE"],
-                "spriteShapes": [shapes.SHADOW_E],
-                "palettes": [shapes.SHADOW_PALETTE],
-                "noRotates": [False]
-            }
-        },
-        {
-            "component": "Transform",
-        },
-    ]
-}
-
-SHADOW_N = {
-    "name": "shadow_n",
-    "components": [
-        {
-            "component": "StateManager",
-            "kwargs": {
-                "initialState": "shadow_n",
-                "stateConfigs": [{
-                    "state": "shadow_n",
-                    "layer": "overlay",
-                    "sprite": "ShadowN",
-                }],
-            }
-        },
-        {
-            "component": "Appearance",
-            "kwargs": {
-                "renderMode": "ascii_shape",
-                "spriteNames": ["ShadowN"],
-                "spriteShapes": [shapes.SHADOW_N],
-                "palettes": [shapes.SHADOW_PALETTE],
-                "noRotates": [False]
-            }
-        },
-        {
-            "component": "Transform",
-        },
-    ]
-}
-
-def create_dirt_prefab(initial_state):
-  # Create a dirt prefab with the given initial state.
-  dirt_prefab = {
-      "name": "DirtContainer",
-      "components": [
-          {
-              "component": "StateManager",
-              "kwargs": {
-                  "initialState": initial_state,
-                  "stateConfigs": [
-                      {
-                          "state": "dirtWait",
-                          "layer": "logic",
-                      },
-                      {
-                          "state": "dirt",
-                          "layer": "upperPhysical",
-                          "sprite": "Dirt",
-                      },
-                  ],
-              }
-          },
-          {
-              "component": "Transform",
-          },
-          {
-              "component": "Appearance",
-              "kwargs": {
-                  "spriteNames": ["Dirt"],
-                  # This color is greenish, and quite transparent to expose the
-                  # animated water below.
-                  "spriteRGBColors": [(2, 245, 80, 50)],
-              }
-          },
-          {
-              "component": "DirtTracker",
-              "kwargs": {
-                  "activeState": "dirt",
-                  "inactiveState": "dirtWait",
-              }
-          },
-          {
-              "component": "DirtCleaning",
-              "kwargs": {}
-          },
-      ]
-  }
-  return dirt_prefab
 
 # Primitive action components.
 # pylint: disable=bad-whitespace
@@ -727,67 +499,6 @@ def create_reward_indicator(num_players) -> PrefabConfig:
   }
   return prefab
 
-
-def get_water():
-  """Get an animated water game object."""
-  layer = "background"
-  water = {
-      "name": "water_{}".format(layer),
-      "components": [
-          {
-              "component": "StateManager",
-              "kwargs": {
-                  "initialState": "water_1",
-                  "stateConfigs": [
-                      {"state": "water_1",
-                       "layer": layer,
-                       "sprite": "water_1",
-                       "groups": ["water"]},
-                      {"state": "water_2",
-                       "layer": layer,
-                       "sprite": "water_2",
-                       "groups": ["water"]},
-                      {"state": "water_3",
-                       "layer": layer,
-                       "sprite": "water_3",
-                       "groups": ["water"]},
-                      {"state": "water_4",
-                       "layer": layer,
-                       "sprite": "water_4",
-                       "groups": ["water"]},
-                  ]
-              }
-          },
-          {"component": "Transform",},
-          {
-              "component": "Appearance",
-              "kwargs": {
-                  "renderMode": "ascii_shape",
-                  "spriteNames": ["water_1", "water_2", "water_3", "water_4"],
-                  "spriteShapes": [shapes.WATER_1, shapes.WATER_2,
-                                   shapes.WATER_3, shapes.WATER_4],
-                  "palettes": [{
-                      "@": (66, 173, 212, 255),
-                      "*": (35, 133, 168, 255),
-                      "o": (34, 129, 163, 255),
-                      "~": (33, 125, 158, 255),}] * 4,
-              }
-          },
-          {
-              "component": "Animation",
-              "kwargs": {
-                  "states": ["water_1", "water_2", "water_3", "water_4"],
-                  "gameFramesPerAnimationFrame": 2,
-                  "loop": True,
-                  "randomStartFrame": True,
-                  "group": "water",
-              }
-          },
-      ]
-  }
-  return water
-
-
 def create_apple_prefab(regrowth_radius=-1.0,  # pylint: disable=dangerous-default-value
                         regrowth_probabilities=[0, 0.0, 0.0, 0.0]):
   """Creates the apple prefab with the provided settings."""
@@ -882,19 +593,11 @@ def create_prefabs(regrowth_radius=-1.0,
   """Returns a dictionary mapping names to template game objects."""
   prefabs = {
       "wall": WALL,
-      "sand": SAND,
       "grass": GRASS,
-      "grass_edge": GRASS_EDGE,
       "spawn_point": SPAWN_POINT,
       "inside_spawn_point": INSIDE_SPAWN_POINT,
-      "shadow_w": SHADOW_W,
-      "shadow_e": SHADOW_E,
-      "shadow_n": SHADOW_N,
-      "river": get_water(),
       "resource_texture": create_resource_texture(),
       "reward_indicator": create_reward_indicator(num_players),
-      "potential_dirt": create_dirt_prefab("dirtWait"),
-      "actual_dirt": create_dirt_prefab("dirt"),
       "resource": create_resource(num_players=num_players),
   }
   prefabs["apple"] = create_apple_prefab(
@@ -919,13 +622,6 @@ def create_scene():
           },
           {
               "component": "Transform",
-          },
-          {
-              "component": "DirtSpawner",
-              "kwargs": {
-                  "dirtSpawnProbability": 0.5,
-                  "delayStartOfDirtSpawning": 50,
-              },
           },
           {
               "component": "GlobalData",
@@ -1193,13 +889,6 @@ def create_avatar_object(player_idx: int,
               "kwargs": {
                   "metrics": [
                       {
-                          "name": "PLAYER_CLEANED",
-                          "type": "Doubles",
-                          "shape": [],
-                          "component": "Cleaner",
-                          "variable": "player_cleaned",
-                      },
-                      {
                           "name": "PLAYER_ATE_APPLE",
                           "type": "Doubles",
                           "shape": [],
@@ -1212,13 +901,6 @@ def create_avatar_object(player_idx: int,
                           "shape": [],
                           "component": "Zapper",
                           "variable": "num_others_player_zapped_this_step",
-                      },
-                      {
-                          "name": "NUM_OTHERS_WHO_CLEANED_THIS_STEP",
-                          "type": "Doubles",
-                          "shape": [],
-                          "component": "AllNonselfCumulants",
-                          "variable": "num_others_who_cleaned_this_step",
                       },
                       {
                           "name": "NUM_OTHERS_WHO_ATE_THIS_STEP",
@@ -1358,10 +1040,8 @@ def get_config():
       "READY_TO_SHOOT": specs.OBSERVATION["READY_TO_SHOOT"],
       # Cumulants.
       "PLAYER_ATE_APPLE": specs.float64(),
-      "PLAYER_CLEANED": specs.float64(),
       "NUM_OTHERS_PLAYER_ZAPPED_THIS_STEP": specs.float64(),
       # Global switching signals for puppeteers.
-      "NUM_OTHERS_WHO_CLEANED_THIS_STEP": specs.float64(),
       "NUM_OTHERS_WHO_ATE_THIS_STEP": specs.float64(),
       # Debug only (do not use the following observations in policies).
       "POSITION": specs.OBSERVATION["POSITION"],

@@ -161,7 +161,6 @@ def builder(
   del settings  #  Not currently used by DMLab2D.
 
   assert "simulation" in lab2d_settings
-
   # Copy config, so as not to modify it.
   lab2d_settings = config_dict.ConfigDict(
       copy.deepcopy(lab2d_settings)).unlock()
@@ -172,11 +171,12 @@ def builder(
 
   # Convert settings from python to Lua format.
   lab2d_settings_dict = parse_python_settings_for_dmlab2d(lab2d_settings)
-
+  
   if env_seed is None:
     # Select a long seed different than zero.
     env_seed = random.randint(1, _MAX_SEED)
   env_seeds = (seed % (_MAX_SEED + 1) for seed in itertools.count(env_seed))
+
 
   def build_environment():
     seed = next(env_seeds)

@@ -134,6 +134,18 @@ def timestep(
     observation_spec: Mapping[str, dm_env.specs.Array]) -> dm_env.TimeStep:
   """Returns the spec for a timestep.
 
+  See: https://github.com/deepmind/dm_env/blob/
+  91b46797fea731f80eab8cd2c8352a0674141d89/dm_env/_environment.py#L25
+
+  A `TimeStep` contains the data emitted by an environment at each step of
+  interaction. A `TimeStep` holds a `step_type`, an `observation` (typically a
+  NumPy array or a dict or list of arrays), and an associated `reward` and
+  `discount`.
+  
+  The first `TimeStep` in a sequence will have `StepType.FIRST`. The final
+  `TimeStep` will have `StepType.LAST`. All other `TimeStep`s in a sequence will
+  have `StepType.MID.
+
   Args:
     observation_spec: the observation spec. Spec names will be overwritten with
       their key.

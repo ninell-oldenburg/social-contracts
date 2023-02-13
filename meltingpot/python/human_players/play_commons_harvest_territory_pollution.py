@@ -32,11 +32,17 @@ import json
 from ml_collections import config_dict
 
 from meltingpot.python.configs.substrates import commons_harvest_territory_pollution
+from meltingpot.python.configs.substrates import commons_harvest_territory_pollution__wo_territory 
+from meltingpot.python.configs.substrates import commons_harvest_territory_pollution__wo_pollution
+from meltingpot.python.configs.substrates import commons_harvest_territory_pollution__wo_territory_pollution
 from meltingpot.python.human_players import level_playing_utils
 
 
 environment_configs = {
     'commons_harvest_territory_pollution': commons_harvest_territory_pollution,
+    'commons_harvest_territory_pollution__wo_territory': commons_harvest_territory_pollution__wo_territory,
+    'commons_harvest_territory_pollution__wo_pollution': commons_harvest_territory_pollution__wo_pollution,
+    'commons_harvest_territory_pollution__wo_territory_pollution': commons_harvest_territory_pollution__wo_territory_pollution,
 }
 
 def get_push_pull() -> int:
@@ -84,7 +90,9 @@ def main():
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
       '--level_name', type=str, default='commons_harvest_territory_pollution',
-      help='Level name to load')
+      help='Level name to load, type "commons_harvest_pollution" to disable \
+        territory component, "commons_harvest_territory" to disable pollution \
+        component, "commons_harvest" to disable both')
   parser.add_argument(
       '--observation', type=str, default='RGB', help='Observation to render')
   parser.add_argument(
@@ -97,6 +105,7 @@ def main():
       '--print_events', type=bool, default=False, help='Print events')
 
   args = parser.parse_args()
+  # env_module is commons_harvest_territory_pollution.py
   env_module = environment_configs[args.level_name]
   env_config = env_module.get_config()
   with config_dict.ConfigDict(env_config).unlocked() as env_config:

@@ -265,6 +265,7 @@ def run_episode(
     initial_player_index: Initial index of the player to play as. Defaults to 0.
       (Players are always switchable via the tab key.)
   """
+
   full_config.lab2d_settings.update(config_overrides)
   if player_prefixes is None:
     player_count = full_config.lab2d_settings.get('numPlayers', 1)

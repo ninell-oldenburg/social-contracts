@@ -156,6 +156,10 @@ function DensityRegrow:updateBasedOnPollution()
   local depletion = self._config.thresholdDepletion
   local restoration = self._config.thresholdRestoration
   local interpolation = (dirtFraction - depletion) / (restoration - depletion)
+
+  -- THIS IS HARD CODED, CHANGE AS SOON AS THERE IS RIVER STUFF
+  if interpolation ~= interpolation then interpolation = 0.5 end
+  
   -- By setting `thresholdRestoration` > 0.0 it would be possible to push
   -- the interpolation factor above 1.0, but we disallow that.
   interpolation = math.min(interpolation, 1.0)
