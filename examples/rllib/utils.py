@@ -160,6 +160,7 @@ class RayModelPolicy(policy.Policy):
   def step(self, timestep: dm_env.TimeStep,
            prev_state: policy.State) -> Tuple[int, policy.State]:
     """See base class."""
+
     observations = {
         key: value
         for key, value in timestep.observation.items()
@@ -179,6 +180,13 @@ class RayModelPolicy(policy.Policy):
   def initial_state(self) -> policy.State:
     """See base class."""
     self._prev_action = 0
+    print('self._policy_id:')
+    print(self._policy_id)
+    print()
+    print()
+    print('self._model.get_policy(self._policy_id):')
+    print(self._model.get_policy(self._policy_id))
+    print()
     return self._model.get_policy(self._policy_id).get_initial_state()
 
   def close(self) -> None:

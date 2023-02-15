@@ -22,7 +22,7 @@ import argparse
 import dm_env
 from dmlab2d.ui_renderer import pygame
 import numpy as np
-from ray.rllib.agents.registry import get_trainer_class
+from ray.rllib.algorithms.registry import get_trainer_class
 from ray.tune.analysis.experiment_analysis import ExperimentAnalysis
 from ray.tune.registry import register_env
 
@@ -58,9 +58,13 @@ def main():
   trainer.restore(checkpoint_path)
 
   # Create a new environment to visualise
+  print()
+  print("len(config['env_config']['roles'])")
+  print(len(config["env_config"]['roles']))
+  print()
   env = utils.env_creator(config["env_config"]).get_dmlab2d_env()
 
-  num_bots = config["env_config"]["num_players"]
+  num_bots = len(config["env_config"]["roles"])
   bots = [utils.RayModelPolicy(trainer, "av")] * num_bots
 
   timestep = env.reset()
