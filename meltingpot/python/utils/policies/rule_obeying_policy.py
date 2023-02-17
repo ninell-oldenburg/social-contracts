@@ -13,16 +13,16 @@
 # limitations under the License.
 """Bot policy implementations."""
 
-from typing import Generic, Tuple, TypeVar
+from typing import Tuple
 
 import dm_env
 import dmlab2d
 
-from meltingpot.python.utils.puppeteers.rule_obeying_agent_v1 import RuleObeyingAgent
+from meltingpot.python.utils.puppeteers.rule_obeying_agent_v2 import RuleObeyingAgent, RuleObeyingAgentState
 
 # https://github.com/deepmind/meltingpot/blob/main/examples/rllib/utils.py
 
-class RuleObeyingPolicy(RuleObeyingPuppet):
+class RuleObeyingPolicy(RuleObeyingAgent):
   """A puppet policy controlled by a certain environment rules."""
 
   def __init__(self, 
@@ -35,6 +35,33 @@ class RuleObeyingPolicy(RuleObeyingPuppet):
     """
     self._agent = agent
     self._env = env
+
+    # Map states
+    self.STATES = {
+            'agent.enemmies': self._agent.observation['enemies'], # list of enemies
+            'agent.role': self._agent.observation['role'], # 'farmer' / 'cleaner' / 'free'
+            'agent.paid_by_farmer': self._agent.observation['paid'], # bool
+            'agent.clean_actions': self._agent.obersvation['clean_actions'], # list
+            'cell.apple': self._env.observation['apple'], # bool
+            'cell.water': self._env.observation['water'], # 'polluted' / 'clean'
+            'global.steps': self._env.observation['steps'], # step count
+            'agent.my_property': self._agent.observation['my_property'], # bool
+            }
+
+    # Map rules that are derived from the agent class
+    self.RULES = {
+            'should_not_visit_forgein_apple_property': self.should_not_visit_forgein_apple_property(),
+            'should_not_visit_low_apple_density_cell': self.should_not_visit_low_apple_density_cell(),
+            'can_pick_up_apple': self.can_pick_up_apple(),
+            'can_eat_others_apples': self.can_eat_others_apples(),
+            'should_clean_based_on_pollution': self.should_clean_based_on_pollution(),
+            'should_clean_based_on_num_turns': self.should_clean_based_on_num_turns(),
+            'is_active_cleaner': self.is_active_cleaner(),
+            'should_clean_based_on_num_other_cleaners': self.should_clean_based_on_num_other_cleaners(),
+            'should_stop_cleaning': self.should_stop_cleaning(),
+            'has_cleaned_in_last_x_steps': self.has_cleaned_in_last_x_steps(),
+            'should_pay_cleaner': self.should_pay_cleaner(),
+    }
 
     # Define Actions
     self.ACTIONS = {
@@ -49,86 +76,10 @@ class RuleObeyingPolicy(RuleObeyingPuppet):
             'pay_cleaner': 8
         }
 
-  def available_actions(self) -> list:
-    """Return the available actions at a given timestep."""
-    actions = []
-    true_states = self._agent.get_satisfied_rules()
-    for action in len(self.ACTIONS):
-      if self.satisfies(action, true_states):
-          actions.append(action)
-
-    """Sort actions by reward."""
-    actions = sorted(actions, key=lambda action : action[1].reward) 
-    return actions
-
-  # TODO: this is only a proof of concept
-  def compute_reward(self, current_states, new_states, action_name):
-    # Compute the reward for the given action
-    reward = 0
-    if action_name == 'pick_apple':
-      if current_states['cell.apple'] and not new_states['cell.apple']:
-        reward += 1
-    elif action_name == 'eat_apple':
-      if current_states['agent.my_property'] and current_states['cell.apple']:
-        reward += 1
-    elif action_name == 'clean_water':
-      if current_states['cell.water'] == 'polluted' and new_states['cell.water'] == 'clean':
-        reward += 1
-
-    return
-
-    # TODO: TBD
-    """
-      def forward_bfs(self, timestep) -> int:
-          # Perform a breadth-first search to generate the best plan
-          best_plan = []
-          queue = []
-          while queue:
-            node = queue.pop(0)
-            if node['depth'] >= self.max_depth:
-                best_plan = node['actions']
-                break
-            for action_name, action_value in self.ACTIONS.items():
-                new_states = dict(self._agent.STATES)
-                new_states_copy = dict(self._agent.STATES)
-                new_states_copy['global.steps'] += 1
-                new_states_copy['agent.clean_actions'] = new_states_copy['agent.clean_actions'][:-1] + [0]
-                new_states[action_name] = action_value
-                reward = self.compute_reward(new_states_copy, new_states, action_name)
-                queue.append({'state': new_states, 
-                'actions': node['actions'] + [action_name], 
-                'depth': node['depth'] + 1, 
-                'reward': node['reward'] + reward})
-
-
-          plan = []
-          state = self.initial_state()
-          timestep = self._env.reset()
-
-          # is the timestep calculated internally
-          # i.e., do we not need to call it initially?
-          queue = [(timestep, state, plan)]
-          while queue:
-            this_timestep, state, plan = queue.pop(0)
-            
-            if this_timestep.last():
-              # we don't actually need to return a plan here do we?
-              return plan
-
-            # assumption: available actions only depend on the state
-            avaiable_actions = self.available_actions(state)
-            for action in avaiable_actions:
-              # again, do we need to explicitly calculate the timestep here?
-              next_timestep, next_state = self.step(this_timestep, state, action)
-              next_plan =  [plan, action]
-              queue.append((next_timestep, next_state, next_plan))
-
-          return False
-    """
-
   def step(self, 
-           timestep: dm_env.TimeStep, 
-           ) -> dm_env.TimeStep:
+           timestep: dm_env.TimeStep,
+           prev_state = RuleObeyingAgentState
+           ):
       """
       See base class.
       End of episode defined in dm_env.TimeStep.
@@ -137,28 +88,76 @@ class RuleObeyingPolicy(RuleObeyingPuppet):
       if timestep.last():
         return timestep
 
-      # Get the list of rules that satisfy the current state
-      satisfying_rules = self._agent.get_satisfied_rules()
-
-      # If no rules are satisfied, do nothing
-      if not satisfying_rules:
+      """# If no rules are satisfied, do nothing
+      if not self.get_satisfied_rules():
         return dm_env.TimeStep(
           step_type=dm_env.StepType.MID,
           reward=0,
           discount=1.0,
           observation=timestep.observation,
-        )
+        )"""
 
       # Select an action based on the first satisfying rule
-      action = self.select_action(satisfying_rules[0])
-
-      return dm_env.TimeStep(
+      action = self.forward_bfs(timestep, prev_state)
+      new_timestep = dm_env.TimeStep(
             step_type=dm_env.StepType.MID,
             reward=timestep.reward,
             discount=1.0,
-            observation=timestep.observation,
-            action=action,
+            observation=timestep.observation
         )
+
+      return action, new_timestep
+
+  def forward_bfs(self, timestep, state) -> int:
+    """Perform a breadth-first search to generate plan."""
+    plan = []
+    queue = [(timestep, state, plan)]
+    while queue:
+      this_timestep, this_state, this_plan = queue.pop(0)
+      # maybe define depth here
+      if this_timestep.last():
+        """Return top-most action."""
+        return this_plan[1]
+
+      # Get the list of rules that satisfy the current state
+      avaiable_actions = self.available_actions()
+      for action in avaiable_actions:
+        # again, do we need to explicitly calculate the timestep here?
+        next_timestep, next_state = self._agent.step(this_timestep, this_state)
+        next_plan =  [plan, action]
+        queue.append((next_timestep, next_state, next_plan))
+
+      return False
+
+  def available_actions(self) -> list:
+    """Return the available actions at a given timestep."""
+    actions = []
+    satisfied_rules = self.get_satisfied_rules()
+    for action in len(self.ACTIONS):
+      # TODO create mapping of action to true rules
+      if action in satisfied_rules:
+          actions.append(action)
+
+    """Sort actions by reward."""
+    actions = sorted(actions, key=lambda action : action[1].reward) 
+    return actions
+
+    # GET SET OF RULES THAT ARE CURRENTLY SATISFIED
+  def get_satisfied_rules(self):
+    """Return a list of rules that are satisfied by the current state."""
+    satisfied = []
+    for rule in self.RULES:
+      if self.satisfies(rule):
+        satisfied.append(rule)
+    
+    return satisfied
+
+  def satisfies(self, rule):
+    """Return True if the given rule is satisfied by the current state."""
+    if rule not in self.RULES:
+      raise ValueError(f"Invalid rule: {rule}")
+
+    return getattr(self, rule)()
   
   def initial_state(self) -> Tuple[()]:
     """See base class."""
@@ -167,3 +166,64 @@ class RuleObeyingPolicy(RuleObeyingPuppet):
   def close(self) -> None:
     """See base class."""
     self._agent.close()
+
+  # PROPERTY RULES
+  def should_not_visit_forgein_apple_property(self):
+    """Return True if agent shouldn't go to cells that have apples 
+    and are not the agent's property."""
+    return self.STATES['cell.apple'] and not self.STATES['agent.my_property']
+
+    # HARVESTING RULES
+  def should_not_visit_low_apple_density_cell(self):
+    """Return True if the agent shouldn't go to cells with 
+    low apple density."""
+    return self.STATES['cell.apple'] and \
+           self.STATES['cell.apple_count'] < self._num_apples
+
+  def can_pick_up_apple(self):
+    """Return True if agent can visit cell to pick up apple."""
+    return not self.should_not_visit_forgein_apple_property() \
+           and not self.should_not_visit_low_apple_density_cell()
+
+  def can_eat_others_apples(self, agent_x: RuleObeyingAgent):
+    """Return True if another agent ate your apples."""
+    agent_ate_yours = agent_x in self.STATES['agent.enemmies']
+    return self.should_not_visit_forgein_apple_property() \
+           and not self.should_not_visit_low_apple_density_cell() \
+           and agent_ate_yours
+
+  # CLEANING RULES
+  def should_clean_based_on_pollution(self):
+    """Return True if the agent should clean the water based on pollution."""
+    return self.STATES['cell.water'] == 'polluted'
+
+  def should_clean_based_on_num_turns(self):
+    """Return True if the agent should clean the water every X turns."""
+    return self.STATES['global.steps'] % self._num_turns == 0
+
+  def is_active_cleaner(self):
+    """Return True if the agent is in the cleaner role and gets paid."""
+    return self.STATES['agent.paid_by_farmer'] and \
+           self.STATES['agent.role'] == 'cleaner'
+
+  def should_clean_based_on_num_other_cleaners(self):
+    """Return True if the agent is obliged to clean the water 
+    when maximum x other agents are cleaning it."""
+    return self.STATES['cell.water'] == 'polluted' and \
+           self.STATES['cell.cleaning_agents'] >= self._num_cleaners
+
+  def should_stop_cleaning(self):
+    """Return True if it is permitted to stop cleaning the water if the agent is not being paid by any "farmer" agents."""
+    return self.STATES['agent.role'] == 'cleaner' and \
+           not self.STATES['agent.paid_by_farmer']
+
+  def has_cleaned_in_last_x_steps(self):
+    """Return True if agent has cleaned in the last x turns."""
+    return 1 in self.STATES['agent.clean_actions'][:-self._num_turns]
+
+  # PAYING RULES
+  def should_pay_cleaner(self, agent_x: RuleObeyingAgent):
+    """Return True if you are in the farmer role and should pay another agent with apples."""
+    return self.STATES['agent.role'] == 'farmer' \
+           and agent_x.STATES['agent.role'] == 'cleaner' \
+           and agent_x.has_cleaned_in_last_x_steps()
