@@ -18,7 +18,7 @@ from typing import Generic, Tuple, TypeVar
 import dm_env
 import dmlab2d
 
-from meltingpot.python.utils.puppeteers.rule_obeying_agent import RuleObeyingAgent
+from meltingpot.python.utils.puppeteers.rule_obeying_agent_v1 import RuleObeyingAgent
 
 # https://github.com/deepmind/meltingpot/blob/main/examples/rllib/utils.py
 
