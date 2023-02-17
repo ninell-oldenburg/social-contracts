@@ -35,17 +35,6 @@ class ConditionalCleanerState:
   recent_cleaning: tuple[int, ...]
   recently_paid: tuple[bool, ...]
 
-  STATES = {
-            'cell.apple': self.state.observation['cell']['apple'], # bool
-            'cell.water': self.state.observation['cell']['water'], # 'polluted' / 'clean'
-            'global.steps': self.state.observation['global']['steps'], # step count
-            'agent.my_property': self.state.observation['agent']['my_property'], # bool
-            'agent.enemmies': self.state.observation['agent']['enemies'], # list of enemies
-            'agent.role': self.state.observation['agent']['role'], # 'farmer' / 'cleaner' / 'free'
-            'agent.paid_by_farmer': self.state.observation['agent']['paid'], # bool
-            'agent.clean_actions': self.state.obersvation['agent']['clean_actions'] # list
-            }
-
 Observation = Mapping[str, tree.Structure[np.ndarray]]
 
 @dataclasses.dataclass(frozen=True)
