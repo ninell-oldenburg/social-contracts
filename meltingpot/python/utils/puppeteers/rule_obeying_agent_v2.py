@@ -27,22 +27,20 @@ class RuleObeyingAgentState:
     recent_cleaning: number of others cleaning on previous timesteps (ordered
       from oldest to most recent).
   """
+
+  # we might not want to have all of those hard coded parameters
   step_count: int
   clean_until: int
   recent_cleaning: tuple[int,...] # others cleaning
   recent_self_cleaning: tuple[bool,...] # has cleaned in previous steps
   recently_paid: tuple[bool,...]
   # TODO: implement matrix of who's eaten what
-  enemies: list[str] # list of people who've eaten from your property
-  role: str
+  #enemies: list[str] # list of people who've eaten from your property
+  #role: str
 
 
 class RuleObeyingAgent(puppeteer.Puppeteer[RuleObeyingAgentState]):
-    def __init__(self,
-               coplayer_cleaning_signal: str,
-               recency_window: int,
-               threshold: int,
-               reciprocation_period: int) -> None:
+    def __init__(self) -> None:
         """Initializes the puppeteer.
 
         Args:
@@ -55,7 +53,7 @@ class RuleObeyingAgent(puppeteer.Puppeteer[RuleObeyingAgentState]):
             puppet to clean.
         reciprocation_period: the number of steps to clean for once others'
             cleaning has been forgotten and fallen back below threshold.
-        """
+        
 
         self._coplayer_cleaning_signal = coplayer_cleaning_signal
 
@@ -73,6 +71,7 @@ class RuleObeyingAgent(puppeteer.Puppeteer[RuleObeyingAgentState]):
             self._reciprocation_period = reciprocation_period
         else:
             raise ValueError('reciprocation_period must be positive')
+        """
             
     def step(self, 
             timestep: dm_env.TimeStep, 
@@ -86,9 +85,10 @@ class RuleObeyingAgent(puppeteer.Puppeteer[RuleObeyingAgentState]):
         recent_cleaning = prev_state.recent_cleaning
         recent_self_cleaning= prev_state.recent_self_cleaning
         recently_paid = prev_state.recently_paid
-        enemies=prev_state.enemies,
-        role=prev_state.role
+        #enemies=prev_state.enemies
+        #role=prev_state.role
 
+        """
         # Did coplayers clean recently
         coplayers_cleaning = int(
             timestep.observation[self._coplayer_cleaning_signal])
@@ -114,16 +114,7 @@ class RuleObeyingAgent(puppeteer.Puppeteer[RuleObeyingAgentState]):
         if smooth_cleaning >= self._threshold:
             clean_until = max(clean_until, step_count + self._reciprocation_period)
         # Do not clear the recent_cleaning history after triggering.
-
-        # Define list of enemies
-        enemies = []
-
-        # Define role
-        # TODO: is this really necessary?
-        role = ''
-
-        # Define new goal based on step updates
-        timestep = puppeteer.puppet_timestep(timestep)
+        """
 
         next_state = RuleObeyingAgentState(
             step_count=step_count + 1,
@@ -131,10 +122,11 @@ class RuleObeyingAgent(puppeteer.Puppeteer[RuleObeyingAgentState]):
             recent_cleaning=recent_cleaning,
             recent_self_cleaning=recent_self_cleaning,
             recently_paid=recently_paid,
-            enemies=enemies,
-            role=role)
+            #enemies=enemies,
+            #role=role
+            )
 
-        return timestep, next_state
+        return next_state
     
     def initial_state(self) -> RuleObeyingAgentState:
         return RuleObeyingAgentState(
@@ -143,5 +135,6 @@ class RuleObeyingAgent(puppeteer.Puppeteer[RuleObeyingAgentState]):
             recent_cleaning=(),
             recent_self_cleaning=(),
             recently_paid=(),
-            enemies=[],
-            role='')
+            #enemies=[],
+            #role=''
+            )

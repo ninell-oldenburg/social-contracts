@@ -22,14 +22,15 @@ import argparse
 import dm_env
 from dmlab2d.ui_renderer import pygame
 import numpy as np
-from ray.rllib.algorithms.registry import get_trainer_class
-from ray.tune.analysis.experiment_analysis import ExperimentAnalysis
-from ray.tune.registry import register_env
 
 from examples.rllib import utils
 
+from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
+from meltingpot.python.utils.puppeteers.rule_obeying_agent_v2 import RuleObeyingAgent, RuleObeyingAgentState
+
 
 def main():
+  """
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
       "--experiment_state",
@@ -46,6 +47,9 @@ def main():
 
   register_env("meltingpot", utils.env_creator)
 
+  # Generates a pandas dataframe that summarizes the performance of each trial, 
+  # including metrics like the mean and standard deviation of the validation or 
+  # test accuracy or loss, and the best values of the hyperparameters
   experiment = ExperimentAnalysis(
       args.experiment_state,
       default_metric="episode_reward_mean",
@@ -57,20 +61,23 @@ def main():
   trainer = get_trainer_class(agent_algorithm)(config=config)
   trainer.restore(checkpoint_path)
 
+  """
+
+  # config["env_config"]:
+  # {'substrate': 'clean_up', 'roles': ['default', 'default', 'default', 'default', 'default', 'default', 'default']}
+
+  config = {'substrate': 'commons_harvest_territory_pollution', 
+            'roles': ['default']}
+
+  agent = RuleObeyingAgent().initial_state()
+
   # Create a new environment to visualise
-  env = utils.env_creator(config["env_config"]).get_dmlab2d_env()
-
-  print()
-  print('config: ')
-  print(config)
-  print()
-
-  num_bots = len(config["env_config"]["roles"])
-  bots = [utils.RayModelPolicy(trainer, "av")] * num_bots
+  env = utils.env_creator(config).get_dmlab2d_env()
+  bot = RuleObeyingPolicy(agent, env)
 
   timestep = env.reset()
-  states = [bot.initial_state() for bot in bots]
-  actions = [0] * len(bots)
+  states = bot.initial_state()
+  actions = [0]
 
   # Configure the pygame display
   scale = 4
@@ -84,7 +91,7 @@ def main():
   game_display = pygame.display.set_mode(
       (int(shape[1] * scale), int(shape[0] * scale)))
 
-  for _ in range(config["horizon"]):
+  for _ in range(100):
     obs = timestep.observation[0]["WORLD.RGB"]
     obs = np.transpose(obs, (1, 0, 2))
     surface = pygame.surfarray.make_surface(obs)
@@ -97,14 +104,13 @@ def main():
     clock.tick(fps)
 
     
-    for i, bot in enumerate(bots):
-      timestep_bot = dm_env.TimeStep(
-          step_type=timestep.step_type,
-          reward=timestep.reward[i], # not passing the whole array
-          discount=timestep.discount,
-          observation=timestep.observation[i]) # not passing the whole array
+    timestep_bot = dm_env.TimeStep(
+        step_type=timestep.step_type,
+        reward=timestep.reward,
+        discount=timestep.discount,
+        observation=timestep.observation)
 
-      actions[i], states[i] = bot.step(timestep_bot, states[i])
+    actions, states = bot.step(timestep_bot, states)
 
     timestep = env.step(actions)
 
