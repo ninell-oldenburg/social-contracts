@@ -23,7 +23,6 @@ import tree
 PLAYER_STR_FORMAT = 'player_{index}'
 _WORLD_PREFIX = 'WORLD.'
 
-
 def timestep_to_observations(timestep: dm_env.TimeStep) -> Mapping[str, Any]:
   gym_observations = {}
   for index, observation in enumerate(timestep.observation):

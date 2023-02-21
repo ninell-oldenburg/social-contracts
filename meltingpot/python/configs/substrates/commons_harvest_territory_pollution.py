@@ -839,7 +839,7 @@ def create_apple_prefab(regrowth_radius=-1.0,  # pylint: disable=dangerous-defau
 def create_prefabs(regrowth_radius=-1.0,
                    # pylint: disable=dangerous-default-value
                    regrowth_probabilities=[0, 0.0, 0.0, 0.0],
-                   num_players=7) -> PrefabConfig:
+                   num_players=1) -> PrefabConfig:
   """Returns a dictionary mapping names to template game objects."""
   prefabs = {
       "wall": WALL,
@@ -1242,7 +1242,7 @@ def get_config():
 
   # The roles assigned to each player.
   config.valid_roles = frozenset({"default"})
-  config.default_player_roles = ("default",) * 7
+  config.default_player_roles = ("default",) * 1
 
   return config
 

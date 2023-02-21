@@ -62,6 +62,9 @@ def puppet_timestep(timestep: dm_env.TimeStep,
   """Returns a timestep with a goal observation added."""
   puppet_observation = immutabledict.immutabledict(
       timestep.observation, **{_GOAL_OBSERVATION_KEY: goal})
+
+  print('PuppetGoal: ')
+  print(puppet_observation)
   return timestep._replace(observation=puppet_observation)
 
 

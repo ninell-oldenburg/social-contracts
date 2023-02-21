@@ -24,6 +24,10 @@ from dmlab2d.ui_renderer import pygame
 import numpy as np
 
 from examples.rllib import utils
+from ray.tune.registry import register_env
+from meltingpot.python import substrate
+
+from ml_collections import config_dict
 
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 from meltingpot.python.utils.puppeteers.rule_obeying_agent_v2 import RuleObeyingAgent, RuleObeyingAgentState
@@ -65,19 +69,29 @@ def main():
 
   # config["env_config"]:
   # {'substrate': 'clean_up', 'roles': ['default', 'default', 'default', 'default', 'default', 'default', 'default']}
+  # register_env("meltingpot", utils.env_creator)
 
   config = {'substrate': 'commons_harvest_territory_pollution', 
             'roles': ['default']}
 
-  agent = RuleObeyingAgent().initial_state()
-
   # Create a new environment to visualise
   env = utils.env_creator(config).get_dmlab2d_env()
-  bot = RuleObeyingPolicy(agent, env)
+  
+  num_bots = substrate.get_config('commons_harvest_territory_pollution').default_player_roles
+
+  """  an = RuleObeyingPolicy(agent)
+  attrs = vars(an)
+  print(',\n'.join("%s: %s" % item for item in attrs.items()))
+  """
+  
+  agent = RuleObeyingAgent()
+  bots = [RuleObeyingPolicy(agent) for _ in num_bots]
 
   timestep = env.reset()
-  states = bot.initial_state()
-  actions = [0]
+
+  # states = [bot.initial_state() for bot in bots]
+  states = [bot.initial_state() for bot in bots]
+  actions = [0] * len(bots)
 
   # Configure the pygame display
   scale = 4
@@ -91,7 +105,7 @@ def main():
   game_display = pygame.display.set_mode(
       (int(shape[1] * scale), int(shape[0] * scale)))
 
-  for _ in range(100):
+  for _ in range(20):
     obs = timestep.observation[0]["WORLD.RGB"]
     obs = np.transpose(obs, (1, 0, 2))
     surface = pygame.surfarray.make_surface(obs)
@@ -103,17 +117,16 @@ def main():
     pygame.display.update()
     clock.tick(fps)
 
-    
-    timestep_bot = dm_env.TimeStep(
-        step_type=timestep.step_type,
-        reward=timestep.reward,
-        discount=timestep.discount,
-        observation=timestep.observation)
-
-    actions, states = bot.step(timestep_bot, states)
+    for i, bot in enumerate(bots):
+      timestep_bot = dm_env.TimeStep(
+          step_type=timestep.step_type,
+          reward=timestep.reward[i],
+          discount=timestep.discount,
+          observation=timestep.observation[i])
+        
+      actions[i], states[i] = bot.step(timestep_bot, states[i])
 
     timestep = env.step(actions)
-
 
 if __name__ == "__main__":
   main()
