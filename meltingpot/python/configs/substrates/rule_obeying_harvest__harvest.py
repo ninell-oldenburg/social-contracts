@@ -330,13 +330,6 @@ def create_apple_prefab(regrowth_radius=-1.0,  # pylint: disable=dangerous-defau
                   "thresholdRestoration": 0.0,
               }
           },
-          {
-            "component": "Graspable",
-            "kwargs": {
-                "graspableStates": ("apple",),
-                "disconnectStates": growth_rate_states,
-            }
-        },
       ]
   }
 
@@ -617,9 +610,8 @@ def get_config():
 
   # The roles assigned to each player.
   config.valid_roles = frozenset({"default"})
-  config.default_player_roles = ("default",) * 7
-
-  print("return config")
+  # change for having more bots
+  config.default_player_roles = ("default",) * 1
 
   return config
 

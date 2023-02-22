@@ -36,19 +36,18 @@ from meltingpot.python.utils.puppeteers.rule_obeying_agent_v2 import RuleObeying
 
 
 def main():
-  """
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
-      "--experiment_state",
+      "--substrate_name",
       type=str,
-      default="~/ray_results/PPO",
-      help="ray.tune experiment_state to load. The default setting will load"
-      " the last training run created by self_play_train.py. If you want to use"
-      " a specific run, provide a path, expected to be of the format "
-      " ~/ray_results/PPO/experiment_state-DATETIME.json")
+      default="rule_obeying_harvest__complete",
+      help="choose for a reduced version of the rule_obeying_harvest template: "
+      "rule_obeying_harvest__harvest, rule_obeying_harvest__pollution, or "
+      "rule_obeying_harvest__territory.")
 
   args = parser.parse_args()
 
+  """
   agent_algorithm = "PPO"
 
   register_env("meltingpot", utils.env_creator)
@@ -69,13 +68,14 @@ def main():
 
   """
 
-  config = {'substrate': 'rule_obeying_harvest__harvest',
+  subtrate_name = args.substrate_name
+  config = {'substrate': subtrate_name,
             'roles': ['default']}
 
   # Create a new environment to visualise
   env = utils.env_creator(config).get_dmlab2d_env()
   
-  num_bots = substrate.get_config('rule_obeying_harvest__harvest').default_player_roles
+  num_bots = substrate.get_config(subtrate_name).default_player_roles
 
   """  an = RuleObeyingPolicy(agent)
   attrs = vars(an)
