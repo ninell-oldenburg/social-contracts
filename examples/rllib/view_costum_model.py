@@ -40,10 +40,11 @@ def main():
   parser.add_argument(
       "--substrate_name",
       type=str,
-      default="rule_obeying_harvest__complete",
-      help="choose for a reduced version of the rule_obeying_harvest template: "
-      "rule_obeying_harvest__harvest, rule_obeying_harvest__pollution, or "
-      "rule_obeying_harvest__territory.")
+      default="complete",
+      help="Substrate name to load. Choose for a reduced version of the "
+      "rule_obeying_harvest template: 'harvest' for only harvest, 'pollution' "
+      "for harvest + pollution, or 'territory' for harvest + territory "
+      "dimensions. Default is the complete environment.")
 
   args = parser.parse_args()
 
@@ -68,7 +69,7 @@ def main():
 
   """
 
-  subtrate_name = args.substrate_name
+  subtrate_name = f'rule_obeying_harvest__{args.substrate_name}'
   config = {'substrate': subtrate_name,
             'roles': ['default']}
 

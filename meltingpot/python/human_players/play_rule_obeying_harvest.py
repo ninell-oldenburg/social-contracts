@@ -26,12 +26,17 @@ import argparse
 import json
 from ml_collections import config_dict
 
+from meltingpot.python.configs.substrates import rule_obeying_harvest__complete
 from meltingpot.python.configs.substrates import rule_obeying_harvest__harvest
+from meltingpot.python.configs.substrates import rule_obeying_harvest__pollution
+from meltingpot.python.configs.substrates import rule_obeying_harvest__territory
 from meltingpot.python.human_players import level_playing_utils
 
-
 environment_configs = {
-    'rule_obeying_harvest': rule_obeying_harvest__harvest,
+    'rule_obeying_harvest__complete': rule_obeying_harvest__complete,
+    'rule_obeying_harvest__harvest': rule_obeying_harvest__harvest,
+    'rule_obeying_harvest__pollution': rule_obeying_harvest__pollution,
+    'rule_obeying_harvest__territory': rule_obeying_harvest__territory
 }
 
 _ACTION_MAP = {
@@ -65,8 +70,11 @@ def verbose_fn(env_timestep, player_index, current_player_index):
 def main():
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
-      '--level_name', type=str, default='rule_obeying_harvest__harvest',
-      help='Level name to load')
+      '--level_name', type=str, default='complete',
+      help="Substrate name to load. Choose for a reduced version of the "
+      "rule_obeying_harvest template: 'harvest' for only harvest, 'pollution' "
+      "for harvest + pollution, or 'territory' for harvest + territory "
+      "dimensions. Default is the complete environment.")
   parser.add_argument(
       '--observation', type=str, default='RGB', help='Observation to render')
   parser.add_argument(
@@ -79,7 +87,8 @@ def main():
       '--print_events', type=bool, default=False, help='Print events')
 
   args = parser.parse_args()
-  env_module = environment_configs[args.level_name]
+  level_name = f'rule_obeying_harvest__{args.level_name}'
+  env_module = environment_configs[level_name]
   env_config = env_module.get_config()
   with config_dict.ConfigDict(env_config).unlocked() as env_config:
     roles = env_config.default_player_roles
@@ -90,7 +99,6 @@ def main():
       env_config, level_playing_utils.RenderType.PYGAME,
       verbose_fn=verbose_fn if args.verbose else None,
       print_events=args.print_events)
-
 
 if __name__ == '__main__':
   main()
