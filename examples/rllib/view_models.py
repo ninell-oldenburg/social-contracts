@@ -27,6 +27,7 @@ from ray.tune.analysis.experiment_analysis import ExperimentAnalysis
 from ray.tune.registry import register_env
 
 from examples.rllib import utils
+from meltingpot.python import substrate
 
 
 def main():
@@ -41,6 +42,7 @@ def main():
       " ~/ray_results/PPO/experiment_state-DATETIME.json")
 
   args = parser.parse_args()
+  substrate_name = "commons_harvest__open",
 
   agent_algorithm = "PPO"
 
@@ -52,6 +54,9 @@ def main():
       default_mode="max")
 
   config = experiment.best_config
+  print()
+  print('config')
+  print(config)
   checkpoint_path = experiment.best_checkpoint
 
   trainer = get_trainer_class(agent_algorithm)(config=config)
@@ -60,13 +65,9 @@ def main():
   # Create a new environment to visualise
   env = utils.env_creator(config["env_config"]).get_dmlab2d_env()
 
-  print()
-  print('config: ')
-  print(config)
-  print()
-
-  num_bots = len(config["env_config"]["roles"])
-  bots = [utils.RayModelPolicy(trainer, "av")] * num_bots
+  # change from GitHub issue https://github.com/deepmind/meltingpot/issues/110
+  num_bots = substrate.get_config(substrate_name).default_player_roles
+  bots = [utils.RayModelPolicy(trainer, f"agent_{bot}") for bot in num_bots]
 
   timestep = env.reset()
   states = [bot.initial_state() for bot in bots]
@@ -96,12 +97,13 @@ def main():
     pygame.display.update()
     clock.tick(fps)
 
+
     for i, bot in enumerate(bots):
       timestep_bot = dm_env.TimeStep(
           step_type=timestep.step_type,
-          reward=timestep.reward[i],
+          reward=timestep.reward[i], # not passing the whole array
           discount=timestep.discount,
-          observation=timestep.observation[i])
+          observation=timestep.observation[i]) # not passing the whole array
 
       actions[i], states[i] = bot.step(timestep_bot, states[i])
 

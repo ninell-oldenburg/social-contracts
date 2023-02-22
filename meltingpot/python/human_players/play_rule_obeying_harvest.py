@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""A simple human player for testing `commons_harvest_territory_pollution`.
+"""A simple human player for testing `rule_obeying_harvest`.
 
 `WASD` keys to move the character around.
 `Q and E` to turn the character.
@@ -26,12 +26,12 @@ import argparse
 import json
 from ml_collections import config_dict
 
-from meltingpot.python.configs.substrates import commons_harvest_territory_pollution
+from meltingpot.python.configs.substrates import rule_obeying_harvest__harvest
 from meltingpot.python.human_players import level_playing_utils
 
 
 environment_configs = {
-    'commons_harvest_territory_pollution': commons_harvest_territory_pollution,
+    'rule_obeying_harvest': rule_obeying_harvest__harvest,
 }
 
 _ACTION_MAP = {
@@ -65,7 +65,7 @@ def verbose_fn(env_timestep, player_index, current_player_index):
 def main():
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
-      '--level_name', type=str, default='commons_harvest_territory_pollution',
+      '--level_name', type=str, default='rule_obeying_harvest__harvest',
       help='Level name to load')
   parser.add_argument(
       '--observation', type=str, default='RGB', help='Observation to render')

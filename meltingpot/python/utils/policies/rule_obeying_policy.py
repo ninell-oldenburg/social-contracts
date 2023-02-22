@@ -45,6 +45,7 @@ class RuleObeyingPolicy(policy.Policy):
       observation_names: List<string>
       seed: int - seed the environment.
       """
+
     
     # Define Actions
     self.ACTIONS = {

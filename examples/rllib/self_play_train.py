@@ -28,7 +28,7 @@ from meltingpot.python import substrate
 
 
 def get_config(
-    substrate_name: str = "commons_harvest_territory_pollution",
+    substrate_name: str = "clean_up",
     num_rollout_workers: int = 2,
     rollout_fragment_length: int = 100,
     train_batch_size: int = 6400,

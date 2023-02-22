@@ -1195,7 +1195,7 @@ def create_avatar_and_associated_objects(num_players):
 
 
 def get_config():
-  """Default configuration for training on the commons_harvest level."""
+  """Default configuration for training on the rule_obeying_harvest level."""
   config = config_dict.ConfigDict()
 
   # Action set configuration.
@@ -1256,7 +1256,7 @@ def build(
   num_players = len(roles)
   # Build the rest of the substrate definition.
   substrate_definition = dict(
-      levelName="commons_harvest_territory_pollution",
+      levelName="rule_obeying_harvest",
       levelDirectory="meltingpot/lua/levels",
       numPlayers=num_players,
       # Define upper bound of episode length since episodes end stochastically.

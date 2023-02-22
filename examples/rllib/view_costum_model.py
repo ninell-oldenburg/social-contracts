@@ -27,6 +27,8 @@ from examples.rllib import utils
 from ray.tune.registry import register_env
 from meltingpot.python import substrate
 
+import warnings
+
 from ml_collections import config_dict
 
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
@@ -67,17 +69,13 @@ def main():
 
   """
 
-  # config["env_config"]:
-  # {'substrate': 'clean_up', 'roles': ['default', 'default', 'default', 'default', 'default', 'default', 'default']}
-  # register_env("meltingpot", utils.env_creator)
-
-  config = {'substrate': 'commons_harvest_territory_pollution', 
+  config = {'substrate': 'rule_obeying_harvest__harvest',
             'roles': ['default']}
 
   # Create a new environment to visualise
   env = utils.env_creator(config).get_dmlab2d_env()
   
-  num_bots = substrate.get_config('commons_harvest_territory_pollution').default_player_roles
+  num_bots = substrate.get_config('rule_obeying_harvest__harvest').default_player_roles
 
   """  an = RuleObeyingPolicy(agent)
   attrs = vars(an)
@@ -88,6 +86,9 @@ def main():
   bots = [RuleObeyingPolicy(agent) for _ in num_bots]
 
   timestep = env.reset()
+
+  # Action Spec (DiscreteArray(shape=(), dtype=int64, name=action, minimum=0, maximum=9, num_values=10),)
+  print(env.action_spec())
 
   # states = [bot.initial_state() for bot in bots]
   states = [bot.initial_state() for bot in bots]
