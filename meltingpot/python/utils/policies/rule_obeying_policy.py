@@ -128,22 +128,9 @@ class RuleObeyingPolicy(policy.Policy):
     actions = []
     for action in range(self.ACTIONS.num_values):
       self._action_simluation[self._agent_id] = action
-      # alter this line so that it checks via logic rules if this is possible
+      # TODO: check for actual logic via pySMT
       if self._env.step(self._action_simluation):
         actions.append(action)
-
-      """
-      next_timestep = self._env.step(action, this_state)
-      next_env_timestep = self._env.step(action)
-      # Check if the state satisfies the rules
-      # Check what observation correlates with which attribute
-      # Then, create a class for the "expr" parameter:
-      # We have a state of the world, then check for every action if it is feasible
-      is_sat = expr.simplify().substitute({"position": observations['POSITION'], "B": observations[1], "action": action}).is_true()
-      is_sat = True
-      if is_sat:
-        actions.append(1)
-      """
 
     return actions
 

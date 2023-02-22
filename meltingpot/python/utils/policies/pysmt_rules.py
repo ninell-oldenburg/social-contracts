@@ -1,5 +1,7 @@
 from pysmt.shortcuts import Symbol, And, Or, Not, get_model, LT, Int, GT
 
+# TODO: make class useable
+
 # Define the symbols for the state variables
 Apple = Symbol("apple", bool)
 ForgeinProperty = Symbol("forgein_property", bool)
@@ -34,3 +36,8 @@ value_dict = {
 }
 
 env.reset(value_dict)
+
+"""
+# FINAL EXPRESSION EVALUTION
+is_sat = expr.simplify().substitute({"position": observations['POSITION'], "B": observations[1], "action": action}).is_true()
+"""
