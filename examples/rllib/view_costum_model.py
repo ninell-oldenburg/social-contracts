@@ -23,16 +23,11 @@ import dm_env
 from dmlab2d.ui_renderer import pygame
 import numpy as np
 
-from examples.rllib import utils
-from ray.tune.registry import register_env
 from meltingpot.python import substrate
 
-import warnings
-
-from ml_collections import config_dict
-
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
-from meltingpot.python.utils.puppeteers.rule_obeying_agent_v2 import RuleObeyingAgent, RuleObeyingAgentState
+from meltingpot.python.utils.puppeteers.rule_obeying_agent_v2 import RuleObeyingAgent
+
 
 
 def main():
@@ -48,48 +43,48 @@ def main():
 
   args = parser.parse_args()
 
-  """
-  agent_algorithm = "PPO"
+  substrate_name = f'rule_obeying_harvest__{args.substrate_name}'
+  num_bots = substrate.get_config(substrate_name).default_player_roles
 
-  register_env("meltingpot", utils.env_creator)
+  config = {'substrate': substrate_name,
+            'roles': list(num_bots)}
 
-  # Generates a pandas dataframe that summarizes the performance of each trial, 
-  # including metrics like the mean and standard deviation of the validation or 
-  # test accuracy or loss, and the best values of the hyperparameters
-  experiment = ExperimentAnalysis(
-      args.experiment_state,
-      default_metric="episode_reward_mean",
-      default_mode="max")
-
-  config = experiment.best_config
-  checkpoint_path = experiment.best_checkpoint
-
-  trainer = get_trainer_class(agent_algorithm)(config=config)
-  trainer.restore(checkpoint_path)
-
-  """
-
-  subtrate_name = f'rule_obeying_harvest__{args.substrate_name}'
-  config = {'substrate': subtrate_name,
-            'roles': ['default']}
-
-  # Create a new environment to visualise
-  env = utils.env_creator(config).get_dmlab2d_env()
+  env = substrate.build(config['substrate'], roles=config['roles'])
   
-  num_bots = substrate.get_config(subtrate_name).default_player_roles
-
-  """  an = RuleObeyingPolicy(agent)
-  attrs = vars(an)
+  """
+  GET ENVIRONMENT ATTRIBUTES
+  print(type(env))
+  attrs = vars(env)
   print(',\n'.join("%s: %s" % item for item in attrs.items()))
   """
+
+  """
+  def deepcopy(memo: Substrate):
+    new_instance=Substrate(dmlab2d.Environment)
+    new_instance.action_spec = copy.deepcopy(memo.action_spec)
+    new_instance.observables = copy.deepcopy(memo.observables)
+    new_instance.observation_spec = copy.deepcopy(memo.observation_spec)
+    new_instance.events = copy.deepcopy(memo.events)
+    new_instance.reward_spec = copy.deepcopy(memo.reward_spec)
+    new_instance._timestep_subject = copy.deepcopy(memo._timestep_subject)
+
+    # Copy the internal state of the original instance to the new instance
+    return new_instance
+    """
   
+  """
+  GETTING THE NUMBER OF ACTIONS
+  action_spec = env.action_spec()
+  print(action_spec[0].num_values)
+  """
+
   agent = RuleObeyingAgent()
-  bots = [RuleObeyingPolicy(agent) for _ in num_bots]
+  # env_copy = copy.deepcopy(env)
+  bots = [RuleObeyingPolicy(agent=agent, 
+                            env=env,
+                            agent_id=i) for i, _ in enumerate(num_bots)]
 
   timestep = env.reset()
-
-  # Action Spec (DiscreteArray(shape=(), dtype=int64, name=action, minimum=0, maximum=9, num_values=10),)
-  print(env.action_spec())
 
   # states = [bot.initial_state() for bot in bots]
   states = [bot.initial_state() for bot in bots]
@@ -124,7 +119,7 @@ def main():
           step_type=timestep.step_type,
           reward=timestep.reward[i],
           discount=timestep.discount,
-          observation=timestep.observation[i])
+          observation=timestep.observation)
         
       actions[i], states[i] = bot.step(timestep_bot, states[i])
 

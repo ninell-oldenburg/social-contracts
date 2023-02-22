@@ -54,9 +54,6 @@ def main():
       default_mode="max")
 
   config = experiment.best_config
-  print()
-  print('config')
-  print(config)
   checkpoint_path = experiment.best_checkpoint
 
   trainer = get_trainer_class(agent_algorithm)(config=config)
