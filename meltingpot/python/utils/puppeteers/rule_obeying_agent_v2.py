@@ -40,22 +40,30 @@ class RuleObeyingAgent():
         pass
             
     def step(self, 
-            self._action_simluation,
+            action_simluation,
             state,
             observations,
-            prev_reward=reward) -> tuple[int, RuleObeyingAgentState]:
+            prev_reward) -> tuple[dm_env.TimeStep, RuleObeyingAgentState]:
         """See base class."""
 
+        step_type = dm_env.StepType.MID
+        reward = 0
+        discount = 0.1
+        observation = observations
+
         new_timestep = dm_env.TimeStep(
-            # TODO
+            step_type=step_type,
+            reward=reward,
+            discount=discount,
+            observation=[observation],
         )
 
-        next_state = RuleObeyingAgentState(
-            step_count=step_count + 1,
-            clean_until=clean_until,
-            recent_cleaning=recent_cleaning,
-            recent_self_cleaning=recent_self_cleaning,
-            recently_paid=recently_paid,
+        new_state = RuleObeyingAgentState(
+            step_count=state.step_count + 1,
+            clean_until=state.clean_until,
+            recent_cleaning=state.recent_cleaning,
+            recent_self_cleaning=state.recent_self_cleaning,
+            recently_paid=state.recently_paid,
             )
 
         return new_timestep, new_state

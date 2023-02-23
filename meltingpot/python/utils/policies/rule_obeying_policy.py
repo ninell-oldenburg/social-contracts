@@ -84,11 +84,21 @@ class RuleObeyingPolicy(policy.Policy):
 
   def forward_bfs(self, timestep, prev_state) -> int:
     """Perform a breadth-first search to generate plan."""
-    plan = [[0]]
+    plan = [0]
     queue = [(timestep, prev_state, plan)]
     step_count = 0
     while queue:
       this_timestep, this_state, this_plan = queue.pop(0)
+      """print('######## this_timestep #########')
+      print(this_timestep)
+      print()"""
+      print('######## this_state #########')
+      print(this_state)
+      print()
+      print('######## this_plan #########')
+      print(this_plan)
+      print('######## END #########')
+      print()
       # maybe define depth here
       if this_timestep.last() or step_count == self._max_depth:
         """Return top-most action."""
@@ -108,8 +118,6 @@ class RuleObeyingPolicy(policy.Policy):
                                                 this_timestep.reward)
       for action_tuple in avaiable_actions:
         action, next_timestep, next_state = action_tuple
-        
-        # append calculated next timestep, state, and plan to queue
         next_plan =  [this_plan, action]
         queue.append((next_timestep, next_state, next_plan))
 
@@ -135,14 +143,14 @@ class RuleObeyingPolicy(policy.Policy):
       """
       if self._env.step(self._action_simluation):
         new_timestep, new_state = self._agent.step(self._action_simluation,
-                                    state,
-                                    observations,
-                                    prev_reward=reward
-                                    # not sure if we need previous action?
-                                    # prev_action=this_plan[0]
-                                    )
+                                                   state,
+                                                   observations,
+                                                   prev_reward=reward
+                                                   # not sure if we need previous action?
+                                                   # prev_action=this_plan[0]
+                                                   )
         # actions.append(action)
-        actions.append(action, timestep, state)
+        actions.append((action, new_timestep, new_state))
 
     return actions
   

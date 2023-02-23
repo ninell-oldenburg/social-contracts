@@ -57,20 +57,6 @@ def main():
   attrs = vars(env)
   print(',\n'.join("%s: %s" % item for item in attrs.items()))
   """
-
-  """
-  def deepcopy(memo: Substrate):
-    new_instance=Substrate(dmlab2d.Environment)
-    new_instance.action_spec = copy.deepcopy(memo.action_spec)
-    new_instance.observables = copy.deepcopy(memo.observables)
-    new_instance.observation_spec = copy.deepcopy(memo.observation_spec)
-    new_instance.events = copy.deepcopy(memo.events)
-    new_instance.reward_spec = copy.deepcopy(memo.reward_spec)
-    new_instance._timestep_subject = copy.deepcopy(memo._timestep_subject)
-
-    # Copy the internal state of the original instance to the new instance
-    return new_instance
-    """
   
   """
   GETTING THE NUMBER OF ACTIONS
@@ -79,7 +65,6 @@ def main():
   """
 
   agent = RuleObeyingAgent()
-  # env_copy = copy.deepcopy(env)
   bots = [RuleObeyingPolicy(agent=agent, 
                             env=env,
                             agent_id=i) for i, _ in enumerate(num_bots)]
@@ -127,3 +112,4 @@ def main():
 
 if __name__ == "__main__":
   main()
+
