@@ -47,10 +47,9 @@ class RuleObeyingPolicy(policy.Policy):
     self._env = env
     self.ACTIONS = env.action_spec()[0]
     self.STATES = env.observation_spec
-    self._action_simluation = [0] * 1 # substitute through elegantly getting the number of agents
-    attrs = vars(self.STATES)
-    #print(',\n'.join("%s: %s" % item for item in attrs.items()))
-    #print(self.STATES)
+    # we needed an action space to be able to simulate the _env.step() function
+    # TODO: substitute by elegantly getting the number of agents
+    self._action_simluation = [0] * 1 
 
     # currently this is relative to the agents' orientation
     """
@@ -95,28 +94,21 @@ class RuleObeyingPolicy(policy.Policy):
         """Return top-most action."""
         return this_plan[1], this_state
 
-      # Get the current state of the environment
+      # Get the current state of the environment of current agent
       observations = {
         key: value
         for key, value in this_timestep.observation[self._agent_id].items()
         if 'WORLD' not in key
       }
 
-      # Get the list of rules that satisfy the current state
+      # Get the list of actions that satisfy the current state
+      # and maybe the observations?
       avaiable_actions = self.available_actions(this_state)
-      for action in avaiable_actions:
-        # again, do we need to explicitly calculate the timestep here?
-        # TODO: create _agent that does all the stepping
-        self._action_simluation[self._agent_id] = action
-        next_timestep = self._env.step(self._action_simluation)
-        _, next_state = self._agent.step(
-                            observations,
-                            # previous action 
-                            this_state,
-                            prev_action=this_plan[0],
-                            prev_reward=this_timestep.reward
-                            )
-        next_plan =  [plan, action]
+      for action_tuple in avaiable_actions:
+        action, next_timestep, next_state = action_tuple
+        
+        # append calculated next timestep, state, and plan to queue
+        next_plan =  [this_plan, action]
         queue.append((next_timestep, next_state, next_plan))
 
       step_count += 1
@@ -128,16 +120,27 @@ class RuleObeyingPolicy(policy.Policy):
     actions = []
     for action in range(self.ACTIONS.num_values):
       self._action_simluation[self._agent_id] = action
-      # TODO: check for actual logic via pySMT
+      # TODO: implement actual logic via pySMT
+      """
+      # if there is a logic rule that allows the transition
+      # create next simulated timestep & agent state
+      # as we're iterating through the actions, there's
+      # no need the get the actions out of here
+      # # #
+      # we could rank based on reward here?
+      timestep, state = self._agent.step(self._action_simluation,
+                                    this_state,
+                                    observations,
+                                    prev_reward=this_timestep.reward,
+                                    # not sure if we need previous action?
+                                    prev_action=this_plan[0]
+                                    )
+                                    """
       if self._env.step(self._action_simluation):
         actions.append(action)
+        # actions.append(action, timestep, state)
 
     return actions
-
-    """Sort actions by reward.
-    actions = sorted(actions, key=lambda action : action[1].reward) 
-    return actions
-    """
   
   def initial_state(self) -> policy.State:
     """See base class."""

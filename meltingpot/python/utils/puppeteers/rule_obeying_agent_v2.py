@@ -34,45 +34,10 @@ class RuleObeyingAgentState:
   recent_cleaning: tuple[int,...] # others cleaning
   recent_self_cleaning: tuple[bool,...] # has cleaned in previous steps
   recently_paid: tuple[bool,...]
-  # TODO: implement matrix of who's eaten what
-  #enemies: list[str] # list of people who've eaten from your property
-  #role: str
 
-# class RuleObeyingAgent(puppeteer.Puppeteer[RuleObeyingAgentState]):
 class RuleObeyingAgent():
     def __init__(self) -> None:
-
-        """Initializes the puppeteer.
-
-        Args:
-        coplayer_cleaning_signal: key in observations that provides the
-            privileged observation of number of others cleaning in the previous
-            timestep.
-        recency_window: number of steps over which to remember others' behavior.
-        threshold: if the total number of (nonunique) cleaners over the
-            remembered period reaches this threshold, the puppeteer will direct the
-            puppet to clean.
-        reciprocation_period: the number of steps to clean for once others'
-            cleaning has been forgotten and fallen back below threshold.
-        
-
-        self._coplayer_cleaning_signal = coplayer_cleaning_signal
-
-        if threshold > 0:
-            self._threshold = threshold
-        else:
-            raise ValueError('threshold must be positive')
-
-        if recency_window > 0:
-            self._recency_window = recency_window
-        else:
-            raise ValueError('recency_window must be positive')
-
-        if reciprocation_period > 0:
-            self._reciprocation_period = reciprocation_period
-        else:
-            raise ValueError('reciprocation_period must be positive')
-        """
+        pass
             
     def step(self, 
             observations,
@@ -80,14 +45,6 @@ class RuleObeyingAgent():
             prev_action,
             prev_reward) -> tuple[int, RuleObeyingAgentState]:
         """See base class."""
-        
-        step_count = prev_state.step_count
-        clean_until = prev_state.clean_until
-        recent_cleaning = prev_state.recent_cleaning
-        recent_self_cleaning= prev_state.recent_self_cleaning
-        recently_paid = prev_state.recently_paid
-        #enemies=prev_state.enemies
-        #role=prev_state.role
 
         # TODO
         # compute action based on timestep and state
@@ -99,8 +56,6 @@ class RuleObeyingAgent():
             recent_cleaning=recent_cleaning,
             recent_self_cleaning=recent_self_cleaning,
             recently_paid=recently_paid,
-            #enemies=enemies,
-            #role=role
             )
 
         return action, next_state
@@ -112,6 +67,4 @@ class RuleObeyingAgent():
             recent_cleaning=(),
             recent_self_cleaning=(),
             recently_paid=(),
-            #enemies=[],
-            #role=''
             )
