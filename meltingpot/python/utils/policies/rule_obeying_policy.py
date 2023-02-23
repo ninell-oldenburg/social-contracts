@@ -103,7 +103,9 @@ class RuleObeyingPolicy(policy.Policy):
 
       # Get the list of actions that satisfy the current state
       # and maybe the observations?
-      avaiable_actions = self.available_actions(this_state)
+      avaiable_actions = self.available_actions(this_state, 
+                                                observations, 
+                                                this_timestep.reward)
       for action_tuple in avaiable_actions:
         action, next_timestep, next_state = action_tuple
         
@@ -115,12 +117,14 @@ class RuleObeyingPolicy(policy.Policy):
 
     return False
 
-  def available_actions(self, state) -> list:
+  def available_actions(self, state, observations, reward) -> list:
     """Return the available actions at a given timestep."""
     actions = []
     for action in range(self.ACTIONS.num_values):
       self._action_simluation[self._agent_id] = action
       # TODO: implement actual logic via pySMT
+      # if pysmt(rule, state, observations):
+      #   compute(next_timestep, state)
       """
       # if there is a logic rule that allows the transition
       # create next simulated timestep & agent state
@@ -128,17 +132,17 @@ class RuleObeyingPolicy(policy.Policy):
       # no need the get the actions out of here
       # # #
       # we could rank based on reward here?
-      timestep, state = self._agent.step(self._action_simluation,
-                                    this_state,
-                                    observations,
-                                    prev_reward=this_timestep.reward,
-                                    # not sure if we need previous action?
-                                    prev_action=this_plan[0]
-                                    )
-                                    """
+      """
       if self._env.step(self._action_simluation):
-        actions.append(action)
-        # actions.append(action, timestep, state)
+        new_timestep, new_state = self._agent.step(self._action_simluation,
+                                    state,
+                                    observations,
+                                    prev_reward=reward
+                                    # not sure if we need previous action?
+                                    # prev_action=this_plan[0]
+                                    )
+        # actions.append(action)
+        actions.append(action, timestep, state)
 
     return actions
   
