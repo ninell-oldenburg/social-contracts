@@ -857,6 +857,55 @@ function ResourceClaimer:registerUpdaters(updaterRegistry)
   }
 end
 
+--[[ The surroundings tokens.]]
+local Surroundings = class.Class(component.Component)
+
+function Surroundings:__init__(kwargs)
+  kwargs = args.parse(kwargs, {
+      {'name', args.default('Surroundings')},
+      {'observationRadius', args.numberType}
+  })
+  Surroundings.Base.__init__(self, kwargs)
+
+  self._config.observationRadius = kwargs.observationRadius
+
+  self:emptySurroundings()
+end
+
+function Surroundings:reset()
+  self:emptySurroundings()
+end
+
+function Surroundings:start()
+  self:reset()
+end
+
+function Surroundings:getNumApples()
+  local transform = self.gameObject:getComponent('Transform')
+  numApples = transform:queryDisc('lowerPhysical', self._config.observationRadius)
+  return numApples
+end
+
+function Surroundings:getNumPlayers()
+  local transform = self.gameObject:getComponent('Transform')
+  numPlayers = transform:queryDisc('upperPhysical', self._config.observationRadius)
+  return numPlayers
+end
+
+function Surroundings:emptySurroundings()
+  self.surroundings = tensor.DoubleTensor(
+      self._config.observationRadius):fill(0)
+  print(self.surroundings)
+end
+
+function Surroundings:update()
+  local transform = self.gameObject:getComponent('Transform')
+  local players = transform:queryDisc('upperPhysical', 0)
+  local apples = transform:queryDisc('lowerPhysical', 0)
+
+  -- get position of players and apples and put into tensor
+  --self.surroundings = 
+end
 
 --[[ The Taste component assigns specific roles to agents. Not used in defaults.
 ]]
@@ -1057,6 +1106,7 @@ local allComponents = {
     Cleaner = Cleaner,
     Taste = Taste,
     ResourceClaimer = ResourceClaimer,
+    Surroundings = Surroundings,
 
     -- Scene components.
     DirtSpawner = DirtSpawner,

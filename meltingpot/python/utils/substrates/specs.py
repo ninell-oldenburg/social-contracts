@@ -106,6 +106,16 @@ def rgb(height: int,
   """
   return OBSERVATION['RGB'].replace(shape=(height, width, 3), name=name)
 
+def surroundings(radius: int,
+                  name: Optional[str] = "SURROUNDINGS") -> dm_env.specs.Array:
+    """Returns the spec for a SUROUNDINGS observation.
+    
+    Args:
+      radius: size of the disc-shaped radius.
+      name: optional name for the spec.
+    """
+    return float64(radius, name=name)
+
 
 def inventory(num_resources: int,
               name: Optional[str] = 'INVENTORY') -> dm_env.specs.Array:

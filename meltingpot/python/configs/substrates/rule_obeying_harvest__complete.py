@@ -72,6 +72,7 @@ PrefabConfig = game_object_utils.PrefabConfig
 
 APPLE_RESPAWN_RADIUS = 2.0
 REGROWTH_PROBABILITIES = [0.0, 0.0025, 0.005, 0.025]
+OBSERVATION_RADIUS = 2
 
 ASCII_MAP = """
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
@@ -1003,6 +1004,12 @@ def create_avatar_object(player_idx: int,
               }
           },
           {
+              "component": "Surroundings",
+              "kwargs": {
+                  "observationRadius": OBSERVATION_RADIUS,
+              }
+          },
+          {
               "component": "AllNonselfCumulants",
           },
           {
@@ -1097,6 +1104,13 @@ def create_avatar_object(player_idx: int,
                           "shape": [],
                           "component": "AllNonselfCumulants",
                           "variable": "num_others_who_ate_this_step",
+                      },
+                      {
+                          "name": "SURROUNDINGS",
+                          "type": "tensor.DoubleTensor",
+                          "shape": [OBSERVATION_RADIUS],
+                          "component": "Surroundings",
+                          "variable": "surroundings"
                       },
                   ]
               }
@@ -1208,6 +1222,7 @@ def get_config():
       # Cumulants.
       "PLAYER_ATE_APPLE",
       "PLAYER_CLEANED",
+      "SURROUNDINGS",
       "NUM_OTHERS_PLAYER_ZAPPED_THIS_STEP",
 
       # Global switching signals for puppeteers.
@@ -1230,6 +1245,7 @@ def get_config():
       # Cumulants.
       "PLAYER_ATE_APPLE": specs.float64(),
       "PLAYER_CLEANED": specs.float64(),
+      "SOURROUNDINGS": specs.surroundings(OBSERVATION_RADIUS),
       "NUM_OTHERS_PLAYER_ZAPPED_THIS_STEP": specs.float64(),
       # Global switching signals for puppeteers.
       "NUM_OTHERS_WHO_CLEANED_THIS_STEP": specs.float64(),

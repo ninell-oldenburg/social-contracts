@@ -87,13 +87,11 @@ function DensityRegrow:__init__(kwargs)
 end
 
 function DensityRegrow:reset()
-  print("entered reset")
   self._started = false
 end
 
 -- The call to `start` is where the avatar piece is actually created.
 function DensityRegrow:start()
-  print("entered start")
   local sceneObject = self.gameObject.simulation:getSceneObject()
   local neighborhoods = sceneObject:getComponent('Neighborhoods')
   self._variables.pieceToNumNeighbors = neighborhoods:getPieceToNumNeighbors()
@@ -101,7 +99,6 @@ function DensityRegrow:start()
 end
 
 function DensityRegrow:postStart()
-  print("entered postStart")
   self:_beginLive()
   self._started = true
   self._underlyingGrass = self.gameObject:getComponent(
@@ -111,7 +108,6 @@ function DensityRegrow:postStart()
 end
 
 function DensityRegrow:getInterpolation()
-  print("entered getInterpolation")
   local dirtCount = self._riverMonitor:getDirtCount()
   local cleanCount = self._riverMonitor:getCleanCount()
   local dirtFraction = dirtCount / (dirtCount + cleanCount)
@@ -130,7 +126,6 @@ end
 
 function DensityRegrow:registerUpdaters(updaterRegistry)
   local function sprout()
-    print("entered registerUpdaters")
     if self._config.canRegrowIfOccupied then
       self:updateApple()
     else

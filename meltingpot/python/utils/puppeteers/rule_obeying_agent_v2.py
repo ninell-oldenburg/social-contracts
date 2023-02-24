@@ -47,7 +47,7 @@ class RuleObeyingAgent():
         """See base class."""
 
         step_type = dm_env.StepType.MID
-        reward = 0
+        reward = prev_reward + int(observations['PLAYER_ATE_APPLE']) # nothing there yet
         discount = 0.1
         observation = observations
 

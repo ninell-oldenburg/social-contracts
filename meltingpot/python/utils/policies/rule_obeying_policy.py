@@ -43,7 +43,7 @@ class RuleObeyingPolicy(policy.Policy):
     self._agent_id = agent_id
     self._agent = agent
     self._prev_action = 0
-    self._max_depth = 10
+    self._max_depth = 4
     self._env = env
     self.ACTIONS = env.action_spec()[0]
     self.STATES = env.observation_spec
@@ -89,20 +89,10 @@ class RuleObeyingPolicy(policy.Policy):
     step_count = 0
     while queue:
       this_timestep, this_state, this_plan = queue.pop(0)
-      """print('######## this_timestep #########')
-      print(this_timestep)
-      print()"""
-      print('######## this_state #########')
-      print(this_state)
-      print()
-      print('######## this_plan #########')
-      print(this_plan)
-      print('######## END #########')
-      print()
       # maybe define depth here
       if this_timestep.last() or step_count == self._max_depth:
         """Return top-most action."""
-        return this_plan[1], this_state
+        return this_plan[0], this_state
 
       # Get the current state of the environment of current agent
       observations = {
@@ -116,9 +106,12 @@ class RuleObeyingPolicy(policy.Policy):
       avaiable_actions = self.available_actions(this_state, 
                                                 observations, 
                                                 this_timestep.reward)
+
+      # sort actions based on reward
+      avaiable_actions = sorted(avaiable_actions, key=lambda action : action[1].reward) 
       for action_tuple in avaiable_actions:
         action, next_timestep, next_state = action_tuple
-        next_plan =  [this_plan, action]
+        next_plan =  [action, this_plan]
         queue.append((next_timestep, next_state, next_plan))
 
       step_count += 1
