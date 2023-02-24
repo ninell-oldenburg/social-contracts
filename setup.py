@@ -63,6 +63,7 @@ setuptools.setup(
         'networkx',
         'numpy',
         'pygame',
+        'pysmt',
         'rx',
         'tensorflow-macos' if IS_M1_MAC else 'tensorflow',
     ],
