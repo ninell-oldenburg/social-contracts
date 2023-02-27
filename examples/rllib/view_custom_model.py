@@ -26,8 +26,6 @@ import numpy as np
 from meltingpot.python import substrate
 
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
-from meltingpot.python.utils.puppeteers.rule_obeying_agent_v2 import RuleObeyingAgent
-
 
 
 def main():
@@ -50,30 +48,12 @@ def main():
             'roles': list(num_bots)}
 
   env = substrate.build(config['substrate'], roles=config['roles'])
-  
-  """
-  GET ENVIRONMENT ATTRIBUTES
-  print(type(env))
-  attrs = vars(env)
-  print(',\n'.join("%s: %s" % item for item in attrs.items()))
-  """
-  
-  """
-  GETTING THE NUMBER OF ACTIONS
-  action_spec = env.action_spec()
-  print(action_spec[0].num_values)
-  """
 
-  agent = RuleObeyingAgent()
-  bots = [RuleObeyingPolicy(agent=agent, 
-                            env=env,
-                            agent_id=i) for i, _ in enumerate(num_bots)]
+  bots = [RuleObeyingPolicy(env=env) for _ in range(len(num_bots))]
 
   timestep = env.reset()
 
-  # states = [bot.initial_state() for bot in bots]
-  states = [bot.initial_state() for bot in bots]
-  actions = [0] * len(bots)
+  actions = np.zeros((len(bots), 1), dtype=int)
 
   # Configure the pygame display
   scale = 4
@@ -104,11 +84,29 @@ def main():
           step_type=timestep.step_type,
           reward=timestep.reward[i],
           discount=timestep.discount,
-          observation=timestep.observation)
-        
-      actions[i], states[i] = bot.step(timestep_bot, states[i])
+          observation=timestep.observation[i])
+      
+      next_move = bot.step(timestep_bot)
+      if actions.shape[1] < next_move.shape[0]:
+        actions.resize(actions.shape[0], next_move.shape[0])
+      elif actions.shape[0] == 0:
+        actions.resize(len(bots), next_move.shape[0])
+      actions[i] = next_move.T
 
-    timestep = env.step(actions)
+    # print(actions[:][0])
+    timestep = env.step(actions[:][0])
+    if actions.shape[1] > 1:
+      actions = np.delete(actions, 0, 0)
+
+# delete first row of the array
+def update(input_array) -> np.array:
+  num_bots = input_array.shape[0]
+  new_array = np.zeros((num_bots, 1), dtype=int)
+  for i in range(num_bots):
+    if len(input_array[i]) > 0:
+      new_array[i] = input_array[i][:1]
+
+  return new_array
 
 if __name__ == "__main__":
   main()

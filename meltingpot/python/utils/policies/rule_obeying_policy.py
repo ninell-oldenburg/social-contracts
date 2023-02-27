@@ -18,58 +18,50 @@ from typing import Tuple
 import dm_env
 import dmlab2d
 
+from dataclasses import dataclass, field
+from typing import Any
+
+from queue import PriorityQueue
+
 import numpy as np
+from copy import deepcopy
 
-from meltingpot.python.utils.puppeteers.rule_obeying_agent_v2 import RuleObeyingAgent, RuleObeyingAgentState
 from meltingpot.python.utils.policies import policy
-
-import copy
 
 # https://github.com/deepmind/meltingpot/blob/main/examples/rllib/utils.py
 
 class RuleObeyingPolicy(policy.Policy):
   """A puppet policy controlled by a certain environment rules."""
 
-  def __init__(self, 
-               agent: RuleObeyingAgent,
-               env,
-               agent_id: int
-               ) -> None:
+  def __init__(self, env: dm_env.Environment) -> None:
     """Initializes the policy.
 
     Args:
       RuleObeyingAgent: Instantiate the RuleObeyingAgent class.
     """
-    self._agent_id = agent_id
-    self._agent = agent
-    self._prev_action = 0
     self._max_depth = 4
     self._env = env
-    self.ACTIONS = env.action_spec()[0]
-    self.STATES = env.observation_spec
-    # we needed an action space to be able to simulate the _env.step() function
-    # TODO: substitute by elegantly getting the number of agents
-    self._action_simluation = [0] * 1 
+    self.action_spec = env.action_spec()[0]
+    self.observation_spec = env.observation_spec()
 
-    # currently this is relative to the agents' orientation
-    """
-    ACTION_SET = (
-        NOOP,
-        FORWARD,
-        BACKWARD,
-        STEP_LEFT,
-        STEP_RIGHT,
-        TURN_LEFT,
-        TURN_RIGHT,
-        FIRE_ZAP,
-        FIRE_CLEAN,
-        FIRE_CLAIM,
-    )
-    """
+    # move actions
+    self.action_to_position = [
+            [[0,0],[0,-1],[0,1],[-1,0],[1,0]], # N
+            [[0,0],[1,0],[-1,0],[0,1],[0,-1]], # E
+            [[0,0],[0,1],[0,-1],[1,0],[-1,0]], # S
+            [[0,0],[-1,0],[1,0],[0,-1],[0,1]], # W
+          ]
+    
+    # turn actions
+    self.action_to_orientation = [
+            [3, 1], # N
+            [0, 2], # E
+            [1, 3], # S
+            [2, 0], # W
+          ]
     
   def step(self, 
            timestep: dm_env.TimeStep,
-           prev_state: RuleObeyingAgentState
            ) -> Tuple[int, policy.State]:
       """
       See base class.
@@ -77,75 +69,94 @@ class RuleObeyingPolicy(policy.Policy):
       """
 
       # Select an action based on the first satisfying rule
-      action, state = self.forward_bfs(timestep, prev_state)
-      self._prev_action = action
+      action_plan = self.forward_bfs(timestep)
 
-      return action, state
+      return action_plan
+  
+  def get_reward(self, observation) -> float:
+    x, y = observation['POSITION'][0], observation['POSITION'][1]
+    reward_indicator = observation['SURROUNDINGS']
+    return reward_indicator[x][y]
 
-  def forward_bfs(self, timestep, prev_state) -> int:
+  def env_step(self, timestep: dm_env.TimeStep, action) -> dm_env.TimeStep:
+      # Unpack observations from timestep
+      observation = timestep.observation
+      orientation = observation['ORIENTATION']
+      reward = timestep.reward + self.get_reward(observation)
+      # Simulate changes to observation based on action
+      if action <= 4:
+        observation['POSITION'] += self.action_to_position[orientation.item()][action]
+        reward = self.get_reward(observation)
+      elif action <= 6:
+        action = action - 5 # indexing starts at 0
+        observation['ORIENTATION'] = np.array(self.action_to_orientation[orientation.item()][action])
+      else: # TODO implement FIRE_ZAP, FIRE_CLEAN, FIRE_CLAIM,
+        pass
+      new_timestep = dm_env.TimeStep(step_type=dm_env.StepType.MID,
+                                     reward=reward,
+                                     discount=1.0,
+                                     observation=observation,
+                                     )
+
+      return new_timestep
+      
+  def forward_bfs(self, timestep: dm_env.TimeStep) -> list[int]:
     """Perform a breadth-first search to generate plan."""
-    plan = [0]
-    queue = [(timestep, prev_state, plan)]
+    plan = np.empty(1)
+    queue = PriorityQueue()
+    queue.put(PrioritizedItem(0.0, (timestep, plan)))
     step_count = 0
-    while queue:
-      this_timestep, this_state, this_plan = queue.pop(0)
-      # maybe define depth here
-      if this_timestep.last() or step_count == self._max_depth:
-        """Return top-most action."""
-        return this_plan[0], this_state
+    while not queue.empty():
+      priority_item = queue.get()
+      cur_timestep, cur_plan = priority_item.item
+      if self.is_goal(cur_timestep):
+        return np.array(cur_plan[1:]).flatten()
+      elif cur_timestep.last() or step_count == self._max_depth:
+        return np.zeros(1)
 
-      # Get the current state of the environment of current agent
-      observations = {
-        key: value
-        for key, value in this_timestep.observation[self._agent_id].items()
-        if 'WORLD' not in key
-      }
+      # Get the list of actions that are possible and satisfy the rules
+      # available_actions = self.available_actions(cur_timestep)
 
-      # Get the list of actions that satisfy the current state
-      # and maybe the observations?
-      avaiable_actions = self.available_actions(this_state, 
-                                                observations, 
-                                                this_timestep.reward)
+      # iter over actions 
+      for action in range(7):
+        # copy plan and timestep
+        cur_plan_copy = deepcopy(cur_plan)
+        cur_timestep_copy = deepcopy(cur_timestep)
 
-      # sort actions based on reward
-      avaiable_actions = sorted(avaiable_actions, key=lambda action : action[1].reward) 
-      for action_tuple in avaiable_actions:
-        action, next_timestep, next_state = action_tuple
-        next_plan =  [action, this_plan]
-        queue.append((next_timestep, next_state, next_plan))
+        # create new plan and timestep
+        next_plan =  np.append(cur_plan_copy, action)
+        next_timestep = self.env_step(cur_timestep_copy, action)
+        print(f"action: {action}, position: {cur_timestep.observation['POSITION']}, "
+              f"next_timestep: {next_timestep.observation['POSITION']}, reward: {next_timestep.reward}")
+        queue.put(PrioritizedItem(next_timestep.reward*(-1), (next_timestep, next_plan)))
 
       step_count += 1
 
     return False
 
-  def available_actions(self, state, observations, reward) -> list:
+  def available_actions(self, timestep: dm_env.TimeStep) -> list[int]:
     """Return the available actions at a given timestep."""
     actions = []
-    for action in range(self.ACTIONS.num_values):
-      self._action_simluation[self._agent_id] = action
+    for action in range(self.action_spec.num_values):
       # TODO: implement actual logic via pySMT
-      # if pysmt(rule, state, observations):
-      #   compute(next_timestep, state)
-      """
-      # if there is a logic rule that allows the transition
-      # create next simulated timestep & agent state
-      # as we're iterating through the actions, there's
-      # no need the get the actions out of here
-      # # #
-      # we could rank based on reward here?
-      """
-      if self._env.step(self._action_simluation):
-        new_timestep, new_state = self._agent.step(self._action_simluation,
-                                                   state,
-                                                   observations,
-                                                   prev_reward=reward
-                                                   # not sure if we need previous action?
-                                                   # prev_action=this_plan[0]
-                                                   )
-        # actions.append(action)
-        actions.append((action, new_timestep, new_state))
+      is_allowed = self.check_rules(timestep, action)
+      if is_allowed:
+        actions.append(action)
 
     return actions
+  
+  def check_rules(self, timestep, action):
+    # Check if action is allowed according to all the rules, given the current timestep
+    for rule in self.rules:
+      pass
+    return True
+
+  def is_goal(self, timestep):
+    # Check if agent has reached an apple
+    if timestep.reward == 1:
+      return True
+    return False
+
   
   def initial_state(self) -> policy.State:
     """See base class."""
@@ -154,3 +165,25 @@ class RuleObeyingPolicy(policy.Policy):
   def close(self) -> None:
     """See base class."""
     self._agent.close()
+
+
+@dataclass(order=True)
+class PrioritizedItem:
+    priority: float
+    item: Any=field(compare=False)
+
+"""
+
+class CustomPriorityQueue(PriorityQueue):
+    def __init__(self,tuple):
+      PriorityQueue.__init__(self)
+      super()._put((self._get_priority(tuple), tuple))
+
+    def _put(self, tuple):
+      return super()._put((self._get_priority(tuple), tuple))
+    
+    def _get(self):
+      return super()._get()[1]
+
+    def _get_priority(self, tuple):
+      return tuple[0].reward"""

@@ -72,7 +72,7 @@ PrefabConfig = game_object_utils.PrefabConfig
 
 APPLE_RESPAWN_RADIUS = 2.0
 REGROWTH_PROBABILITIES = [0.0, 0.0025, 0.005, 0.025]
-OBSERVATION_RADIUS = 2
+OBSERVATION_RADIUS = 1
 
 ASCII_MAP = """
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
@@ -94,7 +94,7 @@ WA____AAAAA_________AAAAA____W
 W______AAA___________AAA_____W
 W_______A_____________A______W
 W__A___________A__________A__W
-W_AAA__Q______AAA____Q___AAA_W
+W_AAAQ________AAA________AAA_W
 WAAAAA_______AAAAA______AAAAAW
 W_AAA_________AAA________AAA_W
 W__A___________A__________A__W

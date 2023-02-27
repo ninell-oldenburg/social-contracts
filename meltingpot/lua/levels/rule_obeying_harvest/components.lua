@@ -893,18 +893,35 @@ function Surroundings:getNumPlayers()
 end
 
 function Surroundings:emptySurroundings()
-  self.surroundings = tensor.DoubleTensor(
-      self._config.observationRadius):fill(0)
-  print(self.surroundings)
+  -- TODO: change to actual grid world size
+  self.surroundings = tensor.DoubleTensor(30, 30):fill(0) 
 end
 
 function Surroundings:update()
+  -- unpack observation arguments
   local transform = self.gameObject:getComponent('Transform')
-  local players = transform:queryDisc('upperPhysical', 0)
-  local apples = transform:queryDisc('lowerPhysical', 0)
+  local radius = self._config.observationRadius
 
-  -- get position of players and apples and put into tensor
-  --self.surroundings = 
+  local position = self.gameObject:getPosition()
+  local x = position[1]-radius >= 0 and position[1]-radius or 0
+  local y = position[2]-radius >= 0 and position[2]-radius or 0
+
+  local x_stop = position[1]+radius
+  local y_stop = position[2]+radius
+
+  local shape = self.surroundings:shape()
+
+  --[[ get all apples in this observation radius and 
+  transform into binary observation tensor to output ]]
+  for i=x, x_stop do
+    for j=y, y_stop do
+      if transform:queryPosition('lowerPhysical', {i, j}) ~= nil then
+        self.surroundings(i, j):val(1.0) -- apples
+      else
+        self.surroundings(i, j):val(0.0)
+      end
+    end
+  end
 end
 
 --[[ The Taste component assigns specific roles to agents. Not used in defaults.
