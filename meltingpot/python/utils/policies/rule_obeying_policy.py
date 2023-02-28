@@ -50,7 +50,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.observation_spec = env.observation_spec()
 
     # move actions
-    self.action_to_position = [
+    self.action_to_pos = [
             [[0,0],[0,-1],[0,1],[-1,0],[1,0]], # N
             [[0,0],[1,0],[-1,0],[0,1],[0,-1]], # E
             [[0,0],[0,1],[0,-1],[1,0],[-1,0]], # S
@@ -88,17 +88,19 @@ class RuleObeyingPolicy(policy.Policy):
   def env_step(self, timestep: dm_env.TimeStep, action) -> dm_env.TimeStep:
       # Unpack observations from timestep
       observation = timestep.observation
-      orientation = observation['ORIENTATION']
+      orientation = observation['ORIENTATION'].item()
       reward = timestep.reward
+
       # Simulate changes to observation based on action
-      # move actions
-      if action <= 4:
-        observation['POSITION'] += self.action_to_position[orientation.item()][action]
+      if action <= 4: # move actions
+        observation['POSITION'] += self.action_to_pos[orientation][action]
         reward += self.get_reward(observation)
-      # turn actions
-      elif action <= 6:
+      
+      elif action <= 6: # turn actions
         action = action - 5 # indexing starts at 0
-        observation['ORIENTATION'] = np.array(self.action_to_orientation[orientation.item()][action])
+        observation['ORIENTATION'] = np.array(self.action_to_orientation
+                                             [orientation][action]
+                                             )
       # TODO implement FIRE_ZAP, FIRE_CLEAN, FIRE_CLAIM
       else:
         pass
@@ -122,21 +124,19 @@ class RuleObeyingPolicy(policy.Policy):
       priority_item = queue.get()
       cur_timestep, cur_plan = priority_item.item
       if self.is_goal(cur_timestep, prev_reward, step_count):
-        return cur_plan[1:]
+        return cur_plan[1:] # 'plan' is initialized with a non-empty onset
 
       # Get the list of actions that are possible and satisfy the rules
       # available_actions = self.available_actions(cur_timestep)
 
-      # iter over actions 
-      for action in range(7):
-        # copy plan and timestep
+      for action in range(7): # currently exclude all beams
         cur_plan_copy = deepcopy(cur_plan)
         cur_timestep_copy = deepcopy(cur_timestep)
-
-        # create new plan and timestep
         next_plan =  np.append(cur_plan_copy, action)
         next_timestep = self.env_step(cur_timestep_copy, action)
-        queue.put(PrioritizedItem(next_timestep.reward*(-1), (next_timestep, next_plan)))
+        queue.put(PrioritizedItem(next_timestep.reward*(-1), # ascending
+                                 (next_timestep, next_plan))
+                                 )
 
       step_count += 1
 
@@ -146,16 +146,18 @@ class RuleObeyingPolicy(policy.Policy):
     """Return the available actions at a given timestep."""
     actions = []
     for action in range(self.action_spec.num_values):
-      # TODO: implement actual logic via pySMT
-      is_allowed = self.check_rules(timestep, action)
-      if is_allowed:
+      if self.is_allowed(timestep, action):
         actions.append(action)
 
     return actions
   
-  def check_rules(self, timestep, action):
-    # Check if action is allowed according to all the rules, given the current timestep
-    return self.rules.check(timestep, action)
+  def is_allowed(self, timestep, action):
+    """Return True if an action is allowed given the current timestep"""
+    observation = deepcopy(timestep.observation)
+    orientation = observation['ORIENTATION'].item()
+    if action <= 4: # if it is a move, alter the position to be observed
+      observation['POSITION'] += self.action_to_pos[orientation][action]
+    return self.rules.check(observation, action)
 
   def is_goal(self, timestep, prev_reward, step_count):
     """Check whether any of the stop criteria are met."""
