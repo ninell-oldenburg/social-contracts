@@ -22,7 +22,6 @@ import argparse
 import dm_env
 from dmlab2d.ui_renderer import pygame
 import numpy as np
-from collections import OrderedDict
 
 from meltingpot.python import substrate
 

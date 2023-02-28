@@ -16,7 +16,6 @@
 from typing import Tuple
 
 import dm_env
-import dmlab2d
 
 from dataclasses import dataclass, field
 from typing import Any
@@ -28,7 +27,11 @@ from copy import deepcopy
 
 from meltingpot.python.utils.policies import policy
 
-# https://github.com/deepmind/meltingpot/blob/main/examples/rllib/utils.py
+@dataclass(order=True)
+class PrioritizedItem:
+    priority: float
+    item: Any=field(compare=False)
+    
 
 class RuleObeyingPolicy(policy.Policy):
   """A puppet policy controlled by a certain environment rules."""
@@ -51,7 +54,6 @@ class RuleObeyingPolicy(policy.Policy):
             [[0,0],[0,1],[0,-1],[1,0],[-1,0]], # S
             [[0,0],[-1,0],[1,0],[0,-1],[0,1]], # W
           ]
-    
     # turn actions
     self.action_to_orientation = [
             [3, 1], # N
@@ -105,7 +107,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       
   def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
-    """Perform a a_star search to generate plan."""
+    """Perform a A* search to generate plan."""
     plan = np.zeros(shape=1, dtype=int)
     queue = PriorityQueue()
     queue.put(PrioritizedItem(0.0, (timestep, plan))) # ordered by reward
@@ -115,12 +117,7 @@ class RuleObeyingPolicy(policy.Policy):
     while not queue.empty():
       priority_item = queue.get()
       cur_timestep, cur_plan = priority_item.item
-      # goal: increase reward in comparison to previous timestep
-      if self.is_goal(cur_timestep, prev_reward):
-        # np array can't be empty so we're initializing it with 1 digit
-        # and don't return that first digit
-        return cur_plan[1:]
-      elif cur_timestep.last() or step_count == self._max_depth:
+      if self.is_goal(cur_timestep, prev_reward, step_count):
         return cur_plan[1:]
 
       # Get the list of actions that are possible and satisfy the rules
@@ -158,13 +155,16 @@ class RuleObeyingPolicy(policy.Policy):
       pass
     return True
 
-  def is_goal(self, timestep, prev_reward):
-    # Check if agent has reached an apple
+  def is_goal(self, timestep, prev_reward, step_count):
+    """Check whether any of the stop criteria are met."""
     if timestep.reward > prev_reward:
+      return True
+    elif timestep.last():
+      return True
+    elif step_count == self._max_depth:
       return True
     return False
 
-  
   def initial_state(self) -> policy.State:
     """See base class."""
     return self._agent.initial_state()
@@ -172,25 +172,3 @@ class RuleObeyingPolicy(policy.Policy):
   def close(self) -> None:
     """See base class."""
     self._agent.close()
-
-
-@dataclass(order=True)
-class PrioritizedItem:
-    priority: float
-    item: Any=field(compare=False)
-
-"""
-
-class CustomPriorityQueue(PriorityQueue):
-    def __init__(self,tuple):
-      PriorityQueue.__init__(self)
-      super()._put((self._get_priority(tuple), tuple))
-
-    def _put(self, tuple):
-      return super()._put((self._get_priority(tuple), tuple))
-    
-    def _get(self):
-      return super()._get()[1]
-
-    def _get_priority(self, tuple):
-      return tuple[0].reward"""
