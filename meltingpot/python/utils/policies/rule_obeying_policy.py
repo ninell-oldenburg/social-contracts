@@ -22,6 +22,8 @@ from typing import Any
 
 from queue import PriorityQueue
 
+from pysmt_rules import Rules
+
 import numpy as np
 from copy import deepcopy
 
@@ -61,6 +63,8 @@ class RuleObeyingPolicy(policy.Policy):
             [1, 3], # S
             [2, 0], # W
           ]
+    
+    self.rules = Rules()
     
   def step(self, 
            timestep: dm_env.TimeStep,
@@ -151,9 +155,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def check_rules(self, timestep, action):
     # Check if action is allowed according to all the rules, given the current timestep
-    for rule in self.rules:
-      pass
-    return True
+    return self.rules.check(timestep, action)
 
   def is_goal(self, timestep, prev_reward, step_count):
     """Check whether any of the stop criteria are met."""
