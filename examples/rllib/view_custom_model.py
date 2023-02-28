@@ -22,6 +22,7 @@ import argparse
 import dm_env
 from dmlab2d.ui_renderer import pygame
 import numpy as np
+from collections import OrderedDict
 
 from meltingpot.python import substrate
 
@@ -53,7 +54,7 @@ def main():
 
   timestep = env.reset()
 
-  actions = np.zeros((len(bots), 1), dtype=int)
+  actions = {key: [] for key in range(len(bots))}
 
   # Configure the pygame display
   scale = 4
@@ -67,7 +68,7 @@ def main():
   game_display = pygame.display.set_mode(
       (int(shape[1] * scale), int(shape[0] * scale)))
 
-  for _ in range(20):
+  for _ in range(100):
     obs = timestep.observation[0]["WORLD.RGB"]
     obs = np.transpose(obs, (1, 0, 2))
     surface = pygame.surfarray.make_surface(obs)
@@ -80,33 +81,25 @@ def main():
     clock.tick(fps)
 
     for i, bot in enumerate(bots):
-      timestep_bot = dm_env.TimeStep(
-          step_type=timestep.step_type,
-          reward=timestep.reward[i],
-          discount=timestep.discount,
-          observation=timestep.observation[i])
-      
-      next_move = bot.step(timestep_bot)
-      if actions.shape[1] < next_move.shape[0]:
-        actions.resize(actions.shape[0], next_move.shape[0])
-      elif actions.shape[0] == 0:
-        actions.resize(len(bots), next_move.shape[0])
-      actions[i] = next_move.T
-
-    # print(actions[:][0])
-    timestep = env.step(actions[:][0])
-    if actions.shape[1] > 1:
-      actions = np.delete(actions, 0, 0)
+      if len(actions[i]) == 0:
+        timestep_bot = dm_env.TimeStep(
+            step_type=timestep.step_type,
+            reward=timestep.reward[i],
+            discount=timestep.discount,
+            observation=timestep.observation[i])
+        
+        next_step = bot.step(timestep_bot)
+        actions[i] = next_step
+        
+    action_list = [int(item[0]) for item in actions.values()]
+    timestep = env.step(action_list)
+    actions = update(actions)
 
 # delete first row of the array
-def update(input_array) -> np.array:
-  num_bots = input_array.shape[0]
-  new_array = np.zeros((num_bots, 1), dtype=int)
-  for i in range(num_bots):
-    if len(input_array[i]) > 0:
-      new_array[i] = input_array[i][:1]
-
-  return new_array
+def update(actions):
+  for key in actions:
+    actions[key] = actions[key][1:] if len(actions[key]) > 1 else []
+  return actions
 
 if __name__ == "__main__":
   main()

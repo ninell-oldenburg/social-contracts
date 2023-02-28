@@ -868,16 +868,19 @@ function Surroundings:__init__(kwargs)
   Surroundings.Base.__init__(self, kwargs)
 
   self._config.observationRadius = kwargs.observationRadius
-
-  self:emptySurroundings()
 end
 
 function Surroundings:reset()
-  self:emptySurroundings()
+  -- TODO: change to actual grid world size
+  self.surroundings = tensor.DoubleTensor(30, 30):fill(0)
 end
 
 function Surroundings:start()
   self:reset()
+end
+
+function Surroundings:postStart()
+  self:update()
 end
 
 function Surroundings:getNumApples()
@@ -892,19 +895,14 @@ function Surroundings:getNumPlayers()
   return numPlayers
 end
 
-function Surroundings:emptySurroundings()
-  -- TODO: change to actual grid world size
-  self.surroundings = tensor.DoubleTensor(30, 30):fill(0) 
-end
-
 function Surroundings:update()
   -- unpack observation arguments
   local transform = self.gameObject:getComponent('Transform')
   local radius = self._config.observationRadius
 
   local position = self.gameObject:getPosition()
-  local x = position[1]-radius >= 0 and position[1]-radius or 0
-  local y = position[2]-radius >= 0 and position[2]-radius or 0
+  local x = position[1]-radius > 0 and position[1]-radius or 1
+  local y = position[2]-radius > 0 and position[2]-radius or 1
 
   local x_stop = position[1]+radius
   local y_stop = position[2]+radius

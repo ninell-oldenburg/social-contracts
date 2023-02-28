@@ -39,7 +39,7 @@ class RuleObeyingPolicy(policy.Policy):
     Args:
       RuleObeyingAgent: Instantiate the RuleObeyingAgent class.
     """
-    self._max_depth = 4
+    self._max_depth = 20
     self._env = env
     self.action_spec = env.action_spec()[0]
     self.observation_spec = env.observation_spec()
@@ -69,50 +69,59 @@ class RuleObeyingPolicy(policy.Policy):
       """
 
       # Select an action based on the first satisfying rule
-      action_plan = self.forward_bfs(timestep)
+      action_plan = self.a_star(timestep)
 
       return action_plan
   
   def get_reward(self, observation) -> float:
-    x, y = observation['POSITION'][0], observation['POSITION'][1]
-    reward_indicator = observation['SURROUNDINGS']
-    return reward_indicator[x][y]
+    # lua is one indexed
+    x, y = observation['POSITION'][0]-1, observation['POSITION'][1]-1
+    reward_map = observation['SURROUNDINGS']
+    return reward_map[x][y]
 
   def env_step(self, timestep: dm_env.TimeStep, action) -> dm_env.TimeStep:
       # Unpack observations from timestep
       observation = timestep.observation
       orientation = observation['ORIENTATION']
-      reward = timestep.reward + self.get_reward(observation)
+      reward = timestep.reward
       # Simulate changes to observation based on action
+      # move actions
       if action <= 4:
         observation['POSITION'] += self.action_to_position[orientation.item()][action]
-        reward = self.get_reward(observation)
+        reward += self.get_reward(observation)
+      # turn actions
       elif action <= 6:
         action = action - 5 # indexing starts at 0
         observation['ORIENTATION'] = np.array(self.action_to_orientation[orientation.item()][action])
-      else: # TODO implement FIRE_ZAP, FIRE_CLEAN, FIRE_CLAIM,
+      # TODO implement FIRE_ZAP, FIRE_CLEAN, FIRE_CLAIM
+      else:
         pass
-      new_timestep = dm_env.TimeStep(step_type=dm_env.StepType.MID,
+
+      return dm_env.TimeStep(step_type=dm_env.StepType.MID,
                                      reward=reward,
                                      discount=1.0,
                                      observation=observation,
                                      )
 
-      return new_timestep
       
-  def forward_bfs(self, timestep: dm_env.TimeStep) -> list[int]:
-    """Perform a breadth-first search to generate plan."""
-    plan = np.empty(1)
+  def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
+    """Perform a a_star search to generate plan."""
+    plan = np.zeros(shape=1, dtype=int)
     queue = PriorityQueue()
-    queue.put(PrioritizedItem(0.0, (timestep, plan)))
+    queue.put(PrioritizedItem(0.0, (timestep, plan))) # ordered by reward
     step_count = 0
+    prev_reward = timestep.reward
+
     while not queue.empty():
       priority_item = queue.get()
       cur_timestep, cur_plan = priority_item.item
-      if self.is_goal(cur_timestep):
-        return np.array(cur_plan[1:]).flatten()
+      # goal: increase reward in comparison to previous timestep
+      if self.is_goal(cur_timestep, prev_reward):
+        # np array can't be empty so we're initializing it with 1 digit
+        # and don't return that first digit
+        return cur_plan[1:]
       elif cur_timestep.last() or step_count == self._max_depth:
-        return np.zeros(1)
+        return cur_plan[1:]
 
       # Get the list of actions that are possible and satisfy the rules
       # available_actions = self.available_actions(cur_timestep)
@@ -126,8 +135,6 @@ class RuleObeyingPolicy(policy.Policy):
         # create new plan and timestep
         next_plan =  np.append(cur_plan_copy, action)
         next_timestep = self.env_step(cur_timestep_copy, action)
-        print(f"action: {action}, position: {cur_timestep.observation['POSITION']}, "
-              f"next_timestep: {next_timestep.observation['POSITION']}, reward: {next_timestep.reward}")
         queue.put(PrioritizedItem(next_timestep.reward*(-1), (next_timestep, next_plan)))
 
       step_count += 1
@@ -151,9 +158,9 @@ class RuleObeyingPolicy(policy.Policy):
       pass
     return True
 
-  def is_goal(self, timestep):
+  def is_goal(self, timestep, prev_reward):
     # Check if agent has reached an apple
-    if timestep.reward == 1:
+    if timestep.reward > prev_reward:
       return True
     return False
 
