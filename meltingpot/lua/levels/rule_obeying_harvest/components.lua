@@ -857,6 +857,70 @@ function ResourceClaimer:registerUpdaters(updaterRegistry)
   }
 end
 
+--[[ The surroundings tokens.]]
+local Surroundings = class.Class(component.Component)
+
+function Surroundings:__init__(kwargs)
+  kwargs = args.parse(kwargs, {
+      {'name', args.default('Surroundings')},
+      {'observationRadius', args.numberType}
+  })
+  Surroundings.Base.__init__(self, kwargs)
+
+  self._config.observationRadius = kwargs.observationRadius
+end
+
+function Surroundings:reset()
+  -- TODO: change to actual grid world size
+  self.surroundings = tensor.DoubleTensor(30, 30):fill(0)
+end
+
+function Surroundings:start()
+  self:reset()
+end
+
+function Surroundings:postStart()
+  self:update()
+end
+
+function Surroundings:getNumApples()
+  local transform = self.gameObject:getComponent('Transform')
+  numApples = transform:queryDisc('lowerPhysical', self._config.observationRadius)
+  return numApples
+end
+
+function Surroundings:getNumPlayers()
+  local transform = self.gameObject:getComponent('Transform')
+  numPlayers = transform:queryDisc('upperPhysical', self._config.observationRadius)
+  return numPlayers
+end
+
+function Surroundings:update()
+  -- unpack observation arguments
+  local transform = self.gameObject:getComponent('Transform')
+  local radius = self._config.observationRadius
+
+  local position = self.gameObject:getPosition()
+  local x = position[1]-radius > 0 and position[1]-radius or 1
+  local y = position[2]-radius > 0 and position[2]-radius or 1
+
+  local x_stop = position[1]+radius
+  local y_stop = position[2]+radius
+
+  local shape = self.surroundings:shape()
+
+  --[[ get all apples in this observation radius and 
+  transform into binary observation tensor to output ]]
+  for i=x, x_stop do
+    for j=y, y_stop do
+      if transform:queryPosition('lowerPhysical', {i, j}) ~= nil then
+        self.surroundings(i, j):val(1.0) -- apples
+      else
+        self.surroundings(i, j):val(0.0)
+      end
+    end
+  end
+end
 
 --[[ The Taste component assigns specific roles to agents. Not used in defaults.
 ]]
@@ -1057,6 +1121,7 @@ local allComponents = {
     Cleaner = Cleaner,
     Taste = Taste,
     ResourceClaimer = ResourceClaimer,
+    Surroundings = Surroundings,
 
     -- Scene components.
     DirtSpawner = DirtSpawner,

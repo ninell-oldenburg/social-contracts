@@ -577,11 +577,9 @@ def get_config():
 
       # Cumulants.
       "PLAYER_ATE_APPLE",
-      "PLAYER_CLEANED",
       "NUM_OTHERS_PLAYER_ZAPPED_THIS_STEP",
 
       # Global switching signals for puppeteers.
-      "NUM_OTHERS_WHO_CLEANED_THIS_STEP",
       "NUM_OTHERS_WHO_ATE_THIS_STEP",
 
       # Debug only (do not use the following observations in policies).

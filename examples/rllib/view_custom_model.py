@@ -22,17 +22,11 @@ import argparse
 import dm_env
 from dmlab2d.ui_renderer import pygame
 import numpy as np
+from collections import OrderedDict
 
-from examples.rllib import utils
-from ray.tune.registry import register_env
 from meltingpot.python import substrate
 
-import warnings
-
-from ml_collections import config_dict
-
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
-from meltingpot.python.utils.puppeteers.rule_obeying_agent_v2 import RuleObeyingAgent, RuleObeyingAgentState
 
 
 def main():
@@ -48,52 +42,19 @@ def main():
 
   args = parser.parse_args()
 
-  """
-  agent_algorithm = "PPO"
+  substrate_name = f'rule_obeying_harvest__{args.substrate_name}'
+  num_bots = substrate.get_config(substrate_name).default_player_roles
 
-  register_env("meltingpot", utils.env_creator)
+  config = {'substrate': substrate_name,
+            'roles': list(num_bots)}
 
-  # Generates a pandas dataframe that summarizes the performance of each trial, 
-  # including metrics like the mean and standard deviation of the validation or 
-  # test accuracy or loss, and the best values of the hyperparameters
-  experiment = ExperimentAnalysis(
-      args.experiment_state,
-      default_metric="episode_reward_mean",
-      default_mode="max")
+  env = substrate.build(config['substrate'], roles=config['roles'])
 
-  config = experiment.best_config
-  checkpoint_path = experiment.best_checkpoint
-
-  trainer = get_trainer_class(agent_algorithm)(config=config)
-  trainer.restore(checkpoint_path)
-
-  """
-
-  subtrate_name = f'rule_obeying_harvest__{args.substrate_name}'
-  config = {'substrate': subtrate_name,
-            'roles': ['default']}
-
-  # Create a new environment to visualise
-  env = utils.env_creator(config).get_dmlab2d_env()
-  
-  num_bots = substrate.get_config(subtrate_name).default_player_roles
-
-  """  an = RuleObeyingPolicy(agent)
-  attrs = vars(an)
-  print(',\n'.join("%s: %s" % item for item in attrs.items()))
-  """
-  
-  agent = RuleObeyingAgent()
-  bots = [RuleObeyingPolicy(agent) for _ in num_bots]
+  bots = [RuleObeyingPolicy(env=env) for _ in range(len(num_bots))]
 
   timestep = env.reset()
 
-  # Action Spec (DiscreteArray(shape=(), dtype=int64, name=action, minimum=0, maximum=9, num_values=10),)
-  print(env.action_spec())
-
-  # states = [bot.initial_state() for bot in bots]
-  states = [bot.initial_state() for bot in bots]
-  actions = [0] * len(bots)
+  actions = {key: [] for key in range(len(bots))}
 
   # Configure the pygame display
   scale = 4
@@ -107,7 +68,7 @@ def main():
   game_display = pygame.display.set_mode(
       (int(shape[1] * scale), int(shape[0] * scale)))
 
-  for _ in range(20):
+  for _ in range(100):
     obs = timestep.observation[0]["WORLD.RGB"]
     obs = np.transpose(obs, (1, 0, 2))
     surface = pygame.surfarray.make_surface(obs)
@@ -120,15 +81,26 @@ def main():
     clock.tick(fps)
 
     for i, bot in enumerate(bots):
-      timestep_bot = dm_env.TimeStep(
-          step_type=timestep.step_type,
-          reward=timestep.reward[i],
-          discount=timestep.discount,
-          observation=timestep.observation[i])
+      if len(actions[i]) == 0:
+        timestep_bot = dm_env.TimeStep(
+            step_type=timestep.step_type,
+            reward=timestep.reward[i],
+            discount=timestep.discount,
+            observation=timestep.observation[i])
         
-      actions[i], states[i] = bot.step(timestep_bot, states[i])
+        next_step = bot.step(timestep_bot)
+        actions[i] = next_step
+        
+    action_list = [int(item[0]) for item in actions.values()]
+    timestep = env.step(action_list)
+    actions = update(actions)
 
-    timestep = env.step(actions)
+# delete first row of the array
+def update(actions):
+  for key in actions:
+    actions[key] = actions[key][1:] if len(actions[key]) > 1 else []
+  return actions
 
 if __name__ == "__main__":
   main()
+
