@@ -863,11 +863,13 @@ local Surroundings = class.Class(component.Component)
 function Surroundings:__init__(kwargs)
   kwargs = args.parse(kwargs, {
       {'name', args.default('Surroundings')},
-      {'observationRadius', args.numberType}
+      {'observationRadius', args.numberType},
+      {'mapSize', args.tableType}
   })
   Surroundings.Base.__init__(self, kwargs)
 
   self._config.observationRadius = kwargs.observationRadius
+  self._config.mapSize = kwargs.mapSize
 end
 
 function Surroundings:reset()
@@ -899,21 +901,21 @@ function Surroundings:update()
   -- unpack observation arguments
   local transform = self.gameObject:getComponent('Transform')
   local radius = self._config.observationRadius
+  local mapSize = self._config.mapSize
 
-  local position = self.gameObject:getPosition()
-  local x = position[1]-radius > 0 and position[1]-radius or 1
-  local y = position[2]-radius > 0 and position[2]-radius or 1
+  local pos = self.gameObject:getPosition()
+  local x = pos[1]-radius > 0 and pos[1]-radius or 1
+  local y = pos[2]-radius > 0 and pos[2]-radius or 1
 
-  local x_stop = position[1]+radius
-  local y_stop = position[2]+radius
-
-  local shape = self.surroundings:shape()
+  local x_stop = pos[1]+radius <= mapSize[1] and pos[1]+radius or mapSize[1]
+  local y_stop = pos[2]+radius <= mapSize[2] and pos[2]+radius or mapSize[2]
 
   --[[ get all apples in this observation radius and 
   transform into binary observation tensor to output ]]
   for i=x, x_stop do
     for j=y, y_stop do
-      if transform:queryPosition('lowerPhysical', {i, j}) ~= nil then
+      local object = transform:queryPosition('lowerPhysical', {i, j})
+      if object ~= nil and object:hasComponent("Edible") then
         self.surroundings(i, j):val(1.0) -- apples
       else
         self.surroundings(i, j):val(0.0)

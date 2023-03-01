@@ -104,6 +104,10 @@ WGGGGGGGGGGGGGGGGGGGGGGGGGGGGW
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 """
 
+x_size = ASCII_MAP.find('\n', 1) -1
+y_size = ASCII_MAP.count('\n') -1
+MAP_SIZE = (x_size, y_size)
+
 # `prefab` determines which prefab game object to use for each `char` in the
 # ascii map.
 CHAR_PREFAB_MAP = {
@@ -1007,6 +1011,7 @@ def create_avatar_object(player_idx: int,
               "component": "Surroundings",
               "kwargs": {
                   "observationRadius": OBSERVATION_RADIUS,
+                  "mapSize": MAP_SIZE,
               }
           },
           {

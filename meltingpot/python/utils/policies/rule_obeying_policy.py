@@ -22,7 +22,7 @@ from typing import Any
 
 from queue import PriorityQueue
 
-from pysmt_rules import Rules
+from meltingpot.python.utils.policies.pysmt_rules import Rules
 
 import numpy as np
 from copy import deepcopy
@@ -44,10 +44,8 @@ class RuleObeyingPolicy(policy.Policy):
     Args:
       RuleObeyingAgent: Instantiate the RuleObeyingAgent class.
     """
-    self._max_depth = 20
-    self._env = env
+    self._max_depth = 10
     self.action_spec = env.action_spec()[0]
-    self.observation_spec = env.observation_spec()
 
     # move actions
     self.action_to_pos = [
@@ -127,9 +125,9 @@ class RuleObeyingPolicy(policy.Policy):
         return cur_plan[1:] # 'plan' is initialized with a non-empty onset
 
       # Get the list of actions that are possible and satisfy the rules
-      # available_actions = self.available_actions(cur_timestep)
+      available_actions = self.available_actions(cur_timestep)
 
-      for action in range(7): # currently exclude all beams
+      for action in available_actions: # currently exclude all beams
         cur_plan_copy = deepcopy(cur_plan)
         cur_timestep_copy = deepcopy(cur_timestep)
         next_plan =  np.append(cur_plan_copy, action)
@@ -145,7 +143,7 @@ class RuleObeyingPolicy(policy.Policy):
   def available_actions(self, timestep: dm_env.TimeStep) -> list[int]:
     """Return the available actions at a given timestep."""
     actions = []
-    for action in range(self.action_spec.num_values):
+    for action in range(7): # self.action_spec.num_values
       if self.is_allowed(timestep, action):
         actions.append(action)
 
@@ -157,7 +155,26 @@ class RuleObeyingPolicy(policy.Policy):
     orientation = observation['ORIENTATION'].item()
     if action <= 4: # if it is a move, alter the position to be observed
       observation['POSITION'] += self.action_to_pos[orientation][action]
-    return self.rules.check(observation, action)
+    observation = self.update_observation(observation)
+    return self.rules.check(observation)
+  
+  def update_observation(self, observation):
+    """Updates the observation with requested information."""
+    # lua is 1-indexed
+    x, y = observation['POSITION'][0]-1, observation['POSITION'][1]-1
+    observation['num_apples_around'] = self.get_apples(observation, x, y)
+    observation['has_apple'] = True if observation['SURROUNDINGS'][x][y] == 1 else False
+    return observation
+  
+  def get_apples(self, observation, x, y):
+    """Returns the sum of apples around a certain position."""
+    sum = 0
+    for i in range(x-1, x+2):
+      for j in range(y-1, y+2):
+        if observation['SURROUNDINGS'][i][j] == 1:
+          sum += 1
+    
+    return sum
 
   def is_goal(self, timestep, prev_reward, step_count):
     """Check whether any of the stop criteria are met."""
@@ -176,3 +193,29 @@ class RuleObeyingPolicy(policy.Policy):
   def close(self) -> None:
     """See base class."""
     self._agent.close()
+
+
+"""
+{
+GLOBAL:
+'Y', # number of agents that's supposed to be cleaning = 50% of total number of agents
+'cleaning_rhythm', # INT
+'num_cleaners', # INT
+'water_polluted', # BOOL
+'cleaner_cleans', # BOOL
+
+AGENT OBSERVATION:
+'since_last_cleaned' # INT
+'agent_has_stolen', # BOOL
+'paid_by_farmer', # BOOL
+'cleaner_role', # BOOL
+'farmer_role', # BOOL
+'apples_paid', # INT
+'clean_action', # action
+
+CELL OBSERVATION:
+'num_apples_around', # INT
+'forgein_property', # BOOL
+'has_apples', # BOOL
+}
+"""
