@@ -90,7 +90,6 @@ def main():
         next_step = bot.step(timestep_bot)
         actions[i] = next_step
         
-    print(actions)
     action_list = [int(item[0]) for item in actions.values()]
     timestep = env.step(action_list)
     actions = update(actions)
