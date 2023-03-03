@@ -67,7 +67,7 @@ def main():
   game_display = pygame.display.set_mode(
       (int(shape[1] * scale), int(shape[0] * scale)))
 
-  for _ in range(50):
+  for k in range(50):
     obs = timestep.observation[0]["WORLD.RGB"]
     obs = np.transpose(obs, (1, 0, 2))
     surface = pygame.surfarray.make_surface(obs)
@@ -102,4 +102,3 @@ def update(actions):
 
 if __name__ == "__main__":
   main()
-

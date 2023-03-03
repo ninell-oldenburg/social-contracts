@@ -44,8 +44,10 @@ class RuleObeyingPolicy(policy.Policy):
     Args:
       RuleObeyingAgent: Instantiate the RuleObeyingAgent class.
     """
-    self._max_depth = 10
+    self._max_depth = 40
     self.action_spec = env.action_spec()[0]
+    self.x_min, self.y_min = 0, 0
+    self.x_max, self.y_max = 30, 27 # TODO: get values 
 
     # move actions
     self.action_to_pos = [
@@ -60,6 +62,12 @@ class RuleObeyingPolicy(policy.Policy):
             [0, 2], # E
             [1, 3], # S
             [2, 0], # W
+          ]
+    # beams
+    self.action_to_beam = [
+            "CLEAN_ACTION",
+            "ZAP_ACTION",
+            "CLAIM_ACTION",
           ]
     
     self.rules = Rules()
@@ -143,18 +151,23 @@ class RuleObeyingPolicy(policy.Policy):
   def available_actions(self, timestep: dm_env.TimeStep) -> list[int]:
     """Return the available actions at a given timestep."""
     actions = []
-    for action in range(7): # self.action_spec.num_values
+    for action in range(8): # self.action_spec.num_values
       if self.is_allowed(timestep, action):
         actions.append(action)
 
     return actions
   
   def is_allowed(self, timestep, action):
-    """Return True if an action is allowed given the current timestep"""
+    """Returns True if an action is allowed given the current timestep"""
     observation = deepcopy(timestep.observation)
     orientation = observation['ORIENTATION'].item()
-    if action <= 4: # if it is a move, alter the position to be observed
+    if action <= 4: # record and alter move
       observation['POSITION'] += self.action_to_pos[orientation][action]
+    elif action >= 7: # record and alter beam
+      action = action - 7 # zero-indexed
+      action_desc = self.action_to_beam[action]
+      observation[action_desc] = True
+    
     observation = self.update_observation(observation)
     return self.rules.check(observation)
   
@@ -162,8 +175,12 @@ class RuleObeyingPolicy(policy.Policy):
     """Updates the observation with requested information."""
     # lua is 1-indexed
     x, y = observation['POSITION'][0]-1, observation['POSITION'][1]-1
-    observation['num_apples_around'] = self.get_apples(observation, x, y)
-    observation['has_apple'] = True if observation['SURROUNDINGS'][x][y] == 1 else False
+    observation['NUM_APPLES_AROUND'] = self.get_apples(observation, x, y)
+    observation['HAS_APPLE'] = True if observation['SURROUNDINGS'][x][y] == 1 else False
+    observation['IS_AT_WATER'] = True if observation['IS_AT_WATER'] == 1 else False
+    for action in self.action_to_beam:
+        if action not in observation.keys(): observation[action] = False 
+        
     return observation
   
   def get_apples(self, observation, x, y):
@@ -171,10 +188,18 @@ class RuleObeyingPolicy(policy.Policy):
     sum = 0
     for i in range(x-1, x+2):
       for j in range(y-1, y+2):
-        if observation['SURROUNDINGS'][i][j] == 1:
-          sum += 1
+        if not self.map_boundaries(i, j):
+          if observation['SURROUNDINGS'][i][j] == 1:
+            sum += 1
     
     return sum
+  
+  def map_boundaries(self, x, y):
+    if x <= self.x_min or x >= self.x_max:
+      return True
+    if y <= self.y_min or y >= self.y_max:
+      return True
+    return False
 
   def is_goal(self, timestep, prev_reward, step_count):
     """Check whether any of the stop criteria are met."""

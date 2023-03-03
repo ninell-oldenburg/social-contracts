@@ -7,8 +7,9 @@ class Rules():
     def __init__(self):
         # define reoccurring variable
         foreign_property = Symbol('forgein_property', BOOL)
-        has_apple = Symbol('has_apple', BOOL)
-        clean_action = Symbol('clean_action', BOOL)
+        has_apple = Symbol('HAS_APPLE', BOOL)
+        clean_action = Symbol('CLEAN_ACTION', BOOL)
+        dirt_fraction = Symbol('DIRT_FRACTION', REAL)
         cleaner_role = Symbol('cleaner_role', BOOL)
         farmer_role = Symbol('farmer_role', BOOL)
         apples_paid = Symbol('apples_paid', INT)
@@ -16,15 +17,17 @@ class Rules():
         # define rules
         self.rules = [
             # don't if <2 apples around
-            Not(And(has_apple, LT(Symbol('num_apples_around', INT), Int(3))))]
-            # don't if forgein property and has apples 
+            Not(And(has_apple, LT(Symbol('NUM_APPLES_AROUND', INT), Int(3)))),
+            # don't fire the cleaning beam if you're not close to the water
+            Not(And(clean_action, Not(Symbol('IS_AT_WATER', BOOL)))),
+            # every time the water gets too polluted, go clean the water
+            Implies(GT(dirt_fraction, Real(0.6)), clean_action),]
         """
+            # don't if forgein property and has apples 
             Not(And(foreign_property, has_apples)),
             # do if forgein property but person has stolen before
             And(And(foreign_property, has_apples),
                 And(Symbol('agent_has_stolen', BOOL))),
-            # every time the water gets too polluted, go clean the water
-            Implies(Symbol('water_polluted', BOOL), clean_action),
             # every X turns, go clean the water
             Implies(Equals(Symbol('since_last_cleaned', INT), Symbol('cleaning_rhythm', INT)),
                     clean_action),
@@ -58,12 +61,22 @@ class Rules():
         return is_sat(problem)
 
     def get_property(self, property, observation):
-        """Get the requested properties from the observations."""
+        """Get the requested properties from the observations
+        and cast to pySMT compatible type."""
         value = observation[str(property)]
+        if isinstance(value, np.ndarray) and value.shape == ():
+            value = value.reshape(-1,) # unpack numpy array
+            value = value[0]
+        if isinstance(value, np.int32):
+            value = int(value) # cast dtypes
+        elif isinstance(value, np.float64):
+            value = float(value)
         if isinstance(value, bool):
             value = Bool(value)
         elif isinstance(value, int):
             value = Int(value)
+        elif isinstance (value, float):
+            value = Real(value)
 
         return value
     

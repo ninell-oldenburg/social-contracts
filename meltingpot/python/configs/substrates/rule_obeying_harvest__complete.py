@@ -72,20 +72,16 @@ PrefabConfig = game_object_utils.PrefabConfig
 
 APPLE_RESPAWN_RADIUS = 2.0
 REGROWTH_PROBABILITIES = [0.0, 0.0025, 0.005, 0.025]
-OBSERVATION_RADIUS = 3
+OBSERVATION_RADIUS = 5 # defines radius that agents can observe
 
 ASCII_MAP = """
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 WHFFFHFFHFHFHFHFHFHFHHFHFFFHFW
 WHFHFHFFHFHFHFHFHFHFHHFHFFFHFW
-WHFFHFFHHFHFHFHFHFHFHHFHFFFHFW
-WHFHFHFFHFHFHFHFHFHFHHFHFFFHFW
 WHFFFFFFHFHFHFHFHFHFHHFHFFFHFW
 W==============+~FHHHHHHf====W
 W   P    P      ===+~SSf     W
 W     P     P   P  <~Sf  P   W
-W             P   P<~S>      W
-W           P      <~S> P    W
 W  P             P <~S>      W
 W^T^T^T^T^T^T^T^T^T;~S,^T^T^TW
 WAAA____A_____________A____AAW
@@ -703,7 +699,7 @@ def create_reward_indicator(num_players) -> PrefabConfig:
 
 def get_water():
   """Get an animated water game object."""
-  layer = "background"
+  layer = "lowerPhysical"
   water = {
       "name": "water_{}".format(layer),
       "components": [
@@ -894,7 +890,7 @@ def create_scene():
               },
           },
           {
-              "component": "GlobalData",
+              "component": "GlobalData"
           },
           {
               "component": "Neighborhoods",
@@ -1083,6 +1079,20 @@ def create_avatar_object(player_idx: int,
                           "variable": "player_cleaned",
                       },
                       {
+                          "name": "DIRT_FRACTION",
+                          "type": "Doubles",
+                          "shape": [],
+                          "component": "Surroundings",
+                          "variable": "dirtFraction",
+                      },
+                      {
+                          "name": "IS_AT_WATER",
+                          "type": "Int32s",
+                          "shape": [],
+                          "component": "Surroundings",
+                          "variable": "isAtWater",
+                      },
+                      {
                           "name": "PLAYER_ATE_APPLE",
                           "type": "Doubles",
                           "shape": [],
@@ -1230,9 +1240,13 @@ def get_config():
       "SURROUNDINGS",
       "NUM_OTHERS_PLAYER_ZAPPED_THIS_STEP",
 
+      # Global observations
+      'DIRT_FRACTION',
+
       # Global switching signals for puppeteers.
       "NUM_OTHERS_WHO_CLEANED_THIS_STEP",
       "NUM_OTHERS_WHO_ATE_THIS_STEP",
+      'IS_AT_WATER',
 
       # Debug only (do not use the following observations in policies).
       "POSITION",

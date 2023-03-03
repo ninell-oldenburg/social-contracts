@@ -875,31 +875,55 @@ end
 function Surroundings:reset()
   -- TODO: change to actual grid world size
   self.surroundings = tensor.DoubleTensor(30, 30):fill(0)
+  self.numApplesAround = 0
+  self.dirtFraction = 0.0
+  self.isAtWater = 0
 end
 
 function Surroundings:start()
+  self.transform = self.gameObject:getComponent('Transform')
   self:reset()
 end
 
 function Surroundings:postStart()
+  local sceneObject = self.gameObject.simulation:getSceneObject()
+  self._riverMonitor = sceneObject:getComponent('RiverMonitor')
   self:update()
 end
 
-function Surroundings:getNumApples()
-  local transform = self.gameObject:getComponent('Transform')
-  numApples = transform:queryDisc('lowerPhysical', self._config.observationRadius)
-  return numApples
+function Surroundings:updateDirt()
+  local dirtCount = self._riverMonitor:getDirtCount()
+  local cleanCount = self._riverMonitor:getCleanCount()
+  local dirtFraction = dirtCount / (dirtCount + cleanCount)
+  -- check for nan value
+  if dirtFraction == dirtFraction then return dirtFraction
+  else return 0 
+  end
 end
 
-function Surroundings:getNumPlayers()
-  local transform = self.gameObject:getComponent('Transform')
-  numPlayers = transform:queryDisc('upperPhysical', self._config.observationRadius)
-  return numPlayers
+function Surroundings:updateProximity()
+  -- Calculate the key coordination of agent
+  local pos = self.gameObject:getPosition()
+  local upperLeft = {pos[1]-1, pos[2]-1}
+  local itemCount = 0
+  local lowerRight = {pos[1]+2, pos[2]+1}
+  -- Get objects on lowerPhysical
+  local object = self.transform:queryRectangle('upperPhysical', upperLeft, lowerRight)
+  for _, item in pairs(object) do
+    itemCount = itemCount + 1
+    if item:hasComponent('DirtTracker') then
+      return 1
+    end
+  end
+  return 0
 end
 
 function Surroundings:update()
+  -- update dirtFraction
+  self.dirtFraction = self:updateDirt()
+  -- update local proximity values
+  self.isAtWater = self:updateProximity()
   -- unpack observation arguments
-  local transform = self.gameObject:getComponent('Transform')
   local radius = self._config.observationRadius
   local mapSize = self._config.mapSize
 
@@ -907,18 +931,20 @@ function Surroundings:update()
   local x = pos[1]-radius > 0 and pos[1]-radius or 1
   local y = pos[2]-radius > 0 and pos[2]-radius or 1
 
-  local x_stop = pos[1]+radius <= mapSize[1] and pos[1]+radius or mapSize[1]
-  local y_stop = pos[2]+radius <= mapSize[2] and pos[2]+radius or mapSize[2]
+  local x_lim = pos[1]+radius <= mapSize[1] and pos[1]+radius or mapSize[1]
+  local y_lim = pos[2]+radius <= mapSize[2] and pos[2]+radius or mapSize[2]
 
   --[[ get all apples in this observation radius and 
   transform into binary observation tensor to output ]]
-  for i=x, x_stop do
-    for j=y, y_stop do
-      local object = transform:queryPosition('lowerPhysical', {i, j})
-      if object ~= nil and object:hasComponent("Edible") then
-        self.surroundings(i, j):val(1.0) -- apples
+  for i=x, x_lim do
+    for j=y, y_lim do
+      local object = self.transform:queryPosition('lowerPhysical', {i, j})
+      if object ~= nil then
+        if object:hasComponent("Edible") then
+          self.surroundings(i, j):val(1) -- apples
+      end
       else
-        self.surroundings(i, j):val(0.0)
+        self.surroundings(i, j):val(0)
       end
     end
   end
@@ -931,7 +957,7 @@ local Taste = class.Class(component.Component)
 function Taste:__init__(kwargs)
   kwargs = args.parse(kwargs, {
       {'name', args.default('Taste')},
-      {'role', args.default('free'), args.oneOf('free', 'cleaner', 'consumer')},
+      {'role', args.default('free'), args.oneOf('free', 'cleaner', 'farmer')},
       {'rewardAmount', args.default(1), args.numberType},
 
   })
@@ -954,7 +980,7 @@ function Taste:cleaned()
   if self._config.role == 'cleaner' then
     self.gameObject:getComponent('Avatar'):addReward(self._config.rewardAmount)
   end
-  if self._config.role == 'consumer' then
+  if self._config.role == 'farmer' then
     self.gameObject:getComponent('Avatar'):addReward(0.0)
   end
 end
@@ -962,7 +988,7 @@ end
 function Taste:consumed(edibleDefaultReward)
   if self._config.role == 'cleaner' then
     self.gameObject:getComponent('Avatar'):addReward(0.0)
-  elseif self._config.role == 'consumer' then
+  elseif self._config.role == 'farmer' then
     self.gameObject:getComponent('Avatar'):addReward(self._config.rewardAmount)
   else
     self.gameObject:getComponent('Avatar'):addReward(edibleDefaultReward)
