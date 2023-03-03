@@ -32,22 +32,22 @@ from meltingpot.python.utils.policies import policy
 @dataclass(order=True)
 class PrioritizedItem:
     priority: float
+    order: int
     item: Any=field(compare=False)
     
 
 class RuleObeyingPolicy(policy.Policy):
   """A puppet policy controlled by a certain environment rules."""
 
-  def __init__(self, env: dm_env.Environment) -> None:
+  def __init__(self, env: dm_env.Environment, components: list) -> None:
     """Initializes the policy.
 
     Args:
       RuleObeyingAgent: Instantiate the RuleObeyingAgent class.
     """
-    self._max_depth = 40
+    self.components = components
+    self._max_depth = 4
     self.action_spec = env.action_spec()[0]
-    self.x_min, self.y_min = 0, 0
-    self.x_max, self.y_max = 30, 27 # TODO: get values 
 
     # move actions
     self.action_to_pos = [
@@ -70,7 +70,7 @@ class RuleObeyingPolicy(policy.Policy):
             "CLAIM_ACTION",
           ]
     
-    self.rules = Rules()
+    self.rules = Rules(components)
     
   def step(self, 
            timestep: dm_env.TimeStep,
@@ -89,6 +89,8 @@ class RuleObeyingPolicy(policy.Policy):
     # lua is one indexed
     x, y = observation['POSITION'][0]-1, observation['POSITION'][1]-1
     reward_map = observation['SURROUNDINGS']
+    if self.exceeds_map(observation['WORLD.RGB'], x, y):
+      return (-1)
     return reward_map[x][y]
 
   def env_step(self, timestep: dm_env.TimeStep, action) -> dm_env.TimeStep:
@@ -122,14 +124,14 @@ class RuleObeyingPolicy(policy.Policy):
     """Perform a A* search to generate plan."""
     plan = np.zeros(shape=1, dtype=int)
     queue = PriorityQueue()
-    queue.put(PrioritizedItem(0.0, (timestep, plan))) # ordered by reward
+    queue.put(PrioritizedItem(0.0, 0, (timestep, plan))) # ordered by reward
     step_count = 0
     prev_reward = timestep.reward
 
     while not queue.empty():
       priority_item = queue.get()
       cur_timestep, cur_plan = priority_item.item
-      if self.is_goal(cur_timestep, prev_reward, step_count):
+      if self.is_goal(cur_timestep, prev_reward, len(cur_plan)):
         return cur_plan[1:] # 'plan' is initialized with a non-empty onset
 
       # Get the list of actions that are possible and satisfy the rules
@@ -140,10 +142,10 @@ class RuleObeyingPolicy(policy.Policy):
         cur_timestep_copy = deepcopy(cur_timestep)
         next_plan =  np.append(cur_plan_copy, action)
         next_timestep = self.env_step(cur_timestep_copy, action)
-        queue.put(PrioritizedItem(next_timestep.reward*(-1), # ascending
-                                 (next_timestep, next_plan))
+        queue.put(PrioritizedItem(priority=next_timestep.reward*(-1), # ascending
+                                  order=len(next_plan), # for same reward, use action order
+                                  item=(next_timestep, next_plan))
                                  )
-
       step_count += 1
 
     return False
@@ -151,7 +153,7 @@ class RuleObeyingPolicy(policy.Policy):
   def available_actions(self, timestep: dm_env.TimeStep) -> list[int]:
     """Return the available actions at a given timestep."""
     actions = []
-    for action in range(8): # self.action_spec.num_values
+    for action in range(self.action_spec.num_values): # self.action_spec.num_values
       if self.is_allowed(timestep, action):
         actions.append(action)
 
@@ -165,19 +167,22 @@ class RuleObeyingPolicy(policy.Policy):
       observation['POSITION'] += self.action_to_pos[orientation][action]
     elif action >= 7: # record and alter beam
       action = action - 7 # zero-indexed
-      action_desc = self.action_to_beam[action]
-      observation[action_desc] = True
+      action_name = self.action_to_beam[action]
+      observation[action_name] = True # to check for pySMT rules
     
     observation = self.update_observation(observation)
     return self.rules.check(observation)
   
   def update_observation(self, observation):
+    # TODO: make this nice and readable
     """Updates the observation with requested information."""
     # lua is 1-indexed
     x, y = observation['POSITION'][0]-1, observation['POSITION'][1]-1
     observation['NUM_APPLES_AROUND'] = self.get_apples(observation, x, y)
-    observation['HAS_APPLE'] = True if observation['SURROUNDINGS'][x][y] == 1 else False
-    observation['IS_AT_WATER'] = True if observation['IS_AT_WATER'] == 1 else False
+    observation['HAS_APPLE'] = True if not self.exceeds_map(observation['WORLD.RGB'], x, y) \
+      and observation['SURROUNDINGS'][x][y] == 1 else False
+    if 'pollution' in self.components:
+      observation['IS_AT_WATER'] = True if observation['IS_AT_WATER'] == 1 else False
     for action in self.action_to_beam:
         if action not in observation.keys(): observation[action] = False 
         
@@ -188,26 +193,28 @@ class RuleObeyingPolicy(policy.Policy):
     sum = 0
     for i in range(x-1, x+2):
       for j in range(y-1, y+2):
-        if not self.map_boundaries(i, j):
+        if not self.exceeds_map(observation['WORLD.RGB'], i, j):
           if observation['SURROUNDINGS'][i][j] == 1:
             sum += 1
     
     return sum
   
-  def map_boundaries(self, x, y):
-    if x <= self.x_min or x >= self.x_max:
+  def exceeds_map(self, world_rgb, x, y):
+    x_max = world_rgb.shape[1] / 8
+    y_max = world_rgb.shape[0] / 8
+    if x <= 0 or x >= x_max:
       return True
-    if y <= self.y_min or y >= self.y_max:
+    if y <= 0 or y >= y_max:
       return True
     return False
 
-  def is_goal(self, timestep, prev_reward, step_count):
+  def is_goal(self, timestep, prev_reward, plan_length):
     """Check whether any of the stop criteria are met."""
     if timestep.reward > prev_reward:
       return True
     elif timestep.last():
       return True
-    elif step_count == self._max_depth:
+    elif plan_length > self._max_depth:
       return True
     return False
 
@@ -218,29 +225,3 @@ class RuleObeyingPolicy(policy.Policy):
   def close(self) -> None:
     """See base class."""
     self._agent.close()
-
-
-"""
-{
-GLOBAL:
-'Y', # number of agents that's supposed to be cleaning = 50% of total number of agents
-'cleaning_rhythm', # INT
-'num_cleaners', # INT
-'water_polluted', # BOOL
-'cleaner_cleans', # BOOL
-
-AGENT OBSERVATION:
-'since_last_cleaned' # INT
-'agent_has_stolen', # BOOL
-'paid_by_farmer', # BOOL
-'cleaner_role', # BOOL
-'farmer_role', # BOOL
-'apples_paid', # INT
-'clean_action', # action
-
-CELL OBSERVATION:
-'num_apples_around', # INT
-'forgein_property', # BOOL
-'has_apples', # BOOL
-}
-"""

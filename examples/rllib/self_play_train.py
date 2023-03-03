@@ -28,7 +28,7 @@ from meltingpot.python import substrate
 
 
 def get_config(
-    substrate_name: str = "clean_up",
+    substrate_name: str = "rule_obeying_harvest__complete",
     num_rollout_workers: int = 2,
     rollout_fragment_length: int = 100,
     train_batch_size: int = 6400,
@@ -81,10 +81,6 @@ def get_config(
 
   # 4. Extract space dimensions
   test_env = utils.env_creator(config.env_config)
-
-  print()
-  print(test_env)
-  print()
 
   # Setup PPO with policies, one per entry in default player roles.
   policies = {}

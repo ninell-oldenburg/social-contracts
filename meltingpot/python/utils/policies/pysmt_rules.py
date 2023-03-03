@@ -4,7 +4,8 @@ from pysmt.smtlib.script import SmtLibScript
 import numpy as np
 
 class Rules():
-    def __init__(self):
+    def __init__(self, components):
+        self.components = components
         # define reoccurring variable
         foreign_property = Symbol('forgein_property', BOOL)
         has_apple = Symbol('HAS_APPLE', BOOL)
@@ -19,9 +20,10 @@ class Rules():
             # don't if <2 apples around
             Not(And(has_apple, LT(Symbol('NUM_APPLES_AROUND', INT), Int(3)))),
             # don't fire the cleaning beam if you're not close to the water
-            Not(And(clean_action, Not(Symbol('IS_AT_WATER', BOOL)))),
+            #Not(And(clean_action, Not(Symbol('IS_AT_WATER', BOOL)))),
             # every time the water gets too polluted, go clean the water
-            Implies(GT(dirt_fraction, Real(0.6)), clean_action),]
+            #Implies(GT(dirt_fraction, Real(0.6)), clean_action),
+            ]
         """
             # don't if forgein property and has apples 
             Not(And(foreign_property, has_apples)),

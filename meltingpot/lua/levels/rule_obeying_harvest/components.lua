@@ -873,8 +873,8 @@ function Surroundings:__init__(kwargs)
 end
 
 function Surroundings:reset()
-  -- TODO: change to actual grid world size
-  self.surroundings = tensor.DoubleTensor(30, 30):fill(0)
+  x_len, y_len = self._config.mapSize[1], self._config.mapSize[2]
+  self.surroundings = tensor.DoubleTensor(x_len, y_len):fill(0)
   self.numApplesAround = 0
   self.dirtFraction = 0.0
   self.isAtWater = 0
@@ -935,7 +935,7 @@ function Surroundings:update()
   local y_lim = pos[2]+radius <= mapSize[2] and pos[2]+radius or mapSize[2]
 
   --[[ get all apples in this observation radius and 
-  transform into binary observation tensor to output ]]
+  transform into binary observation tensor to output]]
   for i=x, x_lim do
     for j=y, y_lim do
       local object = self.transform:queryPosition('lowerPhysical', {i, j})
