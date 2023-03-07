@@ -522,12 +522,6 @@ function Resource:_claim(hittingGameObject)
 end
 
 function Resource:onHit(hittingGameObject, hitName)
-  --[[
-  if string.sub(hitName, 1, string.len('directionHit')) == 'directionHit' then
-    self:_claim(hittingGameObject)
-  end
-  ]]
-
   for i = 1, self._numPlayers do
     local beamName = 'claimBeam_' .. tostring(i)
     if hitName == beamName then
@@ -790,6 +784,52 @@ function ResourceClaimer:registerUpdaters(updaterRegistry)
   updaterRegistry:registerUpdater{
       updateFn = claim,
   }
+end
+
+
+-- [[ Property records claimed property of agents]]
+local Property = class.Class(component.Component)
+
+function Property:__init__(kwargs)
+  kwargs = args.parse(kwargs, {
+      {'name', args.default('Property')},
+      {'playerIndex', args.numberType},
+      {'radius', args.numberType},
+  })
+  Property.Base.__init__(self, kwargs)
+
+  self._kwargs = kwargs
+  self._config.playerIndex = kwargs.playerIndex
+  self._config.radius = kwargs.radius
+
+end
+
+function Property:start()
+  self.transform = self.gameObject:getComponent('Transform')
+end
+
+function Property:markRectangle()
+  -- Calculate the key coordinates of agent
+  local radius = self._config.radius
+  local pos = self.gameObject:getPosition()
+  local upperLeft = {pos[1]-radius, pos[2]-radius}
+  local lowerRight = {pos[1]+radius, pos[2]+radius}
+  hittingGameObject = self.gameObject
+  local object = self.transform:queryRectangle('lowerPhysical', upperLeft, lowerRight)
+  for _, item in pairs(object) do
+    if item:hasComponent('Resource') then
+      resource = item:getComponent('Resource')
+      resource:_claim(hittingGameObject)
+    end
+  end
+end
+
+function Property:postStart()
+  self:markRectangle()
+end
+
+function Property:update()
+-- think about how property should work: where shuold the property be saved?
 end
 
 --[[ Renders a map-sized int-tensor to the observations of the avatar
@@ -1083,6 +1123,7 @@ local allComponents = {
     Taste = Taste,
     ResourceClaimer = ResourceClaimer,
     Surroundings = Surroundings,
+    Property = Property,
 
     -- Scene components.
     DirtSpawner = DirtSpawner,

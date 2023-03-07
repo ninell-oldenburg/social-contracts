@@ -956,6 +956,13 @@ def create_avatar_object(player_idx: int,
               }
           },
           {
+             "component": "Property",
+              "kwargs": {
+                  "playerIndex": lua_index,
+                  "radius": 2,
+              }
+          },
+          {
               "component": "Surroundings",
               "kwargs": {
                   "observationRadius": OBSERVATION_RADIUS,
