@@ -62,9 +62,10 @@ def main():
   # Create a new environment to visualise
   env = utils.env_creator(config["env_config"]).get_dmlab2d_env()
 
-  # change from GitHub issue https://github.com/deepmind/meltingpot/issues/110
-  num_bots = substrate.get_config(substrate_name).default_player_roles
-  bots = [utils.RayModelPolicy(trainer, f"agent_{bot}") for bot in num_bots]
+  bots = [
+      utils.RayModelPolicy(trainer, f"agent_{i}")
+      for i in range(len(config["env_config"]["default_player_roles"]))
+  ]
 
   timestep = env.reset()
   states = [bot.initial_state() for bot in bots]

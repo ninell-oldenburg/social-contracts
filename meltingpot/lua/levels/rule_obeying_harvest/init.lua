@@ -14,6 +14,8 @@ limitations under the License.
 ]]
 
 -- Entry point lua file for the commons_harvest substrate.
+local class = require 'common.class'
+local helpers = require 'common.helpers'
 
 local meltingpot = 'meltingpot.lua.modules.'
 local api_factory = require(meltingpot .. 'api_factory')
@@ -24,8 +26,24 @@ local component_library = require(meltingpot .. 'component_library')
 local avatar_library = require(meltingpot .. 'avatar_library')
 local components = require 'components'
 
+local OverrideSimulation = class.Class(simulation.BaseSimulation)
+
+function OverrideSimulation:worldConfig()
+  local config = simulation.BaseSimulation.worldConfig(self)
+  local index = 0
+  -- Add layer 'appleLayer' below 'midPhysical'.
+  for layerIndex, layerName in ipairs(config.renderOrder) do
+    if layerName == 'upperPhysical' then
+      index = layerIndex
+      break
+    end
+  end
+  table.insert(config.renderOrder, index, 'appleLayer')
+  return config
+end
+
 return api_factory.apiFactory{
-    Simulation = simulation.BaseSimulation,
+    Simulation = OverrideSimulation,
     settings = {
         -- Scale each sprite to a square of size `spriteSize` X `spriteSize`.
         spriteSize = 8,

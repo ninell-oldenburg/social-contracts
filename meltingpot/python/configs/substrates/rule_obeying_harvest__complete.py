@@ -90,7 +90,7 @@ WA____AAAAA_________AAAAA____W
 W______AAA___________AAA_____W
 W_______A_____________A______W
 W__A___________A__________A__W
-W_AAA__Q______AAA_____Q__AAA_W
+W_AAA___Q_____AAA____Q___AAA_W
 WAAAAA_______AAAAA______AAAAAW
 W_AAA_________AAA________AAA_W
 W__A___________A__________A__W
@@ -123,11 +123,11 @@ CHAR_PREFAB_MAP = {
     "H": {"type": "all", "list": ["river", "potential_dirt"]},
     "F": {"type": "all", "list": ["river", "actual_dirt"]},
     "~": {"type": "all", "list": ["river", "shadow_w",]},
-    "_": "grass",
-    "Q": {"type": "all", "list": ["grass", "inside_spawn_point"]},
-    "s": {"type": "all", "list": ["grass", "shadow_n"]},
-    "A": {"type": "all", "list": ["grass", "apple"]},
-    "G": {"type": "all", "list": ["grass", "spawn_point"]},
+    "_": {"type": "all", "list": ["resource_texture", "resource"]},
+    "Q": {"type": "all", "list": ["resource_texture", "resource", "inside_spawn_point"]},
+    "s": {"type": "all", "list": ["resource_texture", "resource", "shadow_n"]},
+    "A": {"type": "all", "list": ["resource_texture", "resource", "apple"]},
+    "G": {"type": "all", "list": ["resource_texture", "resource", "spawn_point"]},
 }
 
 _COMPASS = ["N", "E", "S", "W"]
@@ -556,7 +556,7 @@ def create_resource(num_players: int) -> PrefabConfig:
     wet_sprite_name = "Color" + str(lua_player_idx) + "ResourceSprite"
     claim_state_configs.append({
         "state": "claimed_by_" + str(lua_player_idx),
-        "layer": "upperPhysical",
+        "layer": "lowerPhysical",
         "sprite": wet_sprite_name,
         "groups": ["claimedResources"]
     })
@@ -569,14 +569,13 @@ def create_resource(num_players: int) -> PrefabConfig:
       "name": "resource",
       "components": [
           {
-              "component": "StateManager",
+            "component": "StateManager",
               "kwargs": {
-                  "initialState": "unclaimed",
+                  "initialState": "unclaimedGrass",
                   "stateConfigs": [
-                      {"state": "unclaimed",
-                       "layer": "upperPhysical",
+                      {"state": "unclaimedGrass",
+                       "layer": "lowerPhysical",
                        "sprite": "UnclaimedResourceSprite"},
-                      {"state": "destroyed"},
                   ] + claim_state_configs,
               }
           },
@@ -596,9 +595,6 @@ def create_resource(num_players: int) -> PrefabConfig:
               "kwargs": {
                   "initialHealth": 2,
                   "destroyedState": "destroyed",
-                  "reward": 1.0,
-                  "rewardRate": 0.01,
-                  "rewardDelay": 25,
                   "delayTillSelfRepair": 15,
                   "selfRepairProbability": 0.1,
               }
@@ -608,19 +604,25 @@ def create_resource(num_players: int) -> PrefabConfig:
   return prefab
 
 def create_resource_texture() -> PrefabConfig:
-  """Configure the background texture for a resource. It looks like a wall."""
+  """Configure the background texture for a resource. It looks like grass."""
   prefab = {
       "name": "resource_texture",
       "components": [
           {
               "component": "StateManager",
               "kwargs": {
-                  "initialState": "unclaimed",
+                  "initialState": "grass",
                   "stateConfigs": [
-                      {"state": "unclaimed",
-                       "layer": "lowerPhysical",
-                       "sprite": "UnclaimedResourceSprite"},
-                      {"state": "destroyed"},
+                    {
+                        "state": "grass",
+                        "layer": "background",
+                        "sprite": "grass"
+                    },
+                    {
+                        "state": "dessicated",
+                        "layer": "background",
+                        "sprite": "floor"
+                    },
                   ],
               }
           },
@@ -628,69 +630,20 @@ def create_resource_texture() -> PrefabConfig:
               "component": "Appearance",
               "kwargs": {
                   "renderMode": "ascii_shape",
-                  "spriteNames": ["UnclaimedResourceSprite",],
-                  "spriteShapes": [shapes.WALL],
-                  "palettes": [{"*": (61, 61, 61, 255),
-                                "#": (80, 80, 80, 255)}],
-                  "noRotates": [True]
+                  "spriteNames": ["grass","floor"],
+                  "spriteShapes": [shapes.GRASS_STRAIGHT, shapes.GRAINY_FLOOR],
+                  "palettes": [{
+                    "*": (158, 194, 101, 255),
+                    "@": (170, 207, 112, 255)
+                }, {
+                    "*": (220, 205, 185, 255),
+                    "+": (210, 195, 175, 255),
+                }],
+                  "noRotates": [False, False]
               }
           },
           {
               "component": "Transform",
-          },
-      ]
-  }
-  return prefab
-
-
-def create_reward_indicator(num_players) -> PrefabConfig:
-  """Configure object indicating if a resource is currently providing reward."""
-  # Setup unique states corresponding to each player who can claim the resource.
-  claim_state_configs = []
-  claim_sprite_names = []
-  claim_sprite_shapes = []
-  claim_palettes = []
-  claim_no_rotates = []
-  for player_idx in range(num_players):
-    lua_player_idx = player_idx + 1
-    player_color = colors.human_readable[player_idx]
-    dry_sprite_name = "Color" + str(lua_player_idx) + "DryPaintSprite"
-    claim_state_configs.append({
-        "state": "dry_claimed_by_" + str(lua_player_idx),
-        "layer": "overlay",
-        "sprite": dry_sprite_name,
-    })
-    claim_sprite_names.append(dry_sprite_name)
-    claim_sprite_shapes.append(shapes.WALL)
-    claim_palettes.append(get_dry_painted_wall_palette(player_color))
-    claim_no_rotates.append(True)
-  prefab = {
-      "name": "reward_indicator",
-      "components": [
-          {
-              "component": "StateManager",
-              "kwargs": {
-                  "initialState": "inactive",
-                  "stateConfigs": [
-                      {"state": "inactive"},
-                  ] + claim_state_configs,
-              }
-          },
-          {
-              "component": "Appearance",
-              "kwargs": {
-                  "renderMode": "ascii_shape",
-                  "spriteNames": claim_sprite_names,
-                  "spriteShapes": claim_sprite_shapes,
-                  "palettes": claim_palettes,
-                  "noRotates": claim_no_rotates
-              }
-          },
-          {
-              "component": "Transform",
-          },
-          {
-              "component": "RewardIndicator",
           },
       ]
   }
@@ -763,7 +716,7 @@ def create_apple_prefab(regrowth_radius=-1.0,  # pylint: disable=dangerous-defau
   growth_rate_states = [
       {
           "state": "apple",
-          "layer": "lowerPhysical",
+          "layer": "appleLayer",
           "sprite": "Apple",
           "groups": ["apples"]
       },
@@ -854,7 +807,6 @@ def create_prefabs(regrowth_radius=-1.0,
       "shadow_n": SHADOW_N,
       "river": get_water(),
       "resource_texture": create_resource_texture(),
-      "reward_indicator": create_reward_indicator(num_players),
       "potential_dirt": create_dirt_prefab("dirtWait"),
       "actual_dirt": create_dirt_prefab("dirt"),
       "resource": create_resource(num_players=num_players),
@@ -1034,7 +986,7 @@ def create_avatar_object(player_idx: int,
               "kwargs": {
                   "color": color_palette["*"],
                   "playerIndex": lua_index,
-                  "beamLength": 2,
+                  "beamLength": 1,
                   "beamRadius": 0,
                   "beamWait": 0,
               }
@@ -1175,25 +1127,6 @@ def create_marking_overlay(player_idx: int) -> Mapping[str, Any]:
                   "palettes": [get_marking_palette(0.0),
                                get_marking_palette(1.0)],
                   "noRotates": [True] * 3
-              }
-          },
-          {
-              "component": "GraduatedSanctionsMarking",
-              "kwargs": {
-                  "playerIndex": lua_idx,
-                  "waitState": "avatarMarkingWait",
-                  "hitName": "zapHit",
-                  "recoveryTime": 50,
-                  "hitLogic": [
-                      {"levelIncrement": 1,
-                       "sourceReward": 0,
-                       "targetReward": 0,
-                       "freeze": 25},
-                      {"levelIncrement": -1,
-                       "sourceReward": 0,
-                       "targetReward": 0,
-                       "remove": True}
-                  ],
               }
           },
       ]

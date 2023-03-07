@@ -207,7 +207,7 @@ function DensityRegrow:_getNeighbors()
   local waitNeighbors = extractPieceIdsFromObjects(
       transformComponent:queryDisc('logic', self._config.radius))
   local liveNeighbors = extractPieceIdsFromObjects(
-      transformComponent:queryDisc('lowerPhysical', self._config.radius))
+      transformComponent:queryDisc('appleLayer', self._config.radius))
   local neighbors = concat(waitNeighbors, liveNeighbors)
   return neighbors, liveNeighbors, waitNeighbors
 end
@@ -451,7 +451,6 @@ function Paintbrush:addHits(worldConfig)
   end
 end
 
-
 function Paintbrush:registerUpdaters(updaterRegistry)
   local playerIndex = self._config.playerIndex
   self._avatar = self.gameObject:getComponent('Avatar')
@@ -465,7 +464,7 @@ function Paintbrush:registerUpdaters(updaterRegistry)
   }
 end
 
--- Resources component --
+-- Resource component (things that can be claimed) --
 
 local Resource = class.Class(component.Component)
 
@@ -474,9 +473,6 @@ function Resource:__init__(kwargs)
       {'name', args.default('Resource')},
       {'initialHealth', args.positive},
       {'destroyedState', args.stringType},
-      {'reward', args.numberType},
-      {'rewardRate', args.numberType},
-      {'rewardDelay', args.numberType},
       {'delayTillSelfRepair', args.default(15), args.ge(0)},  -- frames
       {'selfRepairProbability', args.default(0.1), args.ge(0.0), args.le(1.0)},
   })
@@ -484,16 +480,12 @@ function Resource:__init__(kwargs)
 
   self._config.initialHealth = kwargs.initialHealth
   self._config.destroyedState = kwargs.destroyedState
-  self._config.reward = kwargs.reward
-  self._config.rewardRate = kwargs.rewardRate
-  self._config.rewardDelay = kwargs.rewardDelay
   self._config.delayTillSelfRepair = kwargs.delayTillSelfRepair
   self._config.selfRepairProbability = kwargs.selfRepairProbability
 end
 
 function Resource:reset()
   self._health = self._config.initialHealth
-  self._rewardingStatus = 'inactive'
   self._claimedByAvatarComponent = nil
   self._neverYetClaimed = true
   self._destroyed = false
@@ -501,29 +493,10 @@ function Resource:reset()
 end
 
 function Resource:registerUpdaters(updaterRegistry)
-  local provideRewards = function()
-    if self.gameObject:getState() ~= self._config.destroyedState then
-      if self._claimedByAvatarComponent.gameObject:hasComponent('Taste') then
-        local avatarObject = self._claimedByAvatarComponent.gameObject
-        local tasteComponent = avatarObject:getComponent('Taste')
-        tasteComponent:addDefaultReward(self._config.reward)
-      else
-        self._claimedByAvatarComponent:addReward(self._config.reward)
-      end
-      self._rewardingStatus = 'active'
-    end
-  end
-  updaterRegistry:registerUpdater{
-      updateFn = provideRewards,
-      group = 'claimedResources',
-      probability = self._config.rewardRate,
-      startFrame = self._config.rewardDelay,
-  }
   local function releaseClaimOfDeadAgent()
     if self._claimedByAvatarComponent:isWait() and not self._destroyed then
       local stateManager = self.gameObject:getComponent('StateManager')
       self.gameObject:setState(stateManager:getInitialState())
-      self._rewardingStatus = 'inactive'
       self._claimedByAvatarComponent = nil
     end
   end
@@ -539,14 +512,8 @@ function Resource:_claim(hittingGameObject)
   self._claimedByAvatarComponent = hittingGameObject:getComponent('Avatar')
   local claimedByIndex = self._claimedByAvatarComponent:getIndex()
   local claimedName = 'claimed_by_' .. tostring(claimedByIndex)
-  if self.gameObject:getState() ~= claimedName and not self._destroyed then
+  if self.gameObject:getState() ~= claimedName then
     self.gameObject:setState(claimedName)
-    self._rewardingStatus = 'inactive'
-    -- If player has a role that gets rewarded for claiming, apply that reward.
-    if hittingGameObject:hasComponent('Taste') then
-      hittingGameObject:getComponent('Taste'):addRewardIfApplicable(
-        self._neverYetClaimed)
-    end
     self._neverYetClaimed = false
     -- Report the claiming event.
     events:add('claimed_resource', 'dict',
@@ -555,9 +522,11 @@ function Resource:_claim(hittingGameObject)
 end
 
 function Resource:onHit(hittingGameObject, hitName)
+  --[[
   if string.sub(hitName, 1, string.len('directionHit')) == 'directionHit' then
     self:_claim(hittingGameObject)
   end
+  ]]
 
   for i = 1, self._numPlayers do
     local beamName = 'claimBeam_' .. tostring(i)
@@ -566,32 +535,6 @@ function Resource:onHit(hittingGameObject, hitName)
       -- Claims pass through resources.
       return false
     end
-  end
-
-  if hitName == 'zapHit' then
-    self._health = self._health - 1
-    self._framesSinceZapped = 0
-    if self._health == 0 then
-      -- Reset the health state variable.
-      self._health = self._config.initialHealth
-      -- Remove the resource from the map.
-      self.gameObject:setState(self._config.destroyedState)
-      -- Tell the reward indicator the resource was destroyed.
-      self._rewardingStatus = 'inactive'
-      -- Destroy the resource's associated texture objects.
-      self._texture_object:setState('destroyed')
-      -- Tell the resource's associated damage indicator.
-      self._associatedDamageIndicator:setState('inactive')
-      -- Record the destruction event.
-      local playerIndex = hittingGameObject:getComponent('Avatar'):getIndex()
-      events:add('destroyed_resource', 'dict',
-                 'player_index', playerIndex)  -- int
-      self._destroyed = true
-      -- Zaps pass through a destroyed resource.
-      return false
-    end
-    -- Zaps do not pass through after hitting an undestroyed resource.
-    return true
   end
 
   -- Other beams (if any exist) pass through.
@@ -605,27 +548,19 @@ end
 function Resource:postStart()
   self._texture_object = self.gameObject:getComponent(
       'Transform'):queryPosition('lowerPhysical')
-  self._associatedDamageIndicator = self.gameObject:getComponent(
-      'Transform'):queryPosition('superDirectionIndicatorLayer')
 end
 
 function Resource:update()
   if self._health < self._config.initialHealth then
-    self._associatedDamageIndicator:setState('damaged')
     if self._framesSinceZapped >= self._config.delayTillSelfRepair then
       if random:uniformReal(0, 1) < self._config.selfRepairProbability then
         self._health = self._health + 1
         if self._health == self._config.initialHealth then
-          self._associatedDamageIndicator:setState('inactive')
         end
       end
     end
     self._framesSinceZapped = self._framesSinceZapped + 1
   end
-end
-
-function Resource:getRewardingStatus()
-  return self._rewardingStatus
 end
 
 
@@ -857,7 +792,8 @@ function ResourceClaimer:registerUpdaters(updaterRegistry)
   }
 end
 
---[[ The surroundings tokens.]]
+--[[ Renders a map-sized int-tensor to the observations of the avatar
+that indicates where to find e.g. apples (==int(1)) and water]]
 local Surroundings = class.Class(component.Component)
 
 function Surroundings:__init__(kwargs)
@@ -907,7 +843,7 @@ function Surroundings:updateProximity()
   local upperLeft = {pos[1]-1, pos[2]-1}
   local itemCount = 0
   local lowerRight = {pos[1]+2, pos[2]+1}
-  -- Get objects on lowerPhysical
+  -- Get objects on upperPhysical == dirt
   local object = self.transform:queryRectangle('upperPhysical', upperLeft, lowerRight)
   for _, item in pairs(object) do
     itemCount = itemCount + 1
@@ -935,14 +871,11 @@ function Surroundings:update()
   local y_lim = pos[2]+radius <= mapSize[2] and pos[2]+radius or mapSize[2]
 
   --[[ get all apples in this observation radius and 
-  transform into binary observation tensor to output]]
+  transform into binary observation tensor to output ]]
   for i=x, x_lim do
     for j=y, y_lim do
-      local object = self.transform:queryPosition('lowerPhysical', {i, j})
-      if object ~= nil then
-        if object:hasComponent("Edible") then
+      if self.transform:queryPosition('appleLayer', {i, j}) ~= nil then
           self.surroundings(i, j):val(1) -- apples
-      end
       else
         self.surroundings(i, j):val(0)
       end

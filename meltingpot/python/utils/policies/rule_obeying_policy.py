@@ -31,8 +31,8 @@ from meltingpot.python.utils.policies import policy
 
 @dataclass(order=True)
 class PrioritizedItem:
-    priority: float
-    order: int
+    priority: int
+    tie_break: float
     item: Any=field(compare=False)
     
 
@@ -52,9 +52,10 @@ class RuleObeyingPolicy(policy.Policy):
     # move actions
     self.action_to_pos = [
             [[0,0],[0,-1],[0,1],[-1,0],[1,0]], # N
-            [[0,0],[1,0],[-1,0],[0,1],[0,-1]], # E
+            [[0,0],[1,0],[-1,0],[0,-1],[0,1]], # E
             [[0,0],[0,1],[0,-1],[1,0],[-1,0]], # S
-            [[0,0],[-1,0],[1,0],[0,-1],[0,1]], # W
+            [[0,0],[-1,0],[1,0],[0,1],[0,-1]], # W
+            # N    # F    # SR  # B   # SL
           ]
     # turn actions
     self.action_to_orientation = [
@@ -124,14 +125,13 @@ class RuleObeyingPolicy(policy.Policy):
     """Perform a A* search to generate plan."""
     plan = np.zeros(shape=1, dtype=int)
     queue = PriorityQueue()
+    timestep = timestep._replace(reward=0.0) # inherits from calling call
     queue.put(PrioritizedItem(0.0, 0, (timestep, plan))) # ordered by reward
-    step_count = 0
-    prev_reward = timestep.reward
 
     while not queue.empty():
       priority_item = queue.get()
       cur_timestep, cur_plan = priority_item.item
-      if self.is_goal(cur_timestep, prev_reward, len(cur_plan)):
+      if self.meets_break_criterium(cur_timestep, len(cur_plan)):
         return cur_plan[1:] # 'plan' is initialized with a non-empty onset
 
       # Get the list of actions that are possible and satisfy the rules
@@ -142,18 +142,17 @@ class RuleObeyingPolicy(policy.Policy):
         cur_timestep_copy = deepcopy(cur_timestep)
         next_plan =  np.append(cur_plan_copy, action)
         next_timestep = self.env_step(cur_timestep_copy, action)
-        queue.put(PrioritizedItem(priority=next_timestep.reward*(-1), # ascending
-                                  order=len(next_plan), # for same reward, use action order
+        queue.put(PrioritizedItem(priority=len(next_plan),
+                                  tie_break=next_timestep.reward*(-1), # ascending
                                   item=(next_timestep, next_plan))
                                  )
-      step_count += 1
 
     return False
 
   def available_actions(self, timestep: dm_env.TimeStep) -> list[int]:
     """Return the available actions at a given timestep."""
     actions = []
-    for action in range(self.action_spec.num_values): # self.action_spec.num_values
+    for action in range(self.action_spec.num_values):
       if self.is_allowed(timestep, action):
         actions.append(action)
 
@@ -171,15 +170,15 @@ class RuleObeyingPolicy(policy.Policy):
       observation[action_name] = True # to check for pySMT rules
     
     observation = self.update_observation(observation)
-    return self.rules.check(observation)
+    return self.rules.check_all(observation)
   
   def update_observation(self, observation):
-    # TODO: make this nice and readable
+    # TODO: make this readable
     """Updates the observation with requested information."""
     # lua is 1-indexed
     x, y = observation['POSITION'][0]-1, observation['POSITION'][1]-1
     observation['NUM_APPLES_AROUND'] = self.get_apples(observation, x, y)
-    observation['HAS_APPLE'] = True if not self.exceeds_map(observation['WORLD.RGB'], x, y) \
+    observation['CUR_CELL_HAS_APPLE'] = True if not self.exceeds_map(observation['WORLD.RGB'], x, y) \
       and observation['SURROUNDINGS'][x][y] == 1 else False
     if 'pollution' in self.components:
       observation['IS_AT_WATER'] = True if observation['IS_AT_WATER'] == 1 else False
@@ -208,9 +207,9 @@ class RuleObeyingPolicy(policy.Policy):
       return True
     return False
 
-  def is_goal(self, timestep, prev_reward, plan_length):
+  def meets_break_criterium(self, timestep, plan_length):
     """Check whether any of the stop criteria are met."""
-    if timestep.reward > prev_reward:
+    if timestep.reward >= 1.0:
       return True
     elif timestep.last():
       return True
