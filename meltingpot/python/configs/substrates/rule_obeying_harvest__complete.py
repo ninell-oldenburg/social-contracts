@@ -88,9 +88,9 @@ WAAA____A_____________A____AAW
 WAA____AAA___________AAA____AW
 WA____AAAAA_________AAAAA____W
 W______AAA___________AAA_____W
-W_______A_____________A______W
+W_______A_________Q___A______W
 W__A___________A__________A__W
-W_AAA___Q_____AAA____Q___AAA_W
+W_AAA_________AAA____Q___AAA_W
 WAAAAA_______AAAAA______AAAAAW
 W_AAA_________AAA________AAA_W
 W__A___________A__________A__W
@@ -1080,6 +1080,20 @@ def create_avatar_object(player_idx: int,
                           "variable": "num_others_who_ate_this_step",
                       },
                       {
+                          "name": "STOLEN_RECORDS",
+                          "type": "Doubles",
+                          "shape": [],
+                          "component": "Property",
+                          "variable": "got_robbed_by"
+                      },
+                      {
+                          "name": "PROPERTY",
+                          "type": "tensor.DoubleTensor",
+                          "shape": [OBSERVATION_RADIUS],
+                          "component": "Surroundings",
+                          "variable": "property"
+                      },
+                      {
                           "name": "SURROUNDINGS",
                           "type": "tensor.DoubleTensor",
                           "shape": [OBSERVATION_RADIUS],
@@ -1177,16 +1191,18 @@ def get_config():
       # Cumulants.
       "PLAYER_ATE_APPLE",
       "PLAYER_CLEANED",
+      "PROPERTY",
       "SURROUNDINGS",
       "NUM_OTHERS_PLAYER_ZAPPED_THIS_STEP",
 
       # Global observations
-      'DIRT_FRACTION',
+      "DIRT_FRACTION",
+      "STOLEN_RECORDS",
 
       # Global switching signals for puppeteers.
       "NUM_OTHERS_WHO_CLEANED_THIS_STEP",
       "NUM_OTHERS_WHO_ATE_THIS_STEP",
-      'IS_AT_WATER',
+      "IS_AT_WATER",
 
       # Debug only (do not use the following observations in policies).
       "POSITION",

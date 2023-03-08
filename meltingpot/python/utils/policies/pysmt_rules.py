@@ -7,8 +7,9 @@ class Rules():
     def __init__(self, components):
         self.components = components
         # define reoccurring variable
-        foreign_property = Symbol('foreign_property', BOOL)
-        has_apple = Symbol('CUR_CELL_HAS_APPLE', BOOL)
+        foreign_property = Symbol('CUR_CELL_IS_FOREIGN_PROPERTY', BOOL)
+        cur_cell_has_apple = Symbol('CUR_CELL_HAS_APPLE', BOOL)
+        agent_has_stolen = Symbol('AGENT_HAS_STOLEN', BOOL)
         clean_action = Symbol('CLEAN_ACTION', BOOL)
         dirt_fraction = Symbol('DIRT_FRACTION', REAL)
         cleaner_role = Symbol('cleaner_role', BOOL)
@@ -18,15 +19,14 @@ class Rules():
         # define rules
         self.rules = [
             # don't if <2 apples around
-            Not(And(has_apple, LT(Symbol('NUM_APPLES_AROUND', INT), Int(3)))),
+            Not(And(cur_cell_has_apple, LT(Symbol('NUM_APPLES_AROUND', INT), Int(3)))),
             # don't fire the cleaning beam if you're not close to the water
             Not(And(clean_action, Not(Symbol('IS_AT_WATER', BOOL)))),
-
-            # don't go if forgein property and has apples 
-            # Not(And(foreign_property, has_apples)),
-            # do if forgein property but person has stolen before
+            # don't go if it is foreign property and cell has apples 
+            Not(And(Not(agent_has_stolen), And(foreign_property, cur_cell_has_apple))),
+            # do go if it is foreign property but person has stolen before
             # And(And(foreign_property, has_apples),
-                # And(Symbol('agent_has_stolen', BOOL))),
+                # And()),
             ]
         """
             OBLIGATION:

@@ -56,7 +56,7 @@ def main():
 
   env = substrate.build(config['substrate'], roles=config['roles'])
 
-  bots = [RuleObeyingPolicy(env=env, components=components) for _ in range(len(num_bots))]
+  bots = [RuleObeyingPolicy(env=env, components=components, player_idx=i) for i in range(len(num_bots))]
 
   timestep = env.reset()
 
@@ -102,11 +102,10 @@ def main():
     actions = update(actions)
 
 
-    """
-    # Saving files
+    # Saving files in superdircetory
     filename = "../videos/screen_%04d.png" % (k)
     pygame.image.save(game_display, filename)
-    """
+
     """
     # Bash command
     % ffmpeg -r 25 -f image2 -s 400x400 -i screen_%04d.png -vcodec libx264 -crf 25  window_video.mp4

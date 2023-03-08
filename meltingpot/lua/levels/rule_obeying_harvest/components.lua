@@ -345,6 +345,11 @@ function Edible:__init__(kwargs)
   self._config.rewardForEating = kwargs.rewardForEating
 end
 
+function Edible:start()
+  self._globalData = self.gameObject.simulation:getSceneObject():getComponent(
+    'GlobalData')
+end
+
 function Edible:reset()
   self._waitState = self._config.waitState
   self._liveState = self._config.liveState
@@ -367,6 +372,10 @@ function Edible:getLiveState()
 end
 
 function Edible:onEnter(enteringGameObject, contactName)
+  local resource = self.gameObject:getComponent(
+      'Transform'):queryPosition('lowerPhysical')
+  playerClaimed = resource._claimedByAvatarComponent
+  
   if contactName == 'avatar' then
     if self.gameObject:getState() == self._liveState then
       -- Reward the player who ate the edible.
@@ -380,6 +389,11 @@ function Edible:onEnter(enteringGameObject, contactName)
       end
       events:add('edible_consumed', 'dict',
                  'player_index', avatarComponent:getIndex())  -- int
+      if playerClaimed ~= nil then
+        playerId = playerClaimed:getIndex()
+        -- tensor[stolen_from][thief]
+        self._globalData:setStoleInGame(playerId, avatarComponent:getIndex())
+      end
       -- Change the edible to its wait (disabled) state.
       self.gameObject:setState(self._waitState)
     end
@@ -541,7 +555,7 @@ end
 
 function Resource:postStart()
   self._texture_object = self.gameObject:getComponent(
-      'Transform'):queryPosition('lowerPhysical')
+      'Transform'):queryPosition('background')
 end
 
 function Resource:update()
@@ -805,7 +819,9 @@ function Property:__init__(kwargs)
 end
 
 function Property:start()
+  local numPlayers = self.gameObject.simulation:getNumPlayers()
   self.transform = self.gameObject:getComponent('Transform')
+  self.got_robbed_by = tensor.Tensor(numPlayers):fill(0)
 end
 
 function Property:markRectangle()
@@ -829,7 +845,9 @@ function Property:postStart()
 end
 
 function Property:update()
--- think about how property should work: where shuold the property be saved?
+  local globalData = self.gameObject.simulation:getSceneObject():getComponent(
+      'GlobalData')
+  self.got_robbed_by = globalData:getStoleInGame(self._config.playerIndex)
 end
 
 --[[ Renders a map-sized int-tensor to the observations of the avatar
@@ -851,6 +869,7 @@ end
 function Surroundings:reset()
   x_len, y_len = self._config.mapSize[1], self._config.mapSize[2]
   self.surroundings = tensor.DoubleTensor(x_len, y_len):fill(0)
+  self.property = tensor.DoubleTensor(x_len, y_len):fill(0)
   self.numApplesAround = 0
   self.dirtFraction = 0.0
   self.isAtWater = 0
@@ -881,12 +900,10 @@ function Surroundings:updateProximity()
   -- Calculate the key coordination of agent
   local pos = self.gameObject:getPosition()
   local upperLeft = {pos[1]-1, pos[2]-1}
-  local itemCount = 0
-  local lowerRight = {pos[1]+2, pos[2]+1}
+  local lowerRight = {pos[1]+1, pos[2]+1}
   -- Get objects on upperPhysical == dirt
-  local object = self.transform:queryRectangle('upperPhysical', upperLeft, lowerRight)
-  for _, item in pairs(object) do
-    itemCount = itemCount + 1
+  local potentialWaterObject = self.transform:queryRectangle('upperPhysical', upperLeft, lowerRight)
+  for _, item in pairs(potentialWaterObject) do
     if item:hasComponent('DirtTracker') then
       return 1
     end
@@ -918,6 +935,16 @@ function Surroundings:update()
           self.surroundings(i, j):val(1) -- apples
       else
         self.surroundings(i, j):val(0)
+      end
+      local lowerPhysical = self.transform:queryPosition('lowerPhysical', {i, j})
+      if lowerPhysical ~= nil and lowerPhysical:hasComponent('Resource') then
+        playerClaimed = lowerPhysical:getComponent('Resource')._claimedByAvatarComponent
+        if playerClaimed ~= nil then
+          playerId = playerClaimed:getIndex()
+          self.property(i, j):val(playerId) -- claimed resources
+        else
+          self.property(i, j):val(0) -- claimed resources
+        end
       end
     end
   end
@@ -1041,9 +1068,9 @@ end
 
 function GlobalData:reset()
   local numPlayers = self.gameObject.simulation:getNumPlayers()
-
   self.playersWhoCleanedThisStep = tensor.Tensor(numPlayers):fill(0)
   self.playersWhoAteThisStep = tensor.Tensor(numPlayers):fill(0)
+  self.stolenRecords = tensor.DoubleTensor(numPlayers, numPlayers):fill(0)
 end
 
 function GlobalData:registerUpdaters(updaterRegistry)
@@ -1063,6 +1090,14 @@ end
 
 function GlobalData:setAteThisStep(playerIndex)
   self.playersWhoAteThisStep(playerIndex):val(1)
+end
+
+function GlobalData:setStoleInGame(stolenFrom, thief)
+  self.stolenRecords(stolenFrom, thief):val(1)
+end
+
+function GlobalData:getStoleInGame(stolenFrom)
+  return self.stolenRecords(stolenFrom)
 end
 
 --[[ The RiverMonitor is a scene component that tracks the state of the river.

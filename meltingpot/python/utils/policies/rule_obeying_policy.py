@@ -39,12 +39,13 @@ class PrioritizedItem:
 class RuleObeyingPolicy(policy.Policy):
   """A puppet policy controlled by a certain environment rules."""
 
-  def __init__(self, env: dm_env.Environment, components: list) -> None:
+  def __init__(self, env: dm_env.Environment, components: list, player_idx: int) -> None:
     """Initializes the policy.
 
     Args:
       RuleObeyingAgent: Instantiate the RuleObeyingAgent class.
     """
+    self._index = player_idx
     self.components = components
     self._max_depth = 4
     self.action_spec = env.action_spec()[0]
@@ -74,7 +75,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.rules = Rules(components)
     
   def step(self, 
-           timestep: dm_env.TimeStep,
+           timestep: dm_env.TimeStep
            ) -> Tuple[int, policy.State]:
       """
       See base class.
@@ -180,6 +181,9 @@ class RuleObeyingPolicy(policy.Policy):
     observation['NUM_APPLES_AROUND'] = self.get_apples(observation, x, y)
     observation['CUR_CELL_HAS_APPLE'] = True if not self.exceeds_map(observation['WORLD.RGB'], x, y) \
       and observation['SURROUNDINGS'][x][y] == 1 else False
+    
+    self.get_property(observation, x, y)
+    
     if 'pollution' in self.components:
       observation['IS_AT_WATER'] = True if observation['IS_AT_WATER'] == 1 else False
     for action in self.action_to_beam:
@@ -197,6 +201,21 @@ class RuleObeyingPolicy(policy.Policy):
             sum += 1
     
     return sum
+  
+  def get_property(self, observation, x, y):
+    own_idx = self._index+1
+    property_idx = int(observation['PROPERTY'][x][y])
+    if property_idx != own_idx and property_idx != 0:
+      observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = True
+      # ['STOLEN_RECORDS'][thief]
+      if observation['STOLEN_RECORDS'][property_idx-1] == 1:
+        observation['AGENT_HAS_STOLEN'] = True
+      else:
+        observation['AGENT_HAS_STOLEN'] = False
+    else:
+      observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = False
+      observation['AGENT_HAS_STOLEN'] = True # free or your own property allowed
+
   
   def exceeds_map(self, world_rgb, x, y):
     x_max = world_rgb.shape[1] / 8
