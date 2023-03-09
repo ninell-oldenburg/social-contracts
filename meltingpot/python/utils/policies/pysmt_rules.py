@@ -24,9 +24,6 @@ class Rules():
             Not(And(clean_action, Not(Symbol('IS_AT_WATER', BOOL)))),
             # don't go if it is foreign property and cell has apples 
             Not(And(Not(agent_has_stolen), And(foreign_property, cur_cell_has_apple))),
-            # do go if it is foreign property but person has stolen before
-            # And(And(foreign_property, has_apples),
-                # And()),
             ]
         """
             OBLIGATION:
