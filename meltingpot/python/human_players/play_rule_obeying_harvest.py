@@ -19,6 +19,8 @@
 `TAB` to switch between players.
 `NUMBER 1` to clean the river from pollution.
 `NUMBER 2` to claim resources.
+`NUMBER 3` to eat from inventory
+`NUMBER 4` to pay poorest player
 
 """
 
@@ -45,6 +47,8 @@ _ACTION_MAP = {
     'fireZap': level_playing_utils.get_space_key_pressed,
     'fireClean': level_playing_utils.get_key_number_one_pressed,
     'fireClaim': level_playing_utils.get_key_number_two_pressed,
+    'eat': level_playing_utils.get_key_number_three_pressed,
+    'pay': level_playing_utils.get_key_number_four_pressed,
 }
 
 

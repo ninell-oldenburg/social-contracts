@@ -326,81 +326,73 @@ function DirtCleaning:onHit(hittingGameObject, hitName)
   end
 end
 
+--[[ `Harvestable` makes it possible to collect apples.
+]]
+local Harvestable = class.Class(component.Component)
 
--- An object that is edible switches state when an avatar touches it, and
--- provides a reward. It can be used in combination to the FixedRateRegrow.
-local Edible = class.Class(component.Component)
-
-function Edible:__init__(kwargs)
+function Harvestable:__init__(kwargs)
   kwargs = args.parse(kwargs, {
-      {'name', args.default('Edible')},
+      {'name', args.default('Harvestable')},
       {'liveState', args.stringType},
       {'waitState', args.stringType},
-      {'rewardForEating', args.numberType},
   })
-  Edible.Base.__init__(self, kwargs)
-
+  Harvestable.Base.__init__(self, kwargs)
   self._config.liveState = kwargs.liveState
   self._config.waitState = kwargs.waitState
-  self._config.rewardForEating = kwargs.rewardForEating
 end
 
-function Edible:start()
-  self._globalData = self.gameObject.simulation:getSceneObject():getComponent(
-    'GlobalData')
-end
-
-function Edible:reset()
+function Harvestable:reset()
   self._waitState = self._config.waitState
   self._liveState = self._config.liveState
 end
 
-function Edible:setWaitState(newWaitState)
+function Harvestable:setWaitState(newWaitState)
   self._waitState = newWaitState
 end
 
-function Edible:getWaitState()
+function Harvestable:getWaitState()
   return self._waitState
 end
 
-function Edible:setLiveState(newLiveState)
+function Harvestable:setLiveState(newLiveState)
   self._liveState = newLiveState
 end
 
-function Edible:getLiveState()
+function Harvestable:getLiveState()
   return self._liveState
 end
 
-function Edible:onEnter(enteringGameObject, contactName)
+function Harvestable:_harvest(harvester)
+  -- Add to the harvesting avatar's inventory.
+  local inventory = harvester:getComponent('Inventory')
+  inventory:add(1)
+end
+
+function Harvestable:onEnter(enteringGameObject, contactName)
+  -- Unpack variables for recording property violations
   local resource = self.gameObject:getComponent(
       'Transform'):queryPosition('lowerPhysical')
   playerClaimed = resource._claimedByAvatarComponent
   
   if contactName == 'avatar' then
     if self.gameObject:getState() == self._liveState then
-      -- Reward the player who ate the edible.
+      -- Add to players' inventory.
       local avatarComponent = enteringGameObject:getComponent('Avatar')
-      -- Trigger role-specific logic if applicable.
-      if enteringGameObject:hasComponent('Taste') then
-        enteringGameObject:getComponent('Taste'):consumed(
-          self._config.rewardForEating)
-      else
-        avatarComponent:addReward(self._config.rewardForEating)
-      end
-      events:add('edible_consumed', 'dict',
-                 'player_index', avatarComponent:getIndex())  -- int
+      self:_harvest(enteringGameObject)
+      -- Record property violations
       if playerClaimed ~= nil then
         playerId = playerClaimed:getIndex()
-        -- tensor[stolen_from][thief]
+        -- pattern: tensor[stolen_from][thief]
         self._globalData:setStoleInGame(playerId, avatarComponent:getIndex())
       end
-      -- Change the edible to its wait (disabled) state.
+      -- Change the harvestable to its wait (disabled) state.
       self.gameObject:setState(self._waitState)
     end
   end
 end
 
 
+--[[ Helper class that DensityRegrow pulls data from ]]
 local Neighborhoods = class.Class(component.Component)
 
 function Neighborhoods:__init__(kwargs)
@@ -735,6 +727,114 @@ function Cleaner:setCumulant()
   globalData:setCleanedThisStep(playerIndex)
 end
 
+--[[ `Eating` endows avatars with the ability to eat items from their inventory
+and thereby update a `periodicNeed`.
+]]
+local Eating = class.Class(component.Component)
+
+function Eating:__init__(kwargs)
+  kwargs = args.parse(kwargs, {
+      {'name', args.default('Eating')},
+      {'rewardForEating', args.numberType},
+  })
+  Eating.Base.__init__(self, kwargs)
+
+  self._kwargs = kwargs
+  self._config.rewardForEating = kwargs.rewardForEating
+end
+
+function Eating:registerUpdaters(updaterRegistry)
+  local inventory = self.gameObject:getComponent('Inventory')
+  local taste = self.gameObject:getComponent('Taste')
+  local avatar = self.gameObject:getComponent('Avatar')
+  local eat = function()
+    local playerVolatileVariables = avatar:getVolatileData()
+    local actions = playerVolatileVariables.actions
+    if actions['eat'] == 1 and inventory:quantity() >= 1 then
+      inventory:add(-1)
+      -- Trigger role-specific logic if applicable.
+      if self.gameObject:hasComponent('Taste') then
+        self.gameObject:getComponent('Taste'):consumed(
+          self._config.rewardForEating)
+      else
+        avatar:addReward(self._config.rewardForEating)
+      end
+      events:add('edible_consumed', 'dict',
+                'player_index', avatar:getIndex())  -- int
+    end
+  end
+
+  updaterRegistry:registerUpdater{
+      updateFn = eat,
+      priority = 200,
+  }
+end
+
+
+--[[ `Inventory` keeps track of how many objects each avatar is carrying. It
+assumes that agents can carry infinite quantities so this is a kind of inventory
+that cannot ever be full.
+
+It also works as interface to the inventory bar
+]]
+local Inventory = class.Class(component.Component)
+
+function Inventory:__init__(kwargs)
+  kwargs = args.parse(kwargs, {
+      {'name', args.default('Inventory')},
+      {'mapSize', args.tableType}
+  })
+  Inventory.Base.__init__(self, kwargs)
+  self._config.mapSize = kwargs.mapSize
+end
+
+function Inventory:start()
+  self.playerIndex = self.gameObject:getComponent('Avatar'):getIndex()
+  self.transform = self.gameObject:getComponent('Transform')
+end
+
+function Inventory:postStart()
+  --get all objects from the overlay
+  local upperLeft = {1, 1}
+  local lowerRight = {self._config.mapSize[1], self._config.mapSize[2]}
+  local objects = self.transform:queryRectangle('upperPhysical', upperLeft, lowerRight)
+  local counter = 0
+  for _, item in pairs(objects) do
+    if item:hasComponent('AvatarCopy') then
+      local avatarCopy = item:getComponent('AvatarCopy')
+      if avatarCopy:getIndex() == 0 and counter == 0 then
+        avatarCopy:makeCopy(self.playerIndex)
+        counter = 1
+      end
+    end
+  end
+end
+
+function Inventory:reset()
+  self.inventory = 0
+end
+
+function Inventory:_add(number)
+  self.inventory = self.inventory + number
+end
+
+function Inventory:_remove(number)
+  if self.inventory - number >= 0 then
+    self.inventory = self.inventory - number
+  end
+end
+
+function Inventory:add(number)
+  if number >= 0 then
+    self:_add(number)
+  else
+    self:_remove(-number)
+  end
+end
+
+function Inventory:quantity()
+  return self.inventory
+end
 
 local ResourceClaimer = class.Class(component.Component)
 
@@ -800,8 +900,91 @@ function ResourceClaimer:registerUpdaters(updaterRegistry)
   }
 end
 
+--[[ The `Paying` component lets agents pay other agents 
+with components of their inventory
+]]
+local Paying = class.Class(component.Component)
 
--- [[ Property records claimed property of agents]]
+function Paying:__init__(kwargs)
+  kwargs = args.parse(kwargs, {
+      {'name', args.default('Paying')},
+      {'amount', args.numberType},
+  })
+  Paying.Base.__init__(self, kwargs)
+
+  self._kwargs = kwargs
+  self._config.amount = kwargs.amount
+
+end
+
+function Paying:registerUpdaters(updaterRegistry)
+  local function pay()
+    -- Listen for the action and set the appropriate self._offer.
+    local playerVolatileVariables = (
+        self.gameObject:getComponent('Avatar'):getVolatileData())
+    local actions = playerVolatileVariables.actions
+    if self.gameObject:getComponent('Avatar'):isAlive() then
+        if actions['pay'] == 1 then
+          local payee = self:getBestPayee()
+          self:pay(payee)
+        end
+    end
+  end
+
+  updaterRegistry:registerUpdater{
+      updateFn = pay,
+      priority = 250,
+  }
+end
+
+function Paying:hasEnough()
+  -- Check that you have at least as many as you are offering to give.
+  local inventory = self.gameObject:getComponent('Inventory')
+  if self._config.amount <= inventory:quantity() then
+      return true
+  end
+  return false
+end
+
+function Paying:pay(payee)
+  --transfer apples from one inventory to the other
+  local myInventory = self.gameObject:getComponent('Inventory')
+  local theirInventory = payee:getComponent('Inventory')
+  
+  if self:hasEnough() then
+    -- Update the inventories.
+    myInventory:add(-(self._config.amount))
+    theirInventory:add(self._config.amount)
+
+    events:add('trade', 'dict',
+             'amount', self._config.amount,
+             'player_a_index', self.gameObject:getComponent('Avatar'):getIndex(),
+             'player_b_index', payee:getComponent('Avatar'):getIndex()
+            )
+  end
+end
+
+function Paying:getBestPayee()
+  local numPlayers = self.gameObject.simulation:getNumPlayers()
+  -- Get the agent with the lowest inventory.
+  local bestPayee = nil
+  local bestPayeesInventory = 100
+  for i=1,numPlayers do
+    local avatarObject = self.gameObject.simulation:getAvatarFromIndex(i)
+    local theirInventory = avatarObject:getComponent('Inventory'):quantity()
+    if theirInventory < bestPayeesInventory then
+      bestPayee = avatarObject
+      bestPayeesInventory = theirInventory
+    end
+  end
+
+  return bestPayee
+end
+
+--[[ Property class assigns each agent initial property
+  and records violations to property rules (another agent 
+  stole apples from your property) that it receives from 
+  gloabl data]]
 local Property = class.Class(component.Component)
 
 function Property:__init__(kwargs)
@@ -847,6 +1030,8 @@ end
 function Property:update()
   local globalData = self.gameObject.simulation:getSceneObject():getComponent(
       'GlobalData')
+  --[[ The global data holds a 2D tensor of all violations, here we 
+  receive only the records for the querying agent]]
   self.got_robbed_by = globalData:getStoleInGame(self._config.playerIndex)
 end
 
@@ -1006,6 +1191,95 @@ function Taste:setCumulant()
 end
 
 
+local AvatarCopy = class.Class(component.Component)
+
+function AvatarCopy:__init__(kwargs)
+  kwargs = args.parse(kwargs, {
+      {'name', args.default('AvatarCopy')},
+
+  })
+  AvatarCopy.Base.__init__(self, kwargs)
+end
+
+function AvatarCopy:start()
+  self._config.index = 0
+end
+
+function AvatarCopy:getIndex()
+  return self._config.index
+end
+
+function AvatarCopy:makeCopy(playerIndex)
+  self._config.index = playerIndex
+  local copy_of = 'copy_of_' .. tostring(playerIndex)
+  self.gameObject:setState(copy_of)
+end
+
+local InventoryDisplay = class.Class(component.Component)
+
+function InventoryDisplay:__init__(kwargs)
+  kwargs = args.parse(kwargs, {
+      {'name', args.default('InventoryDisplay')},
+
+  })
+  InventoryDisplay.Base.__init__(self, kwargs)
+end
+
+function InventoryDisplay:start()
+  self.transform = self.gameObject:getComponent('Transform')
+  local position = self.transform:getPosition()
+  self._config.leftLiveNeighbor = self.transform:queryPosition(
+    'upperPhysical', {position[1]-1, position[2]})
+  self._config.leftWaitNeighbor = self.transform:queryPosition(
+    'logic', {position[1]-1, position[2]})
+  self.ordinalNumber = 0
+end
+
+function InventoryDisplay:postStart()
+  local avatarIndex = 0
+  if self._config.leftLiveNeighbor ~= nil then
+    if self._config.leftLiveNeighbor:hasComponent('AvatarCopy') then
+      self.ordinalNumber = 1
+      avatarIndex = self._config.leftLiveNeighbor:getComponent('AvatarCopy'):getIndex()
+    end
+  end
+  if self._config.leftWaitNeighbor ~= nil then
+    if self._config.leftWaitNeighbor:hasComponent('InventoryDisplay') then
+      leftInventoryDisplay = self._config.leftWaitNeighbor:getComponent('InventoryDisplay')
+      self.ordinalNumber = leftInventoryDisplay:getOrdinalNumber() + 1
+      avatarIndex = leftInventoryDisplay:getIndex()
+    end
+  end
+  self:setIndex(avatarIndex)
+end
+
+function InventoryDisplay:update()
+  local numPlayers = self.gameObject.simulation:getNumPlayers()
+  for i=1,numPlayers do
+    local avatarObject = self.gameObject.simulation:getAvatarFromIndex(i)
+    local inventory = avatarObject:getComponent('Inventory'):quantity()
+    if avatarObject:getComponent('Avatar'):getIndex() == self._config.index then
+      if inventory >= self.ordinalNumber then
+        self.gameObject:setState('apple')
+      else
+        self.gameObject:setState('appleWait')
+      end
+    end
+  end
+end
+
+function InventoryDisplay:getOrdinalNumber()
+  return self.ordinalNumber
+end
+
+function InventoryDisplay:getIndex()
+  return self._config.index
+end
+
+function InventoryDisplay:setIndex(playerIndex)
+  self._config.index = playerIndex
+end
+
 -- SCENE COMPONENTS
 
 --[[ The DirtSpawner is a scene component that spawns dirt at a fixed rate.
@@ -1057,6 +1331,8 @@ function DirtSpawner:addPieceToPotential(piece)
   self._potentialDirts[piece] = true
 end
 
+--[[ The GlobalData class holds global records such as property violations
+that it passes to the individual agents' observations]]
 local GlobalData = class.Class(component.Component)
 
 function GlobalData:__init__(kwargs)
@@ -1092,6 +1368,7 @@ function GlobalData:setAteThisStep(playerIndex)
   self.playersWhoAteThisStep(playerIndex):val(1)
 end
 
+-- Note: a stolen record never gets set to 0 again
 function GlobalData:setStoleInGame(stolenFrom, thief)
   self.stolenRecords(stolenFrom, thief):val(1)
 end
@@ -1147,22 +1424,27 @@ local allComponents = {
     DensityRegrow = DensityRegrow,
     DirtCleaning = DirtCleaning,
     DirtTracker = DirtTracker,
-    Edible = Edible,
+    Harvestable = Harvestable,
     Neighborhoods = Neighborhoods,
-    Paintbrush = Paintbrush,
     Resource = Resource,
 
     -- Avatar components
     AllNonselfCumulants = AllNonselfCumulants,
+    AvatarCopy = AvatarCopy,
     Cleaner = Cleaner,
-    Taste = Taste,
+    Eating = Eating,
+    Inventory = Inventory,
+    Paying = Paying,
+    Paintbrush = Paintbrush,
+    Property = Property,
     ResourceClaimer = ResourceClaimer,
     Surroundings = Surroundings,
-    Property = Property,
+    Taste = Taste,
 
     -- Scene components.
     DirtSpawner = DirtSpawner,
     GlobalData = GlobalData,
+    InventoryDisplay = InventoryDisplay,
     RiverMonitor = RiverMonitor,
 }
 

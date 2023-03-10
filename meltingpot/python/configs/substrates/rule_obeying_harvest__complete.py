@@ -98,6 +98,10 @@ W__GGGGGGGGGGGGGGGGGGGGGGGG__W
 W__GGGGGGGGGGGGGGGGGGGGGGGG__W
 WGGGGGGGGGGGGGGGGGGGGGGGGGGGGW
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+WDXXXXXWDXXXXXWDXXXXXWWDXXXXXW
+WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+WDXXXXXWDXXXXXWDXXXXXWWDXXXXXW
+WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 """
 
 x_size = ASCII_MAP.find('\n', 1) -1
@@ -128,6 +132,8 @@ CHAR_PREFAB_MAP = {
     "s": {"type": "all", "list": ["resource_texture", "resource", "shadow_n"]},
     "A": {"type": "all", "list": ["resource_texture", "resource", "apple"]},
     "G": {"type": "all", "list": ["resource_texture", "resource", "spawn_point"]},
+    "D": "avatar_copy",
+    "X": "inventory_display"
 }
 
 _COMPASS = ["N", "E", "S", "W"]
@@ -188,6 +194,12 @@ WALL = {
             "component": "BeamBlocker",
             "kwargs": {
                 "beamType": "cleanHit"
+            }
+        },
+        {
+            "component": "BeamBlocker",
+            "kwargs": {
+                "beamType": "claimHit"
             }
         },
     ]
@@ -343,6 +355,26 @@ INSIDE_SPAWN_POINT = {
     ]
 }
 
+COPY_SPAWN_POINT = {
+   "name": "spawnPoint",
+    "components": [
+        {
+            "component": "StateManager",
+            "kwargs": {
+                "initialState": "spawnPoint",
+                "stateConfigs": [{
+                    "state": "spawnPoint",
+                    "layer": "alternateLogic",
+                    "groups": ["copySpawnPoints"]
+                }],
+            }
+        },
+        {
+            "component": "Transform",
+        },
+    ]
+}
+
 SHADOW_W = {
     "name": "shadow_w",
     "components": [
@@ -485,16 +517,18 @@ def create_dirt_prefab(initial_state):
 # Primitive action components.
 # pylint: disable=bad-whitespace
 # pyformat: disable
-NOOP        = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-FORWARD     = {"move": 1, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-STEP_RIGHT  = {"move": 2, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-BACKWARD    = {"move": 3, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-STEP_LEFT   = {"move": 4, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-TURN_LEFT   = {"move": 0, "turn": -1, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-TURN_RIGHT  = {"move": 0, "turn":  1, "fireZap": 0, "fireClean": 0, "fireClaim": 0}
-FIRE_ZAP    = {"move": 0, "turn":  0, "fireZap": 1, "fireClean": 0, "fireClaim": 0}
-FIRE_CLEAN  = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 1, "fireClaim": 0}
-FIRE_CLAIM  = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 1}
+NOOP        = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "eat": 0, "pay": 0}
+FORWARD     = {"move": 1, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "eat": 0, "pay": 0}
+STEP_RIGHT  = {"move": 2, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "eat": 0, "pay": 0}
+BACKWARD    = {"move": 3, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "eat": 0, "pay": 0}
+STEP_LEFT   = {"move": 4, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "eat": 0, "pay": 0}
+TURN_LEFT   = {"move": 0, "turn": -1, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "eat": 0, "pay": 0}
+TURN_RIGHT  = {"move": 0, "turn":  1, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "eat": 0, "pay": 0}
+FIRE_ZAP    = {"move": 0, "turn":  0, "fireZap": 1, "fireClean": 0, "fireClaim": 0, "eat": 0, "pay": 0}
+FIRE_CLEAN  = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 1, "fireClaim": 0, "eat": 0, "pay": 0}
+FIRE_CLAIM  = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 1, "eat": 0, "pay": 0}
+EAT         = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "eat": 1, "pay": 0}
+PAY         = {"move": 0, "turn":  0, "fireZap": 0, "fireClean": 0, "fireClaim": 0, "eat": 0, "pay": 1}
 # pyformat: enable
 # pylint: enable=bad-whitespace
 
@@ -509,6 +543,8 @@ ACTION_SET = (
     FIRE_ZAP,
     FIRE_CLEAN,
     FIRE_CLAIM,
+    EAT,
+    PAY,
 )
 
 TARGET_SPRITE_SELF = {
@@ -765,11 +801,10 @@ def create_apple_prefab(regrowth_radius=-1.0,  # pylint: disable=dangerous-defau
               }
           },
           {
-              "component": "Edible",
+              "component": "Harvestable",
               "kwargs": {
                   "liveState": "apple",
                   "waitState": "appleWait",
-                  "rewardForEating": 1.0,
               }
           },
           {
@@ -802,6 +837,7 @@ def create_prefabs(regrowth_radius=-1.0,
       "grass_edge": GRASS_EDGE,
       "spawn_point": SPAWN_POINT,
       "inside_spawn_point": INSIDE_SPAWN_POINT,
+      "copy_spawn_point": COPY_SPAWN_POINT,
       "shadow_w": SHADOW_W,
       "shadow_e": SHADOW_E,
       "shadow_n": SHADOW_N,
@@ -810,10 +846,13 @@ def create_prefabs(regrowth_radius=-1.0,
       "potential_dirt": create_dirt_prefab("dirtWait"),
       "actual_dirt": create_dirt_prefab("dirt"),
       "resource": create_resource(num_players=num_players),
+      "avatar_copy": create_avatar_copy(num_players=num_players),
+      "inventory_display": create_inventory_display()
   }
   prefabs["apple"] = create_apple_prefab(
       regrowth_radius=regrowth_radius,
       regrowth_probabilities=regrowth_probabilities)
+  
   return prefabs
 
 
@@ -937,13 +976,17 @@ def create_avatar_object(player_idx: int,
                                   "turn", 
                                   "fireZap",
                                   "fireClean",
-                                  "fireClaim"],
+                                  "fireClaim",
+                                  "eat",
+                                  "pay"],
                   "actionSpec": {
                       "move": {"default": 0, "min": 0, "max": len(_COMPASS)},
                       "turn": {"default": 0, "min": -1, "max": 1},
                       "fireZap": {"default": 0, "min": 0, "max": 1},
                       "fireClean": {"default": 0, "min": 0, "max": 1},
                       "fireClaim": {"default": 0, "min": 0, "max": 1},
+                      "eat": {"default": 0, "min": 0, "max": 1},
+                      "pay": {"default": 0, "min": 0, "max": 1},
                   },
                   "view": {
                       "left": 5,
@@ -960,6 +1003,18 @@ def create_avatar_object(player_idx: int,
               "kwargs": {
                   "playerIndex": lua_index,
                   "radius": 2,
+              }
+          },
+          {
+              "component": "Eating",
+              "kwargs": {
+                  "rewardForEating": 1.0,
+              }
+          },
+          {
+              "component": "Paying",
+              "kwargs": {
+                  "amount": 1.0,
               }
           },
           {
@@ -996,6 +1051,12 @@ def create_avatar_object(player_idx: int,
                   "beamLength": 1,
                   "beamRadius": 0,
                   "beamWait": 0,
+              }
+          },
+          {
+            "component": "Inventory",
+              "kwargs": {
+                  "mapSize": MAP_SIZE,
               }
           },
           {
@@ -1043,6 +1104,13 @@ def create_avatar_object(player_idx: int,
                           "shape": [],
                           "component": "Surroundings",
                           "variable": "dirtFraction",
+                      },
+                      {
+                        "name": "INVENTORY",
+                          "type": "Int32s",
+                          "shape": [],
+                          "component": "Inventory",
+                          "variable": "inventory",
                       },
                       {
                           "name": "IS_AT_WATER",
@@ -1108,7 +1176,7 @@ def create_avatar_object(player_idx: int,
   return avatar_object
 
 def create_marking_overlay(player_idx: int) -> Mapping[str, Any]:
-  """Create a graduated sanctions marking overlay object."""
+  """Create a marking overlay object."""
   # Lua is 1-indexed.
   lua_idx = player_idx + 1
 
@@ -1124,9 +1192,6 @@ def create_marking_overlay(player_idx: int) -> Mapping[str, Any]:
                       {"state": "level_1",
                        "layer": "superOverlay",
                        "sprite": "sprite_for_level_1"},
-                      {"state": "level_2",
-                       "layer": "superOverlay",
-                       "sprite": "sprite_for_level_2"},
 
                       # Invisible inactive (zapped out) overlay type.
                       {"state": "avatarMarkingWait",
@@ -1141,12 +1206,9 @@ def create_marking_overlay(player_idx: int) -> Mapping[str, Any]:
               "component": "Appearance",
               "kwargs": {
                   "renderMode": "ascii_shape",
-                  "spriteNames": ["sprite_for_level_1",
-                                  "sprite_for_level_2"],
-                  "spriteShapes": [MARKING_SPRITE,
-                                   MARKING_SPRITE],
-                  "palettes": [get_marking_palette(0.0),
-                               get_marking_palette(1.0)],
+                  "spriteNames": ["sprite_for_level_1"],
+                  "spriteShapes": [MARKING_SPRITE],
+                  "palettes": [get_marking_palette(0.0)],
                   "noRotates": [True] * 3
               }
           },
@@ -1154,6 +1216,107 @@ def create_marking_overlay(player_idx: int) -> Mapping[str, Any]:
   }
   return marking_object
 
+def create_avatar_copy(num_players: int) -> Mapping[str, Any]:
+  copy_state_configs = []
+  copy_sprite_names = []
+  copy_palette_colors = []
+  for player_idx in range(num_players):
+    # Lua is 1-indexed.
+    lua_idx = player_idx + 1
+    source_sprite_self = "Avatar" + str(lua_idx)
+    color_palette = PLAYER_COLOR_PALETTES[player_idx]
+    copy_state_configs.append({
+        "state": "copy_of_" + str(lua_idx),
+        "layer": "upperPhysical",
+        "sprite": source_sprite_self,
+        "groups": ["avatarCopies"]
+    })
+    copy_sprite_names.append(source_sprite_self)
+    copy_palette_colors.append(color_palette)
+
+  avatar_copy_object = {
+    "name": "avatar_copy",
+      "components": [
+          {
+              "component": "StateManager",
+              "kwargs": {
+                  "initialState": "emptyTile",
+                  "stateConfigs": [
+                      {"state": "emptyTile",
+                       "layer": "upperPhysical",
+                       "sprite": "UnclaimedResourceSprite"},
+                  ] + copy_state_configs,
+              }
+          },
+          {
+              "component": "Transform",
+          },
+          {
+              "component": "Appearance",
+              "kwargs": {
+                  "renderMode": "ascii_shape",
+                  "spriteNames": copy_sprite_names,
+                  "spriteShapes": [shapes.CUTE_AVATAR] * num_players,
+                  "palettes": copy_palette_colors,
+                  "noRotates": [True] * num_players
+              }
+          },
+          {
+              "component": "AvatarCopy",
+              "kwargs": {}
+          }
+      ]
+  }
+
+  return avatar_copy_object
+
+def create_inventory_display() -> Mapping[str, Any]:
+
+    prefab = {
+    "name": "inventory_display",
+      "components": [
+          {
+              "component": "StateManager",
+              "kwargs": {
+                  "initialState": "appleWait",
+                  "stateConfigs": [{
+                        "state": "apple",
+                        "layer": "upperPhysical",
+                        "sprite": "Apple",
+                    },
+                    {
+                        "state": "appleWait",
+                        "layer": "logic",
+                        "sprite": "AppleWait",
+                    },]
+                }
+          },
+          {
+              "component": "Transform",
+          },
+          {
+              "component": "Appearance",
+              "kwargs": {
+                  "renderMode": "ascii_shape",
+                  "spriteNames": ["Apple", "AppleWait"],
+                  "spriteShapes": [shapes.APPLE, shapes.FILL],
+                  "palettes": [
+                      {"x": (0, 0, 0, 0),
+                       "*": (214, 88, 88, 255),
+                       "#": (194, 79, 79, 255),
+                       "o": (53, 132, 49, 255),
+                       "|": (102, 51, 61, 255)},
+                      {"i": (0, 0, 0, 0)}],
+                  "noRotates": [True, True]
+              }
+          },
+          {
+              "component": "InventoryDisplay",
+              "kwargs": {}
+          }
+      ]
+  }
+    return prefab
 
 def create_avatar_and_associated_objects(num_players):
   """Returns list of avatars and their associated 
