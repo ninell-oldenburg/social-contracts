@@ -47,7 +47,7 @@ class RuleObeyingPolicy(policy.Policy):
     """
     self._index = player_idx
     self.components = components
-    self._max_depth = 4
+    self._max_depth = 6
     self.action_spec = env.action_spec()[0]
 
     # move actions
@@ -87,12 +87,12 @@ class RuleObeyingPolicy(policy.Policy):
 
       return action_plan
   
-  def get_reward(self, observation) -> float:
+  def maybe_collect_apple(self, observation) -> float:
     # lua is one indexed
     x, y = observation['POSITION'][0]-1, observation['POSITION'][1]-1
     reward_map = observation['SURROUNDINGS']
     if self.exceeds_map(observation['WORLD.RGB'], x, y):
-      return (-1)
+      return 0
     return reward_map[x][y]
 
   def env_step(self, timestep: dm_env.TimeStep, action) -> dm_env.TimeStep:
@@ -100,11 +100,12 @@ class RuleObeyingPolicy(policy.Policy):
       observation = timestep.observation
       orientation = observation['ORIENTATION'].item()
       reward = timestep.reward
+      cur_inventory = int(observation['INVENTORY'])
 
       # Simulate changes to observation based on action
       if action <= 4: # move actions
         observation['POSITION'] += self.action_to_pos[orientation][action]
-        reward += self.get_reward(observation)
+        cur_inventory += self.maybe_collect_apple(observation)
       
       elif action <= 6: # turn actions
         action = action - 5 # indexing starts at 0
@@ -112,8 +113,17 @@ class RuleObeyingPolicy(policy.Policy):
                                              [orientation][action]
                                              )
       # TODO implement FIRE_ZAP, FIRE_CLEAN, FIRE_CLAIM
-      else:
-        pass
+      elif action <= 9:
+        if self.water_is_dirty(observation['DIRT_FRACTION']):
+          reward = self.compute_clean_subgoal(action)
+
+      else: # pay and eat actions
+        if cur_inventory > 0:
+          if action == 10: # eat
+            reward += 1 # TODO: change from hard-coded to variable
+          cur_inventory -= 1 # pay
+
+      observation['INVENTORY'] = cur_inventory
 
       return dm_env.TimeStep(step_type=dm_env.StepType.MID,
                                      reward=reward,
@@ -136,7 +146,8 @@ class RuleObeyingPolicy(policy.Policy):
         return cur_plan[1:] # 'plan' is initialized with a non-empty onset
 
       # Get the list of actions that are possible and satisfy the rules
-      available_actions = self.available_actions(cur_timestep)
+      #available_actions = self.available_actions(cur_timestep)
+      available_actions = range(self.action_spec.num_values)
 
       for action in available_actions: # currently exclude all beams
         cur_plan_copy = deepcopy(cur_plan)
@@ -159,16 +170,29 @@ class RuleObeyingPolicy(policy.Policy):
 
     return actions
   
+  def water_is_dirty(self, dirtFraction: float) -> bool:
+    if dirtFraction > 0.6:
+      return True
+    return False
+  
+  def compute_cleaning_subgoal(self, action):
+    reward = 0
+    if action == 8:
+      reward += 1
+    return reward
+  
   def is_allowed(self, timestep, action):
     """Returns True if an action is allowed given the current timestep"""
     observation = deepcopy(timestep.observation)
     orientation = observation['ORIENTATION'].item()
     if action <= 4: # record and alter move
       observation['POSITION'] += self.action_to_pos[orientation][action]
-    elif action >= 7: # record and alter beam
+    elif action <= 9: # record and alter beam
       action = action - 7 # zero-indexed
       action_name = self.action_to_beam[action]
       observation[action_name] = True # to check for pySMT rules
+    else:
+      pass
     
     observation = self.update_observation(observation)
     return self.rules.check_all(observation)
