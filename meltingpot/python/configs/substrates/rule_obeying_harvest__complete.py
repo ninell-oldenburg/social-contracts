@@ -1355,6 +1355,7 @@ def get_config():
       "PLAYER_ATE_APPLE",
       "PLAYER_CLEANED",
       "PROPERTY",
+      "INVENTORY",
       "SURROUNDINGS",
       "NUM_OTHERS_PLAYER_ZAPPED_THIS_STEP",
 

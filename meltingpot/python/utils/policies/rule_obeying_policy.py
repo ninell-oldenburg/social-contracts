@@ -95,12 +95,12 @@ class RuleObeyingPolicy(policy.Policy):
       return 0
     return reward_map[x][y]
 
-  def env_step(self, timestep: dm_env.TimeStep, action, inventory) -> dm_env.TimeStep:
+  def env_step(self, timestep: dm_env.TimeStep, action) -> dm_env.TimeStep:
       # Unpack observations from timestep
       observation = timestep.observation
       orientation = observation['ORIENTATION'].item()
       reward = timestep.reward
-      cur_inventory = inventory
+      cur_inventory = int(observation['INVENTORY'])
 
       # Simulate changes to observation based on action
       if action <= 4: # move actions
@@ -123,11 +123,13 @@ class RuleObeyingPolicy(policy.Policy):
             reward += 1 # TODO: change from hard-coded to variable
           cur_inventory -= 1 # pay
 
+      observation['INVENTORY'] = cur_inventory
+
       return dm_env.TimeStep(step_type=dm_env.StepType.MID,
                                      reward=reward,
                                      discount=1.0,
                                      observation=observation,
-                                     ), cur_inventory
+                                     )
 
       
   def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
@@ -135,26 +137,26 @@ class RuleObeyingPolicy(policy.Policy):
     plan = np.zeros(shape=1, dtype=int)
     queue = PriorityQueue()
     timestep = timestep._replace(reward=0.0) # inherits from calling call
-    queue.put(PrioritizedItem(0.0, 0, (timestep, plan, 0))) # ordered by reward
+    queue.put(PrioritizedItem(0.0, 0, (timestep, plan))) # ordered by reward
 
     while not queue.empty():
       priority_item = queue.get()
-      cur_timestep, cur_plan, cur_inventory = priority_item.item
+      cur_timestep, cur_plan = priority_item.item
       if self.meets_break_criterium(cur_timestep, len(cur_plan)):
         return cur_plan[1:] # 'plan' is initialized with a non-empty onset
 
       # Get the list of actions that are possible and satisfy the rules
-      available_actions = self.available_actions(cur_timestep)
+      #available_actions = self.available_actions(cur_timestep)
+      available_actions = range(self.action_spec.num_values)
 
       for action in available_actions: # currently exclude all beams
         cur_plan_copy = deepcopy(cur_plan)
         cur_timestep_copy = deepcopy(cur_timestep)
-        cur_inventory_copy = deepcopy(cur_inventory)
         next_plan =  np.append(cur_plan_copy, action)
-        next_timestep, next_inventory = self.env_step(cur_timestep_copy, action, cur_inventory_copy)
+        next_timestep = self.env_step(cur_timestep_copy, action)
         queue.put(PrioritizedItem(priority=len(next_plan),
                                   tie_break=next_timestep.reward*(-1), # ascending
-                                  item=(next_timestep, next_plan, next_inventory))
+                                  item=(next_timestep, next_plan))
                                  )
 
     return False
