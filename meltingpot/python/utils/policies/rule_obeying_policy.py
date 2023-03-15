@@ -68,9 +68,9 @@ DEFAULT_RULES = [
     # don't if <2 apples around
     ProhibitionRule(Not(And(cur_cell_has_apple, LT(Symbol('NUM_APPLES_AROUND', INT), Int(3))))),
     # don't fire the cleaning beam if you're not close to the water
-    #ProhibitionRule(Not(And(clean_action, Not(Symbol('IS_AT_WATER', BOOL))))),
+    ProhibitionRule(Not(And(clean_action, Not(Symbol('IS_AT_WATER', BOOL))))),
     # don't go if it is foreign property and cell has apples 
-    #ProhibitionRule(Not(And(Not(agent_has_stolen), And(foreign_property, cur_cell_has_apple)))),
+    ProhibitionRule(Not(And(Not(agent_has_stolen), And(foreign_property, cur_cell_has_apple)))),
 ]
 
 @dataclass(order=True)

@@ -1396,7 +1396,7 @@ def get_config():
   # The roles assigned to each player.
   config.valid_roles = frozenset({"default"})
   # "bluie" as for one player
-  config.default_player_roles = ("default",) * 1
+  config.default_player_roles = ("default",) * 2
 
   return config
 
