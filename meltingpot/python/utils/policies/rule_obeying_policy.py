@@ -46,8 +46,7 @@ class RuleObeyingPolicy(policy.Policy):
       RuleObeyingAgent: Instantiate the RuleObeyingAgent class.
     """
     self._index = player_idx
-    self.components = components
-    self._max_depth = 4
+    self._max_depth = 10
     self.action_spec = env.action_spec()[0]
 
     # move actions
@@ -121,7 +120,17 @@ class RuleObeyingPolicy(policy.Policy):
                                      observation=observation,
                                      )
 
-      
+  def reconstruct_path(self, came_from: dict, timestep_action: tuple) -> list:
+    path = [timestep_action[1]]
+    while timestep_action in came_from.keys():
+      if not timestep_action == came_from[timestep_action]:
+        timestep_action = came_from[timestep_action]
+        path.append(timestep_action[1])
+      else:
+        break
+    path.reverse()
+    return path
+  
   def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
     """Perform a A* search to generate plan."""
     plan = np.zeros(shape=1, dtype=int)
@@ -131,22 +140,27 @@ class RuleObeyingPolicy(policy.Policy):
 
     while not queue.empty():
       priority_item = queue.get()
-      cur_timestep, cur_plan = priority_item.item
-      if self.meets_break_criterium(cur_timestep, len(cur_plan)):
-        return cur_plan[1:] # 'plan' is initialized with a non-empty onset
+      cur_timestep, cur_action = priority_item.item
+      cur_position = tuple(cur_timestep.observation['POSITION'])
+      cur_depth = priority_item.priority
+      if self.is_done(cur_timestep, cur_depth):
+        return self.reconstruct_path(came_from, (cur_position, cur_action))
 
       # Get the list of actions that are possible and satisfy the rules
       available_actions = self.available_actions(cur_timestep)
+      #available_actions = range(self.action_spec.num_values)
 
       for action in available_actions: # currently exclude all beams
-        cur_plan_copy = deepcopy(cur_plan)
-        cur_timestep_copy = deepcopy(cur_timestep)
-        next_plan =  np.append(cur_plan_copy, action)
+        cur_timestep_copy = deepcopy(cur_timestep) # TIME
         next_timestep = self.env_step(cur_timestep_copy, action)
-        queue.put(PrioritizedItem(priority=len(next_plan),
-                                  tie_break=next_timestep.reward*(-1), # ascending
-                                  item=(next_timestep, next_plan))
-                                 )
+        next_position = tuple(next_timestep.observation['POSITION'])
+        if not (next_position, action) in came_from.keys() \
+          or next_timestep.reward > cur_timestep.reward:
+          came_from[(next_position, action)] = (cur_position, cur_action)
+          queue.put(PrioritizedItem(priority=cur_depth+1,
+                                    tie_break=next_timestep.reward*(-1), # ascending
+                                    item=(next_timestep, action))
+                                    )
 
     return False
 
