@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Runs the bots trained in self_play_train.py and renders in pygame.
-
 You must provide experiment_state, expected to be
 ~/ray_results/PPO/experiment_state_YOUR_RUN_ID.json
 """
@@ -44,19 +43,13 @@ def main():
   level_name = args.substrate_name
   substrate_name = f'rule_obeying_harvest__{level_name}'
   num_bots = substrate.get_config(substrate_name).default_player_roles
-  
-  components = []
-  if level_name == "complete":
-    components = ['pollution', 'territory']
-  else:
-    components = [level_name]
 
   config = {'substrate': substrate_name,
             'roles': list(num_bots)}
 
   env = substrate.build(config['substrate'], roles=config['roles'])
 
-  bots = [RuleObeyingPolicy(env=env, components=components, player_idx=i) for i in range(len(num_bots))]
+  bots = [RuleObeyingPolicy(env=env, player_idx=i) for i in range(len(num_bots))]
 
   timestep = env.reset()
 
@@ -97,6 +90,7 @@ def main():
         next_step = bot.step(timestep_bot)
         actions[i] = next_step
         
+    print(actions)
     action_list = [int(item[0]) for item in actions.values()]
     timestep = env.step(action_list)
     actions = update(actions)
