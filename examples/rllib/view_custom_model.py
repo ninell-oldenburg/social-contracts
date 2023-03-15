@@ -44,19 +44,13 @@ def main():
   level_name = args.substrate_name
   substrate_name = f'rule_obeying_harvest__{level_name}'
   num_bots = substrate.get_config(substrate_name).default_player_roles
-  
-  components = []
-  if level_name == "complete":
-    components = ['pollution', 'territory']
-  else:
-    components = [level_name]
 
   config = {'substrate': substrate_name,
             'roles': list(num_bots)}
 
   env = substrate.build(config['substrate'], roles=config['roles'])
 
-  bots = [RuleObeyingPolicy(env=env, components=components, player_idx=i) for i in range(len(num_bots))]
+  bots = [RuleObeyingPolicy(env=env, player_idx=i) for i in range(len(num_bots))]
 
   timestep = env.reset()
 
@@ -74,7 +68,7 @@ def main():
   game_display = pygame.display.set_mode(
       (int(shape[1] * scale), int(shape[0] * scale)))
 
-  for k in range(50):
+  for k in range(20):
     obs = timestep.observation[0]["WORLD.RGB"]
     obs = np.transpose(obs, (1, 0, 2))
     surface = pygame.surfarray.make_surface(obs)

@@ -1352,7 +1352,6 @@ def get_config():
       "READY_TO_SHOOT",
 
       # Cumulants.
-      "PLAYER_ATE_APPLE",
       "PLAYER_CLEANED",
       "PROPERTY",
       "INVENTORY",
@@ -1365,7 +1364,6 @@ def get_config():
 
       # Global switching signals for puppeteers.
       "NUM_OTHERS_WHO_CLEANED_THIS_STEP",
-      "NUM_OTHERS_WHO_ATE_THIS_STEP",
       "IS_AT_WATER",
 
       # Debug only (do not use the following observations in policies).
@@ -1398,7 +1396,7 @@ def get_config():
   # The roles assigned to each player.
   config.valid_roles = frozenset({"default"})
   # "bluie" as for one player
-  config.default_player_roles = ("default",) * 2
+  config.default_player_roles = ("default",) * 1
 
   return config
 
