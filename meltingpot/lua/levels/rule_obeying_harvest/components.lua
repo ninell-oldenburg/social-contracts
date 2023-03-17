@@ -371,7 +371,7 @@ end
 function Harvestable:onEnter(enteringGameObject, contactName)
   -- Unpack variables for recording property violations
   local resource = self.gameObject:getComponent(
-      'Transform'):queryPosition('lowerPhysical')
+      'Transform'):queryPosition('resourceLayer')
   playerClaimed = resource._claimedByAvatarComponent
   
   if contactName == 'avatar' then
@@ -545,10 +545,12 @@ function Resource:start()
   self._numPlayers = self.gameObject.simulation:getNumPlayers()
 end
 
+--[[
 function Resource:postStart()
   self._texture_object = self.gameObject:getComponent(
       'Transform'):queryPosition('background')
 end
+]]
 
 function Resource:update()
   if self._health < self._config.initialHealth then
@@ -654,6 +656,10 @@ function Cleaner:__init__(kwargs)
   self._config.beamRadius = kwargs.beamRadius
 end
 
+function Cleaner:start()
+  self.num_cleaners = 0
+end
+
 function Cleaner:addHits(worldConfig)
   worldConfig.hits['cleanHit'] = {
       layer = 'beamClean',
@@ -689,6 +695,7 @@ function Cleaner:registerUpdaters(updaterRegistry)
         end
       end
     end
+    self.num_cleaners = self:getNumCleaners()
   end
 
   updaterRegistry:registerUpdater{
@@ -699,6 +706,7 @@ function Cleaner:registerUpdaters(updaterRegistry)
   local function resetCumulant()
     self.player_cleaned = 0
   end
+
   updaterRegistry:registerUpdater{
       updateFn = resetCumulant,
       priority = 400,
@@ -725,6 +733,12 @@ function Cleaner:setCumulant()
       'GlobalData')
   local playerIndex = self.gameObject:getComponent('Avatar'):getIndex()
   globalData:setCleanedThisStep(playerIndex)
+end
+
+function Cleaner:getNumCleaners()
+  local globalData = self.gameObject.simulation:getSceneObject():getComponent(
+      'GlobalData')
+    return globalData:getNumCleaners()
 end
 
 --[[ `Eating` endows avatars with the ability to eat items from their inventory
@@ -1014,7 +1028,7 @@ function Property:markRectangle()
   local upperLeft = {pos[1]-radius, pos[2]-radius}
   local lowerRight = {pos[1]+radius, pos[2]+radius}
   hittingGameObject = self.gameObject
-  local object = self.transform:queryRectangle('lowerPhysical', upperLeft, lowerRight)
+  local object = self.transform:queryRectangle('resourceLayer', upperLeft, lowerRight)
   for _, item in pairs(object) do
     if item:hasComponent('Resource') then
       resource = item:getComponent('Resource')
@@ -1057,7 +1071,6 @@ function Surroundings:reset()
   self.property = tensor.DoubleTensor(x_len, y_len):fill(0)
   self.numApplesAround = 0
   self.dirtFraction = 0.0
-  self.isAtWater = 0
 end
 
 function Surroundings:start()
@@ -1081,26 +1094,22 @@ function Surroundings:updateDirt()
   end
 end
 
-function Surroundings:updateProximity()
-  -- Calculate the key coordination of agent
-  local pos = self.gameObject:getPosition()
-  local upperLeft = {pos[1]-1, pos[2]-1}
-  local lowerRight = {pos[1]+1, pos[2]+1}
-  -- Get objects on upperPhysical == dirt
-  local potentialWaterObject = self.transform:queryRectangle('upperPhysical', upperLeft, lowerRight)
-  for _, item in pairs(potentialWaterObject) do
-    if item:hasComponent('DirtTracker') then
-      return 1
+function Surroundings:getWaterLocations()
+  local mapSize = self._config.mapSize
+  for i=1, mapSize[1] do
+    for j=1, mapSize[2] do
+      local potentialDirt = self.transform:queryPosition('upperPhysical', {i, j})
+      if potentialDirt ~= nil and potentialDirt:hasComponent('DirtTracker') then
+          self.surroundings(i, j):val(-1) -- dirt
+      end
     end
   end
-  return 0
 end
 
 function Surroundings:update()
   -- update dirtFraction
   self.dirtFraction = self:updateDirt()
-  -- update local proximity values
-  self.isAtWater = self:updateProximity()
+  self.surrounding = self:getWaterLocations()
   -- unpack observation arguments
   local radius = self._config.observationRadius
   local mapSize = self._config.mapSize
@@ -1118,12 +1127,12 @@ function Surroundings:update()
     for j=y, y_lim do
       if self.transform:queryPosition('appleLayer', {i, j}) ~= nil then
           self.surroundings(i, j):val(1) -- apples
-      else
+      elseif self.surroundings(i, j):val() ~= -1 then -- don't override river
         self.surroundings(i, j):val(0)
       end
-      local lowerPhysical = self.transform:queryPosition('lowerPhysical', {i, j})
-      if lowerPhysical ~= nil and lowerPhysical:hasComponent('Resource') then
-        playerClaimed = lowerPhysical:getComponent('Resource')._claimedByAvatarComponent
+      local resource = self.transform:queryPosition('resourceLayer', {i, j})
+      if resource ~= nil and resource:hasComponent('Resource') then
+        playerClaimed = resource:getComponent('Resource')._claimedByAvatarComponent
         if playerClaimed ~= nil then
           playerId = playerClaimed:getIndex()
           self.property(i, j):val(playerId) -- claimed resources
@@ -1338,19 +1347,23 @@ local GlobalData = class.Class(component.Component)
 function GlobalData:__init__(kwargs)
   kwargs = args.parse(kwargs, {
       {'name', args.default('GlobalData')},
+      {'recordWindow', args.default(10), args.numberType},
   })
   GlobalData.Base.__init__(self, kwargs)
+  self.recordWindow = kwargs.recordWindow
 end
 
 function GlobalData:reset()
-  local numPlayers = self.gameObject.simulation:getNumPlayers()
-  self.playersWhoCleanedThisStep = tensor.Tensor(numPlayers):fill(0)
-  self.playersWhoAteThisStep = tensor.Tensor(numPlayers):fill(0)
-  self.stolenRecords = tensor.DoubleTensor(numPlayers, numPlayers):fill(0)
+  self.numPlayers = self.gameObject.simulation:getNumPlayers()
+  self.playersWhoCleanedThisStep = tensor.Tensor(self.numPlayers):fill(0)
+  self.playersWhoCleanedRecently = tensor.DoubleTensor(self.numPlayers, self.recordWindow):fill(0)
+  self.playersWhoAteThisStep = tensor.Tensor(self.numPlayers):fill(0)
+  self.stolenRecords = tensor.DoubleTensor(self.numPlayers, self.numPlayers):fill(0)
 end
 
 function GlobalData:registerUpdaters(updaterRegistry)
   local function resetCumulants()
+    self.playersWhoCleanedRecently = self:updateNumCleaners()
     self.playersWhoCleanedThisStep:fill(0)
     self.playersWhoAteThisStep:fill(0)
   end
@@ -1368,7 +1381,19 @@ function GlobalData:setAteThisStep(playerIndex)
   self.playersWhoAteThisStep(playerIndex):val(1)
 end
 
--- Note: a stolen record never gets set to 0 again
+function GlobalData:updateNumCleaners()
+  local temp_tensor = tensor.DoubleTensor(self.numPlayers, self.recordWindow):fill(0)
+  for i = 1, self.numPlayers do
+      for j = 2, self.recordWindow do
+        local tempVal = self.playersWhoCleanedRecently(i,j):val()
+        temp_tensor(i, j-1):val(tempVal)
+      end
+      temp_tensor(i, self.recordWindow):val(self.playersWhoCleanedThisStep(i):val())
+    end
+  return temp_tensor
+end
+
+-- Note: a stolen-record never gets set to 0 again
 function GlobalData:setStoleInGame(stolenFrom, thief)
   self.stolenRecords(stolenFrom, thief):val(1)
 end
@@ -1376,6 +1401,17 @@ end
 function GlobalData:getStoleInGame(stolenFrom)
   return self.stolenRecords(stolenFrom)
 end
+
+function GlobalData:getNumCleaners()
+  local numCleaners = 0
+  for i=1, self.numPlayers do
+    if self.playersWhoCleanedRecently:select(1,i):maxElement() > 0 then
+      numCleaners = numCleaners + 1
+    end
+  end
+  return numCleaners
+end
+
 
 --[[ The RiverMonitor is a scene component that tracks the state of the river.
 

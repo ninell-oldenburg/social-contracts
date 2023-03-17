@@ -31,7 +31,7 @@ local OverrideSimulation = class.Class(simulation.BaseSimulation)
 function OverrideSimulation:worldConfig()
   local config = simulation.BaseSimulation.worldConfig(self)
   local index = 0
-  -- Add layer 'appleLayer' below 'midPhysical'.
+  -- Add layer 'appleLayer' below 'upperPhysical'.
   for layerIndex, layerName in ipairs(config.renderOrder) do
     if layerName == 'upperPhysical' then
       index = layerIndex
@@ -39,6 +39,15 @@ function OverrideSimulation:worldConfig()
     end
   end
   table.insert(config.renderOrder, index, 'appleLayer')
+
+  -- Add layer 'resourceLayer' below 'appleLayer'.
+  for layerIndex, layerName in ipairs(config.renderOrder) do
+    if layerName == 'appleLayer' then
+      index = layerIndex
+      break
+    end
+  end
+  table.insert(config.renderOrder, index, 'resourceLayer')
   return config
 end
 

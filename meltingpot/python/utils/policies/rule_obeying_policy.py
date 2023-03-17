@@ -24,7 +24,7 @@ from queue import PriorityQueue
 
 from pysmt.shortcuts import *
 
-from meltingpot.python.utils.policies.pysmt_rules import ProhibitionRule
+from meltingpot.python.utils.policies.pysmt_rules import ProhibitionRule, ObligationRule
 
 import numpy as np
 from copy import deepcopy
@@ -35,37 +35,41 @@ foreign_property = Symbol('CUR_CELL_IS_FOREIGN_PROPERTY', BOOL)
 cur_cell_has_apple = Symbol('CUR_CELL_HAS_APPLE', BOOL)
 agent_has_stolen = Symbol('AGENT_HAS_STOLEN', BOOL)
 clean_action = Symbol('CLEAN_ACTION', BOOL)
+pay_action = Symbol('PAY_ACTION', BOOL)
 dirt_fraction = Symbol('DIRT_FRACTION', REAL)
-cleaner_role = Symbol('cleaner_role', BOOL)
-farmer_role = Symbol('farmer_role', BOOL)
-apples_paid = Symbol('apples_paid', INT)
+cleaner_role = Symbol('CLEANER_ROLE', BOOL)
+farmer_role = Symbol('FARMER_ROLE', BOOL)
 
 """
             OBLIGATION:
-            # every time the water gets too polluted, go clean the water
-            # Implies(GT(dirt_fraction, Real(0.6)), clean_action),
             # every X turns, go clean the water
             Implies(Equals(Symbol('since_last_cleaned', INT), Symbol('cleaning_rhythm', INT)),
                     clean_action),
-            # clean the water if less than Y agents are cleaning
-            Implies(LT(Symbol('num_cleaners', INT), Symbol("Y", INT)), 
-                    clean_action),
             # if I'm in the cleaner role, go clean the water
             Implies(cleaner_role, clean_action),
-            # Pay cleaner with apples
-            Implies(farmer_role, GT(apples_paid, Int(0))),
 
             PERMISSION:
             # Stop cleaning if I'm not paid by farmer
             Implies(And(cleaner_role, Not(Symbol('paid_by_farmer', BOOL))), 
                     Not(clean_action)),
             # stop paying cleaner if they don't clean
-            Implies(Not(Symbol('cleaner_cleans', BOOL)), Equals(apples_paid, Int(0)))
+            Implies(Not(Symbol('cleaner_cleans', BOOL)), Not(pay_action)))
             ]
             """
 
-DEFAULT_RULES = [
-    # don't if <2 apples around
+DEFAULT_OBLIGATIONS = [
+    # every time the water gets too polluted, go clean the water
+    ObligationRule(GT(dirt_fraction, Real(0.6)), 'CLEAN_ACTION'),
+    # clean the water if less than Y agents are cleaning
+    ObligationRule(LT(Symbol('NUM_CLEANERS', REAL), Real(1)), 
+                    'CLEAN_ACTION'),
+    # Pay cleaner with apples
+    # ObligationRule(And(farmer_role, Equals(Symbol('since_last_payed', INT),\
+                      # Symbol('pay_rhythm', INT))), "PAY_ACTION"),
+]
+
+DEFAULT_PROHIBITIONS = [
+    # don't go if <2 apples around
     ProhibitionRule(Not(And(cur_cell_has_apple, LT(Symbol('NUM_APPLES_AROUND', INT), Int(3))))),
     # don't fire the cleaning beam if you're not close to the water
     ProhibitionRule(Not(And(clean_action, Not(Symbol('IS_AT_WATER', BOOL))))),
@@ -83,17 +87,21 @@ class PrioritizedItem:
 class RuleObeyingPolicy(policy.Policy):
   """A puppet policy controlled by a certain environment rules."""
 
-  def __init__(self, env: dm_env.Environment, player_idx: int, prohibitions: list = DEFAULT_RULES) -> None:
+  def __init__(self, 
+               env: dm_env.Environment, 
+               player_idx: int, 
+               prohibitions: list = DEFAULT_PROHIBITIONS, 
+               obligations: list = DEFAULT_OBLIGATIONS) -> None:
     """Initializes the policy.
 
     Args:
       RuleObeyingAgent: Instantiate the RuleObeyingAgent class.
     """
     self._index = player_idx
-    self._max_depth = 10
+    self._max_depth = 25
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
-    # self.obligations = obligations
+    self.obligations = obligations
     self.current_obligation = None
 
     # move actions
@@ -113,9 +121,11 @@ class RuleObeyingPolicy(policy.Policy):
           ]
     # beams
     self.action_to_beam = [
-            "CLEAN_ACTION",
             "ZAP_ACTION",
+            "CLEAN_ACTION",
             "CLAIM_ACTION",
+            "EAT_ACTION",
+            "PAY_ACTION"
           ]
         
   def step(self, 
@@ -126,11 +136,14 @@ class RuleObeyingPolicy(policy.Policy):
       End of episode defined in dm_env.TimeStep.
       """
 
-      """# Check if any of obligations are active
+      # Check if any of obligations are active
+      self.current_obligation = None
       for rule in self.obligations:
          if rule.holds(timestep.observation):
            self.current_obligation = rule
-           break"""
+           break
+         
+      print(f"self.current_obligation == None: {self.current_obligation == None}")
 
       # Select an action based on the first satisfying rule
       action_plan = self.a_star(timestep)
@@ -160,17 +173,13 @@ class RuleObeyingPolicy(policy.Policy):
       elif action <= 6: # turn actions
         action = action - 5 # indexing starts at 0
         observation['ORIENTATION'] = np.array(self.action_to_orientation
-                                             [orientation][action]
-                                             )
-      # TODO implement FIRE_ZAP, FIRE_CLEAN, FIRE_CLAIM
-      elif action <= 9:
-        if self.water_is_dirty(observation['DIRT_FRACTION']):
-          reward = self.compute_clean_subgoal(action)
-
-      else: # pay and eat actions
+                                             [orientation][action])
+        
+      else: # beams, pay, and eat actions
         if cur_inventory > 0:
-          if action == 10: # eat
-            reward += 1 # TODO: change from hard-coded to variable
+          if action >= 10:
+            if action == 10: # eat
+              reward += 1 # TODO: change from hard-coded to variable
           cur_inventory -= 1 # pay
 
       observation['INVENTORY'] = cur_inventory
@@ -207,15 +216,14 @@ class RuleObeyingPolicy(policy.Policy):
       cur_timestep, cur_action = priority_item.item
       cur_position = tuple(cur_timestep.observation['POSITION'])
       cur_depth = priority_item.priority
-      if self.is_done(cur_timestep, cur_depth):
+      if self.is_done(cur_timestep, cur_depth, cur_action):
         return self.reconstruct_path(came_from, (cur_position, cur_action))
 
       # Get the list of actions that are possible and satisfy the rules
       available_actions = self.available_actions(cur_timestep)
-      #available_actions = range(self.action_spec.num_values)
 
-      for action in available_actions: # currently exclude all beams
-        cur_timestep_copy = deepcopy(cur_timestep) # TIME
+      for action in available_actions:
+        cur_timestep_copy = deepcopy(cur_timestep)
         next_timestep = self.env_step(cur_timestep_copy, action)
         next_position = tuple(next_timestep.observation['POSITION'])
         if not (next_position, action) in came_from.keys() \
@@ -225,63 +233,60 @@ class RuleObeyingPolicy(policy.Policy):
                                     tie_break=next_timestep.reward*(-1), # ascending
                                     item=(next_timestep, action))
                                     )
-
     return False
 
   def available_actions(self, timestep: dm_env.TimeStep) -> list[int]:
     """Return the available actions at a given timestep."""
     actions = []
-    for action in range(self.action_spec.num_values):
-      if self.is_valid_action(timestep, action):
-        actions.append(action)
-
-    return actions
-  
-  def water_is_dirty(self, dirtFraction: float) -> bool:
-    if dirtFraction > 0.6:
-      return True
-    return False
-  
-  def compute_cleaning_subgoal(self, action):
-    reward = 0
-    if action == 8:
-      reward += 1
-    return reward
-  
-  def is_valid_action(self, timestep, action):
-    """Returns True if an action is allowed given the current timestep"""
     observation = deepcopy(timestep.observation)
     orientation = observation['ORIENTATION'].item()
-    if action <= 4: # record and alter move
-      observation['POSITION'] += self.action_to_pos[orientation][action]
-    elif action <= 9: # record and alter beam
-      action = action - 7 # zero-indexed
-      action_name = self.action_to_beam[action]
-      observation[action_name] = True # to check for pySMT rules
-    else:
-      pass
+
+    for action in range(self.action_spec.num_values):
+      if action <= 4: # record and alter move
+        observation['POSITION'] += self.action_to_pos[orientation][action]
+
+      x, y = observation['POSITION'][0]-1, observation['POSITION'][1]-1
+      if self.exceeds_map(observation['WORLD.RGB'], x, y):
+        continue
+      
+      if self.current_obligation != None:
+        if not action in self.current_obligation.get_valid_actions():
+          continue
+
+      observation = self.update_observation(observation, action, x, y)
+      if not self.check_all(observation):
+        continue
     
-    observation = self.update_observation(observation)
-    for rule in self.prohibitions:
-      if not rule.holds(observation):
-        return False
-    return True
+      actions.append(action)
+    return actions
   
-  def update_observation(self, observation):
-    # TODO: make this readable
+  def check_all(self, observation):
+    for prohibition in self.prohibitions:
+        if not prohibition.holds(observation):
+          return False
+    return True
+
+  def update_observation(self, observation, action, x, y):
     """Updates the observation with requested information."""
     # lua is 1-indexed
-    x, y = observation['POSITION'][0]-1, observation['POSITION'][1]-1
     observation['NUM_APPLES_AROUND'] = self.get_apples(observation, x, y)
-    observation['CUR_CELL_HAS_APPLE'] = True if not self.exceeds_map(observation['WORLD.RGB'], x, y) \
-      and observation['SURROUNDINGS'][x][y] == 1 else False
-    
-    self.get_property(observation, x, y)
-    
-    observation['IS_AT_WATER'] = True if observation['IS_AT_WATER'] == 1 else False
-    for action in self.action_to_beam:
-        if action not in observation.keys(): observation[action] = False 
+    observation['CUR_CELL_HAS_APPLE'] = True if observation['SURROUNDINGS'][x][y] == 1 else False
+    observation['IS_AT_WATER'] = True if observation['SURROUNDINGS'][x][y] == -1 else False
+    self.get_territory(observation, x, y)
+
+    action_name = None
+    if action >= 7:
+      action_name = self.action_to_beam[action - 7]
+    observation = self.get_nowalk_action(observation, action_name)
         
+    return observation
+  
+  def get_nowalk_action(self, observation, action_name):
+    for action in self.action_to_beam:
+        observation[action] = False 
+        if action == action_name:
+          observation[action] = True
+
     return observation
   
   def get_apples(self, observation, x, y):
@@ -295,8 +300,9 @@ class RuleObeyingPolicy(policy.Policy):
     
     return sum
   
-  def get_property(self, observation, x, y):
+  def get_territory(self, observation, x, y):
     own_idx = self._index+1
+    property_idx = 0
     property_idx = int(observation['PROPERTY'][x][y])
     if property_idx != own_idx and property_idx != 0:
       observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = True
@@ -309,7 +315,6 @@ class RuleObeyingPolicy(policy.Policy):
       observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = False
       observation['AGENT_HAS_STOLEN'] = True # free or your own property allowed
 
-  
   def exceeds_map(self, world_rgb, x, y):
     x_max = world_rgb.shape[1] / 8
     y_max = world_rgb.shape[0] / 8
@@ -319,14 +324,16 @@ class RuleObeyingPolicy(policy.Policy):
       return True
     return False
 
-  def is_done(self, timestep, plan_length):
+  def is_done(self, timestep, plan_length, action):
     """Check whether any of the stop criteria are met."""
     if timestep.last():
       return True
     elif plan_length > self._max_depth:
       return True
     elif self.current_obligation != None:
-      return self.current_obligation.satisfied(timestep.observation)
+      if action >= 7:
+        action_name = self.action_to_beam[action-7]
+        return self.current_obligation.satisfied(action_name)
     elif timestep.reward >= 1.0:
       return True
     return False

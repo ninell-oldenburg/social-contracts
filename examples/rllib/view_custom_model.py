@@ -67,7 +67,7 @@ def main():
   game_display = pygame.display.set_mode(
       (int(shape[1] * scale), int(shape[0] * scale)))
 
-  for k in range(20):
+  for k in range(100):
     obs = timestep.observation[0]["WORLD.RGB"]
     obs = np.transpose(obs, (1, 0, 2))
     surface = pygame.surfarray.make_surface(obs)
@@ -95,14 +95,14 @@ def main():
     timestep = env.step(action_list)
     actions = update(actions)
 
-
+    """
     # Saving files in superdircetory
-    filename = "../videos/screen_%04d.png" % (k)
+    filename = '../videos/screen_%04d.png' % (k)
     pygame.image.save(game_display, filename)
 
-    """
+    
     # Bash command
-    % ffmpeg -r 25 -f image2 -s 400x400 -i screen_%04d.png -vcodec libx264 -crf 25  window_video.mp4
+    % ffmpeg -r 25 -f image2 -s 400x400 -i screen_%04d.png -vcodec libx264  window_video.mov
     """
 
 # delete first row of the array

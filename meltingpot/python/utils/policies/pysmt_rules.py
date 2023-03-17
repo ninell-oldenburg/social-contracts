@@ -2,35 +2,19 @@ from pysmt.shortcuts import *
 # from pysmt.solvers.solver import Solver
 
 import numpy as np
-    
-class ObligationRule():
-    def __init__(self, precondition, goal):
-        # precondiiton: what holds s.t. obligation needs to come into place
-        self.precondition = precondition
-        # goal: what should be done now
-        self.goal = goal
-        
-    def holds(self, observation, action):
-        # Check if precondition is satisfied / true
-        # e.g. if dirtFraction is above some value
-        pass
-              
-    def satisfied(self, observation, action):
-        # Check if goal formula is satisfied
-        # e.g. make dirtFraction go below some value
-        pass
 
 class ProhibitionRule():
-    def __init__(self, formula):
-        self.formula = formula
+    def __init__(self, precondition):
+        self.precondition = precondition
         self.s = Solver()
 
     def holds(self, observation):
         """Returns if a rule holds given a certain observation."""
-        variables = self.formula.get_free_variables()
-        substitutions = {v: self.get_property(v, observation) for v in variables}
-        problem = self.formula.substitute(substitutions)
-        return self.s.is_sat(problem)
+        variables = self.precondition.get_free_variables()
+        substitutions = {v: self.get_property(v, observation) for v in variables}            
+        problem = self.precondition.substitute(substitutions)
+        is_sat_val = self.s.is_sat(problem)
+        return is_sat_val
 
     def get_property(self, property, observation):
         """Get the requested properties from the observations
@@ -51,3 +35,16 @@ class ProhibitionRule():
             value = Real(value)
 
         return value
+    
+class ObligationRule(ProhibitionRule):
+    def __init__(self, precondition, goal):
+        self.precondition = precondition
+        self.goal = goal
+        self.s = Solver()
+        self.obligations = {'CLEAN_ACTION': list(range(9)), "PAY_ACTION": [11]}
+
+    def get_valid_actions(self):
+        return self.obligations[self.goal]
+              
+    def satisfied(self, action):
+        return action == self.goal

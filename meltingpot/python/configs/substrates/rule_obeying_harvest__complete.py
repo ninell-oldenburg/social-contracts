@@ -72,7 +72,7 @@ PrefabConfig = game_object_utils.PrefabConfig
 
 APPLE_RESPAWN_RADIUS = 2.0
 REGROWTH_PROBABILITIES = [0.0, 0.0025, 0.005, 0.025]
-OBSERVATION_RADIUS = 5 # defines radius that agents can observe
+OBSERVATION_RADIUS = 6 # defines radius that agents can observe
 
 ASCII_MAP = """
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWW
@@ -81,16 +81,16 @@ WHFHFHFFHFHFHFHFHFHFHHFHFFHFW
 WHFFFFFFHFHFHFHFHFHFHHFHFFHFW
 W==============+~FHHHHHHf===W
 W   P    P      ===+~SSf    W
-W     P     P   P  <~Sf  P  W
+W           P   P  <~Sf  P  W
 W  P             P <~S>     W
 W^T^T^T^T^T^T^T^T^T;~S^T^T^TW
 WAAA____A____________A____AAW
-WAA____AAA__________AAA____AW
+WAA____AAA____Q_____AAA____AW
 WA____AAAAA________AAAAA____W
 W______AAA__________AAA_____W
-W_______A________Q___A______W
-W__A__________A__________A__W
-W_AAA________AAA____Q___AAA_W
+W_______A____________A______W
+W__A__________A___Q______A__W
+W_AAA________AAA________AAA_W
 WAAAAA______AAAAA______AAAAAW
 W_AAA________AAA________AAA_W
 W__A__________A__________A__W
@@ -98,9 +98,9 @@ W__GGGGGGGGGGGGGGGGGGGGGGG__W
 W__GGGGGGGGGGGGGGGGGGGGGGG__W
 WGGGGGGGGGGGGGGGGGGGGGGGGGGGW
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-WDXXXXXWDXXXXXWDXXXXXWDXXXXXW
+WD-----WD-----WD-----WD-----W
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-WDXXXXXWDXXXXXWDXXXXXWDXXXXXW
+WD-----WD-----WD-----WD-----W
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 """
 
@@ -112,28 +112,28 @@ MAP_SIZE = (x_size, y_size)
 # ascii map.
 CHAR_PREFAB_MAP = {
     "W": "wall",
-    " ": "sand",
-    "P": {"type": "all", "list": ["sand", "spawn_point"]},
-    "+": {"type": "all", "list": ["sand", "shadow_e", "shadow_n"]},
-    "f": {"type": "all", "list": ["sand", "shadow_w", "shadow_n"]},
-    ";": {"type": "all", "list": ["sand", "grass_edge", "shadow_e"]},
-    ",": {"type": "all", "list": ["sand", "grass_edge", "shadow_w"]},
-    "^": {"type": "all", "list": ["sand", "grass_edge",]},
-    "=": {"type": "all", "list": ["sand", "shadow_n",]},
-    ">": {"type": "all", "list": ["sand", "shadow_w",]},
-    "<": {"type": "all", "list": ["sand", "shadow_e",]},
-    "T": {"type": "all", "list": ["sand", "grass_edge"]},
+    " ": {"type": "all", "list": ["sand", "resource"]},
+    "P": {"type": "all", "list": ["sand", "resource", "spawn_point"]},
+    "+": {"type": "all", "list": ["sand", "resource", "shadow_e", "shadow_n"]},
+    "f": {"type": "all", "list": ["sand", "resource", "shadow_w", "shadow_n"]},
+    ";": {"type": "all", "list": ["sand", "grass_edge", "resource", "shadow_e"]},
+    ",": {"type": "all", "list": ["sand", "grass_edge", "resource", "shadow_w"]},
+    "^": {"type": "all", "list": ["sand", "grass_edge", "resource"]},
+    "=": {"type": "all", "list": ["sand", "resource", "shadow_n",]},
+    ">": {"type": "all", "list": ["sand", "resource", "shadow_w",]},
+    "<": {"type": "all", "list": ["sand", "resource", "shadow_e",]},
+    "T": {"type": "all", "list": ["sand", "resource", "grass_edge"]},
     "S": "river",
     "H": {"type": "all", "list": ["river", "potential_dirt"]},
     "F": {"type": "all", "list": ["river", "actual_dirt"]},
     "~": {"type": "all", "list": ["river", "shadow_w",]},
-    "_": {"type": "all", "list": ["resource_texture", "resource"]},
-    "Q": {"type": "all", "list": ["resource_texture", "resource", "inside_spawn_point"]},
-    "s": {"type": "all", "list": ["resource_texture", "resource", "shadow_n"]},
-    "A": {"type": "all", "list": ["resource_texture", "resource", "apple"]},
-    "G": {"type": "all", "list": ["resource_texture", "resource", "spawn_point"]},
+    "_": {"type": "all", "list": ["grass", "resource"]},
+    "Q": {"type": "all", "list": ["grass", "resource", "inside_spawn_point"]},
+    "s": {"type": "all", "list": ["grass", "resource", "shadow_n"]},
+    "A": {"type": "all", "list": ["grass", "resource", "apple"]},
+    "G": {"type": "all", "list": ["grass", "resource", "spawn_point"]},
     "D": "avatar_copy",
-    "X": "inventory_display"
+    "-": "inventory_display"
 }
 
 _COMPASS = ["N", "E", "S", "W"]
@@ -592,7 +592,7 @@ def create_resource(num_players: int) -> PrefabConfig:
     wet_sprite_name = "Color" + str(lua_player_idx) + "ResourceSprite"
     claim_state_configs.append({
         "state": "claimed_by_" + str(lua_player_idx),
-        "layer": "lowerPhysical",
+        "layer": "resourceLayer",
         "sprite": wet_sprite_name,
         "groups": ["claimedResources"]
     })
@@ -610,7 +610,7 @@ def create_resource(num_players: int) -> PrefabConfig:
                   "initialState": "unclaimedGrass",
                   "stateConfigs": [
                       {"state": "unclaimedGrass",
-                       "layer": "lowerPhysical",
+                       "layer": "resourceLayer",
                        "sprite": "UnclaimedResourceSprite"},
                   ] + claim_state_configs,
               }
@@ -881,7 +881,10 @@ def create_scene():
               },
           },
           {
-              "component": "GlobalData"
+              "component": "GlobalData",
+              "kwargs": {
+                  "recordWindow": 20,
+              }
           },
           {
               "component": "Neighborhoods",
@@ -1106,18 +1109,18 @@ def create_avatar_object(player_idx: int,
                           "variable": "dirtFraction",
                       },
                       {
+                          "name": "NUM_CLEANERS",
+                          "type": "Doubles",
+                          "shape": [],
+                          "component": "Cleaner",
+                          "variable": "num_cleaners",
+                      },
+                      {
                         "name": "INVENTORY",
                           "type": "Int32s",
                           "shape": [],
                           "component": "Inventory",
                           "variable": "inventory",
-                      },
-                      {
-                          "name": "IS_AT_WATER",
-                          "type": "Int32s",
-                          "shape": [],
-                          "component": "Surroundings",
-                          "variable": "isAtWater",
                       },
                       {
                           "name": "PLAYER_ATE_APPLE",
@@ -1357,6 +1360,7 @@ def get_config():
       "INVENTORY",
       "SURROUNDINGS",
       "NUM_OTHERS_PLAYER_ZAPPED_THIS_STEP",
+      "NUM_CLEANERS",
 
       # Global observations
       "DIRT_FRACTION",
@@ -1364,7 +1368,6 @@ def get_config():
 
       # Global switching signals for puppeteers.
       "NUM_OTHERS_WHO_CLEANED_THIS_STEP",
-      "IS_AT_WATER",
 
       # Debug only (do not use the following observations in policies).
       "POSITION",

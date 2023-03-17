@@ -45,6 +45,8 @@ _ACTION_MAP = {
     'fireZap': level_playing_utils.get_space_key_pressed,
     'fireClean': level_playing_utils.get_key_number_one_pressed,
     'fireClaim': level_playing_utils.get_key_number_two_pressed,
+    'eat': level_playing_utils.get_key_number_three_pressed,
+    'pay': level_playing_utils.get_key_number_four_pressed,
 }
 
 
