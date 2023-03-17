@@ -204,11 +204,10 @@ class RuleObeyingPolicy(policy.Policy):
   
   def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
     """Perform a A* search to generate plan."""
-    # plan = np.zeros(shape=1, dtype=int)
     queue = PriorityQueue()
     action = 0
     came_from = {}
-    timestep = timestep._replace(reward=0.0) # inherits from calling call
+    timestep = timestep._replace(reward=0.0) # inherits from calling timestep
     queue.put(PrioritizedItem(0, 0, (timestep, action))) # ordered by reward
 
     while not queue.empty():
@@ -242,7 +241,7 @@ class RuleObeyingPolicy(policy.Policy):
     orientation = observation['ORIENTATION'].item()
 
     for action in range(self.action_spec.num_values):
-      if action <= 4: # record and alter move
+      if action <= 4: # move actions
         observation['POSITION'] += self.action_to_pos[orientation][action]
 
       x, y = observation['POSITION'][0]-1, observation['POSITION'][1]-1
@@ -306,14 +305,14 @@ class RuleObeyingPolicy(policy.Policy):
     property_idx = int(observation['PROPERTY'][x][y])
     if property_idx != own_idx and property_idx != 0:
       observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = True
-      # ['STOLEN_RECORDS'][thief]
+      # format: ['STOLEN_RECORDS'][thief_id]
       if observation['STOLEN_RECORDS'][property_idx-1] == 1:
         observation['AGENT_HAS_STOLEN'] = True
       else:
         observation['AGENT_HAS_STOLEN'] = False
     else:
       observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = False
-      observation['AGENT_HAS_STOLEN'] = True # free or your own property allowed
+      observation['AGENT_HAS_STOLEN'] = True # free or own property
 
   def exceeds_map(self, world_rgb, x, y):
     x_max = world_rgb.shape[1] / 8
