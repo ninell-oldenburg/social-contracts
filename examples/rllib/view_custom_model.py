@@ -49,7 +49,8 @@ def main():
 
   env = substrate.build(config['substrate'], roles=config['roles'])
 
-  bots = [RuleObeyingPolicy(env=env, player_idx=i) for i in range(len(num_bots))]
+  bots = [RuleObeyingPolicy(env=env, role=config['roles'][i], 
+                            player_idx=i) for i in range(len(num_bots))]
 
   timestep = env.reset()
 

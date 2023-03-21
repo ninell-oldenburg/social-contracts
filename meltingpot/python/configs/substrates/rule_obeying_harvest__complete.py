@@ -71,7 +71,7 @@ from meltingpot.python.utils.substrates import specs
 PrefabConfig = game_object_utils.PrefabConfig
 
 APPLE_RESPAWN_RADIUS = 2.0
-REGROWTH_PROBABILITIES = [0.0, 0.0025, 0.005, 0.025]
+REGROWTH_PROBABILITIES = [0.01, 0.03, 0.05, 0.08]
 OBSERVATION_RADIUS = 6 # defines radius that agents can observe
 
 ASCII_MAP = """
@@ -89,8 +89,8 @@ WAA____AAA____Q_____AAA____AW
 WA____AAAAA________AAAAA____W
 W______AAA__________AAA_____W
 W_______A____________A______W
-W__A__________A___Q______A__W
-W_AAA________AAA________AAA_W
+W__A___Q______A__________A__W
+W_AAA________AAA___Q____AAA_W
 WAAAAA______AAAAA______AAAAAW
 W_AAA________AAA________AAA_W
 W__A__________A__________A__W
@@ -114,12 +114,12 @@ CHAR_PREFAB_MAP = {
     "W": "wall",
     " ": {"type": "all", "list": ["sand", "resource"]},
     "P": {"type": "all", "list": ["sand", "resource", "spawn_point"]},
-    "+": {"type": "all", "list": ["sand", "resource", "shadow_e", "shadow_n"]},
-    "f": {"type": "all", "list": ["sand", "resource", "shadow_w", "shadow_n"]},
+    "+": {"type": "all", "list": ["sand", "resource", "shadow_e"]},
+    "f": {"type": "all", "list": ["sand", "resource", "shadow_w"]},
     ";": {"type": "all", "list": ["sand", "grass_edge", "resource", "shadow_e"]},
     ",": {"type": "all", "list": ["sand", "grass_edge", "resource", "shadow_w"]},
     "^": {"type": "all", "list": ["sand", "grass_edge", "resource"]},
-    "=": {"type": "all", "list": ["sand", "resource", "shadow_n",]},
+    "=": {"type": "all", "list": ["sand", "resource"]},
     ">": {"type": "all", "list": ["sand", "resource", "shadow_w",]},
     "<": {"type": "all", "list": ["sand", "resource", "shadow_e",]},
     "T": {"type": "all", "list": ["sand", "resource", "grass_edge"]},
@@ -129,7 +129,6 @@ CHAR_PREFAB_MAP = {
     "~": {"type": "all", "list": ["river", "shadow_w",]},
     "_": {"type": "all", "list": ["grass", "resource"]},
     "Q": {"type": "all", "list": ["grass", "resource", "inside_spawn_point"]},
-    "s": {"type": "all", "list": ["grass", "resource", "shadow_n"]},
     "A": {"type": "all", "list": ["grass", "resource", "apple"]},
     "G": {"type": "all", "list": ["grass", "resource", "spawn_point"]},
     "D": "avatar_copy",
@@ -384,7 +383,7 @@ SHADOW_W = {
                 "initialState": "shadow_w",
                 "stateConfigs": [{
                     "state": "shadow_w",
-                    "layer": "upperPhysical",
+                    "layer": "overlay",
                     "sprite": "ShadowW",
                 }],
             }
@@ -414,7 +413,7 @@ SHADOW_E = {
                 "initialState": "shadow_e",
                 "stateConfigs": [{
                     "state": "shadow_e",
-                    "layer": "upperPhysical",
+                    "layer": "overlay",
                     "sprite": "ShadowE",
                 }],
             }
@@ -481,7 +480,7 @@ def create_dirt_prefab(initial_state):
                       },
                       {
                           "state": "dirt",
-                          "layer": "upperPhysical",
+                          "layer": "overlay",
                           "sprite": "Dirt",
                       },
                   ],
@@ -688,7 +687,7 @@ def create_resource_texture() -> PrefabConfig:
 
 def get_water():
   """Get an animated water game object."""
-  layer = "lowerPhysical"
+  layer = "upperPhysical"
   water = {
       "name": "water_{}".format(layer),
       "components": [
@@ -814,9 +813,9 @@ def create_apple_prefab(regrowth_radius=-1.0,  # pylint: disable=dangerous-defau
                   "waitState": "appleWait",
                   "radius": regrowth_radius,
                   "regrowthProbabilities": regrowth_probabilities,
-                  "maxAppleGrowthRate": 0.9,
-                  "thresholdDepletion": 0.01,
-                  "thresholdRestoration": 0.0,
+                  "maxAppleGrowthRate": 1,
+                  "thresholdDepletion": 0.7,
+                  "thresholdRestoration": 0.1,
               }
           },
       ]
@@ -1018,6 +1017,7 @@ def create_avatar_object(player_idx: int,
               "component": "Paying",
               "kwargs": {
                   "amount": 1.0,
+                  "payRhythm": 5,
               }
           },
           {
@@ -1036,6 +1036,7 @@ def create_avatar_object(player_idx: int,
                   "cooldownTime": 2,
                   "beamLength": 3,
                   "beamRadius": 1,
+                  "cleanRhythm": 5,
               }
           },
           {
@@ -1107,6 +1108,34 @@ def create_avatar_object(player_idx: int,
                           "shape": [],
                           "component": "Surroundings",
                           "variable": "dirtFraction",
+                      },
+                      {
+                          "name": "SINCE_LAST_CLEANED",
+                          "type": "Doubles",
+                          "shape": [],
+                          "component": "Cleaner",
+                          "variable": "sinceLastCleaned",
+                      },
+                      {
+                          "name": "CLEAN_RHYTHM",
+                          "type": "Doubles",
+                          "shape": [],
+                          "component": "Cleaner",
+                          "variable": "cleanRhythm",
+                      },
+                      {
+                          "name": "SINCE_LAST_PAYED",
+                          "type": "Doubles",
+                          "shape": [],
+                          "component": "Paying",
+                          "variable": "sinceLastPayed",
+                      },
+                      {
+                          "name": "PAY_RHYTHM",
+                          "type": "Doubles",
+                          "shape": [],
+                          "component": "Paying",
+                          "variable": "payRhythm",
                       },
                       {
                           "name": "NUM_CLEANERS",
@@ -1359,8 +1388,11 @@ def get_config():
       "PROPERTY",
       "INVENTORY",
       "SURROUNDINGS",
-      "NUM_OTHERS_PLAYER_ZAPPED_THIS_STEP",
       "NUM_CLEANERS",
+      "SINCE_LAST_CLEANED",
+      "SINCE_LAST_PAYED",
+      "CLEAN_RHYTHM",
+      "PAY_RHYTHM",
 
       # Global observations
       "DIRT_FRACTION",
@@ -1397,9 +1429,11 @@ def get_config():
   })
 
   # The roles assigned to each player.
-  config.valid_roles = frozenset({"default"})
+  config.valid_roles = frozenset({"default",
+                                  "cleaner", 
+                                  "farmer",})
   # "bluie" as for one player
-  config.default_player_roles = ("default",) * 2
+  config.default_player_roles = ("cleaner",) * 1 + ("farmer",) * 1
 
   return config
 

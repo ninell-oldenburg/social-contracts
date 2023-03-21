@@ -117,7 +117,7 @@ function DensityRegrow:registerUpdaters(updaterRegistry)
     else
       -- Only setState if no player is at the same position.
       local transform = self.gameObject:getComponent('Transform')
-      local players = transform:queryDiamond('upperPhysical', 0)
+      local players = transform:queryDiamond('overlay', 0)
       if #players == 0 then
         self:updateBasedOnPollution()
       end
@@ -648,16 +648,19 @@ function Cleaner:__init__(kwargs)
       {'cooldownTime', args.positive},
       {'beamLength', args.positive},
       {'beamRadius', args.positive},
+      {'cleanRhythm', args.numberType},
   })
   Cleaner.Base.__init__(self, kwargs)
 
   self._config.cooldownTime = kwargs.cooldownTime
   self._config.beamLength = kwargs.beamLength
   self._config.beamRadius = kwargs.beamRadius
+  self.cleanRhythm = kwargs.cleanRhythm
 end
 
 function Cleaner:start()
   self.num_cleaners = 0
+  self.sinceLastCleaned = 0
 end
 
 function Cleaner:addHits(worldConfig)
@@ -691,11 +694,13 @@ function Cleaner:registerUpdaters(updaterRegistry)
             self._coolingTimer = self._config.cooldownTime
             self.gameObject:hitBeam(
                 'cleanHit', self._config.beamLength, self._config.beamRadius)
+            self.sinceLastCleaned = 0
           end
         end
       end
     end
     self.num_cleaners = self:getNumCleaners()
+    self.sinceLastCleaned = self.sinceLastCleaned + 1
   end
 
   updaterRegistry:registerUpdater{
@@ -923,12 +928,18 @@ function Paying:__init__(kwargs)
   kwargs = args.parse(kwargs, {
       {'name', args.default('Paying')},
       {'amount', args.numberType},
+      {'payRhythm', args.numberType},
   })
   Paying.Base.__init__(self, kwargs)
 
   self._kwargs = kwargs
   self._config.amount = kwargs.amount
+  self.payRhythm = kwargs.payRhythm
 
+end
+
+function Paying:start()
+  self.sinceLastPayed = 0
 end
 
 function Paying:registerUpdaters(updaterRegistry)
@@ -941,8 +952,10 @@ function Paying:registerUpdaters(updaterRegistry)
         if actions['pay'] == 1 then
           local payee = self:getBestPayee()
           self:pay(payee)
+          self.sinceLastPayed = 0
         end
     end
+    self.sinceLastPayed = self.sinceLastPayed + 1
   end
 
   updaterRegistry:registerUpdater{
@@ -1082,6 +1095,7 @@ function Surroundings:postStart()
   local sceneObject = self.gameObject.simulation:getSceneObject()
   self._riverMonitor = sceneObject:getComponent('RiverMonitor')
   self:update()
+  self.surrounding = self:getWaterLocations()
 end
 
 function Surroundings:updateDirt()
@@ -1098,7 +1112,7 @@ function Surroundings:getWaterLocations()
   local mapSize = self._config.mapSize
   for i=1, mapSize[1] do
     for j=1, mapSize[2] do
-      local potentialDirt = self.transform:queryPosition('upperPhysical', {i, j})
+      local potentialDirt = self.transform:queryPosition('overlay', {i, j})
       if potentialDirt ~= nil and potentialDirt:hasComponent('DirtTracker') then
           self.surroundings(i, j):val(-1) -- dirt
       end
@@ -1109,7 +1123,6 @@ end
 function Surroundings:update()
   -- update dirtFraction
   self.dirtFraction = self:updateDirt()
-  self.surrounding = self:getWaterLocations()
   -- unpack observation arguments
   local radius = self._config.observationRadius
   local mapSize = self._config.mapSize
