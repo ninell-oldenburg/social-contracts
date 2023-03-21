@@ -36,18 +36,6 @@ cur_cell_has_apple = Symbol('CUR_CELL_HAS_APPLE', BOOL)
 agent_has_stolen = Symbol('AGENT_HAS_STOLEN', BOOL)
 num_cleaners = Symbol('NUM_CLEANERS', REAL)
 dirt_fraction = Symbol('DIRT_FRACTION', REAL)
-cleaner_role = Symbol('CLEANER_ROLE', BOOL)
-farmer_role = Symbol('FARMER_ROLE', BOOL)
-
-"""
-            PERMISSION:
-            # Stop cleaning if I'm not paid by farmer
-            Implies(And(cleaner_role, Not(Symbol('paid_by_farmer', BOOL))), 
-                    Not(clean_action)),
-            # stop paying cleaner if they don't clean
-            Implies(Not(Symbol('cleaner_cleans', BOOL)), Not(pay_action)))
-            ]
-            """
 
 DEFAULT_OBLIGATIONS = [
     # every time the water gets too polluted, go clean the water
@@ -60,12 +48,16 @@ FARMER_OBLIGATIONS = [
     # Pay cleaner with apples
     ObligationRule(GT(Symbol('SINCE_LAST_PAYED', INT),\
                       Symbol('PAY_RHYTHM', INT)), "PAY_ACTION"),
+    # Stop paying cleaner if they don't clean
+    Not(Symbol('CLEANER_CLEANS', BOOL)), Not('PAY_ACTION')
 ]
 
 CLEANER_OBLIGATIONS = [
     # Clean in a certain rhythm
     ObligationRule(GT(Symbol('SINCE_LAST_CLEANED', INT),\
-                          Symbol('CLEAN_RHYTHM', INT)), 'CLEAN_ACTION')
+                          Symbol('CLEAN_RHYTHM', INT)), 'CLEAN_ACTION'),
+    # Stop cleaning if I'm not paid by farmer
+    #Not(Symbol('PAYED_BY_FARMER', BOOL)), Not('CLEAN_ACTION'),
 ]
 
 DEFAULT_PROHIBITIONS = [
@@ -250,7 +242,7 @@ class RuleObeyingPolicy(policy.Policy):
         # simulate environment for that action
         next_timestep = self.env_step(cur_timestep_copy, action)
         next_position = tuple(next_timestep.observation['POSITION'])
-        # record path if it's new orhas higer reward
+        # record path if it's new or has higer reward
         if not (next_position, action) in came_from.keys() \
           or next_timestep.reward > cur_timestep.reward:
           came_from[(next_position, action)] = (cur_position, cur_action)
@@ -281,7 +273,6 @@ class RuleObeyingPolicy(policy.Policy):
       observation = self.update_observation(observation, orientation, x, y)
       action_name = self.get_action_name(action)
       if not self.check_all(observation, action_name):
-        #print(f"action: {action}, cur_pos: {cur_pos}, x: {x}, y: {y}")
         continue
       
       actions.append(action)
