@@ -931,6 +931,9 @@ function Paying:__init__(kwargs)
       {'payRhythm', args.numberType},
       {'beamLength', args.positive},
       {'beamRadius', args.positive},
+      {'agentRole', args.default('free'), args.oneOf('free',
+                                          'cleaner',
+                                          'farmer')},
   })
   Paying.Base.__init__(self, kwargs)
 
@@ -939,11 +942,16 @@ function Paying:__init__(kwargs)
   self.payRhythm = kwargs.payRhythm
   self._config.beamLength = kwargs.beamLength
   self._config.beamRadius = kwargs.beamRadius
+  self._config.agentRole = kwargs.agentRole
 
 end
 
 function Paying:start()
   self.sinceLastPayed = 0
+end
+
+function Paying:getAgentRole()
+  return self._config.agentRole
 end
 
 function Paying:registerUpdaters(updaterRegistry)
@@ -1006,7 +1014,9 @@ function Paying:pay(payee)
     events:add('trade', 'dict',
              'amount', self._config.amount,
              'payer_index', self.gameObject:getComponent('Avatar'):getIndex(),
-             'payee_index', payee:getComponent('Avatar'):getIndex()
+             'payer_role', self.gameObject:getComponent('Paying'):getAgentRole(),
+             'payee_index', payee:getComponent('Avatar'):getIndex(),
+             'payee_role', payee:getComponent('Paying'):getAgentRole()
             )
   end
 end

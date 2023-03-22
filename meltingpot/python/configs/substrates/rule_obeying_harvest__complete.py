@@ -1020,6 +1020,7 @@ def create_avatar_object(player_idx: int,
                   "payRhythm": 5,
                   "beamLength": 1,
                   "beamRadius": 1,
+                  "agentRole": "free",
               }
           },
           {
