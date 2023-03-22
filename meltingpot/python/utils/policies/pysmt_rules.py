@@ -16,15 +16,15 @@ class EnvironmentRule():
         self.precondition = precondition
         self.s = Solver()
 
-     def holds(self, observation):
-        """Returns True if a rule holds given a certain observation."""
+     def holds(self, observations):
+        """Returns True if a rule holds given a certain vector of observation."""
         variables = self.precondition.get_free_variables()
-        substitutions = {v: self.get_property(v, observation) for v in variables}            
+        substitutions = {v: self.get_property(v, observations) for v in variables}            
         problem = self.precondition.substitute(substitutions)
         is_sat_val = self.s.is_sat(problem)
         return is_sat_val
      
-     def get_property(self, property, observation):
+     def get_property(self, property, observations):
         """Get the requested properties from the observations
         and cast to pySMT compatible type."""
         
@@ -32,7 +32,7 @@ class EnvironmentRule():
         # VARIABLE NAMES HAVE TO TAKE IN SOME SORT OF NAME
         # TIMESTEP 1.OBSERVATION
 
-        value = observation[str(property)]
+        value = observations[str(property)]
         if isinstance(value, np.ndarray) and value.shape == ():
             value = value.reshape(-1,) # unpack numpy array
             value = value[0]

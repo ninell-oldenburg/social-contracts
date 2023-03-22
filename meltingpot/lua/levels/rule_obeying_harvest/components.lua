@@ -929,12 +929,16 @@ function Paying:__init__(kwargs)
       {'name', args.default('Paying')},
       {'amount', args.numberType},
       {'payRhythm', args.numberType},
+      {'beamLength', args.positive},
+      {'beamRadius', args.positive},
   })
   Paying.Base.__init__(self, kwargs)
 
   self._kwargs = kwargs
   self._config.amount = kwargs.amount
   self.payRhythm = kwargs.payRhythm
+  self._config.beamLength = kwargs.beamLength
+  self._config.beamRadius = kwargs.beamRadius
 
 end
 
@@ -973,6 +977,19 @@ function Paying:hasEnough()
   return false
 end
 
+function Paying:addHits(worldConfig)
+  worldConfig.hits['payHit'] = {
+      layer = 'beamPay',
+      sprite = 'BeamPay',
+  }
+  component.insertIfNotPresent(worldConfig.renderOrder, 'beamPay')
+end
+
+function Paying:addSprites(tileSet)
+  -- This color is pink.
+  tileSet:addColor('BeamPay', {255, 202, 202})
+end
+
 function Paying:pay(payee)
   --transfer apples from one inventory to the other
   local myInventory = self.gameObject:getComponent('Inventory')
@@ -983,10 +1000,13 @@ function Paying:pay(payee)
     myInventory:add(-(self._config.amount))
     theirInventory:add(self._config.amount)
 
+    self.gameObject:hitBeam(
+                'payHit', self._config.beamLength, self._config.beamRadius)
+
     events:add('trade', 'dict',
              'amount', self._config.amount,
-             'player_a_index', self.gameObject:getComponent('Avatar'):getIndex(),
-             'player_b_index', payee:getComponent('Avatar'):getIndex()
+             'payer_index', self.gameObject:getComponent('Avatar'):getIndex(),
+             'payee_index', payee:getComponent('Avatar'):getIndex()
             )
   end
 end
