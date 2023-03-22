@@ -546,11 +546,10 @@ ACTION_SET = (
     PAY,
 )
 
-TARGET_SPRITE_SELF = {
-    "name": "Self",
-    "shape": shapes.CUTE_AVATAR,
-    "palette": shapes.get_palette((50, 100, 200)),
-    "noRotate": True,
+ROLE_SPRITE_DICT = {
+   'default': shapes.CUTE_AVATAR,
+   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
+   'farmer': shapes.CUTE_AVATAR_HOLDING_PAINTBRUSH,
 }
 
 def get_brush_palette(
@@ -824,11 +823,12 @@ def create_apple_prefab(regrowth_radius=-1.0,  # pylint: disable=dangerous-defau
   return apple_prefab
 
 
-def create_prefabs(regrowth_radius=-1.0,
+def create_prefabs(roles: Sequence[str],
+                   regrowth_radius=-1.0,
                    # pylint: disable=dangerous-default-value
-                   regrowth_probabilities=[0, 0.0, 0.0, 0.0],
-                   num_players=1) -> PrefabConfig:
+                   regrowth_probabilities=[0, 0.0, 0.0, 0.0]) -> PrefabConfig:
   """Returns a dictionary mapping names to template game objects."""
+  num_players = len(roles)
   prefabs = {
       "wall": WALL,
       "sand": SAND,
@@ -845,7 +845,7 @@ def create_prefabs(regrowth_radius=-1.0,
       "potential_dirt": create_dirt_prefab("dirtWait"),
       "actual_dirt": create_dirt_prefab("dirt"),
       "resource": create_resource(num_players=num_players),
-      "avatar_copy": create_avatar_copy(num_players=num_players),
+      "avatar_copy": create_avatar_copy(roles=roles),
       "inventory_display": create_inventory_display()
   }
   prefabs["apple"] = create_apple_prefab(
@@ -907,7 +907,7 @@ def create_scene():
 
 
 def create_avatar_object(player_idx: int,
-                         target_sprite_self: Dict[str, Any],
+                         role: str,
                          spawn_group: str) -> Dict[str, Any]:
   """Create an avatar object that always sees itself as blue."""
   # Lua is 1-indexed.
@@ -915,7 +915,6 @@ def create_avatar_object(player_idx: int,
 
   # Setup the self vs other sprite mapping.
   source_sprite_self = "Avatar" + str(lua_index)
-  custom_sprite_map = {source_sprite_self: target_sprite_self["name"]}
 
   color_palette = PLAYER_COLOR_PALETTES[player_idx]
   paintbrush_palette = BRUSH_PALETTES[player_idx]
@@ -950,19 +949,9 @@ def create_avatar_object(player_idx: int,
               "kwargs": {
                   "renderMode": "ascii_shape",
                   "spriteNames": [source_sprite_self],
-                  "spriteShapes": [shapes.CUTE_AVATAR_HOLDING_PAINTBRUSH],
+                  "spriteShapes": [shapes.CUTE_AVATAR],
                   "palettes": [{**color_palette, **paintbrush_palette}],
                   "noRotates": [True]
-              }
-          },
-          {
-              "component": "AdditionalSprites",
-              "kwargs": {
-                  "renderMode": "ascii_shape",
-                  "customSpriteNames": [target_sprite_self["name"]],
-                  "customSpriteShapes": [target_sprite_self["shape"]],
-                  "customPalettes": [target_sprite_self["palette"]],
-                  "customNoRotates": [target_sprite_self["noRotate"]],
               }
           },
           {
@@ -997,7 +986,6 @@ def create_avatar_object(player_idx: int,
                       "backward": 1,
                       "centered": False
                   },
-                  "spriteMap": custom_sprite_map,
               }
           },
           {
@@ -1020,7 +1008,7 @@ def create_avatar_object(player_idx: int,
                   "payRhythm": 5,
                   "beamLength": 1,
                   "beamRadius": 1,
-                  "agentRole": "free",
+                  "agentRole": role,
               }
           },
           {
@@ -1251,11 +1239,13 @@ def create_marking_overlay(player_idx: int) -> Mapping[str, Any]:
   }
   return marking_object
 
-def create_avatar_copy(num_players: int) -> Mapping[str, Any]:
+def create_avatar_copy(roles: list) -> Mapping[str, Any]:
   copy_state_configs = []
   copy_sprite_names = []
   copy_palette_colors = []
-  for player_idx in range(num_players):
+  sprite_shapes = []
+  num_players = len(roles)
+  for player_idx, role in enumerate(roles):
     # Lua is 1-indexed.
     lua_idx = player_idx + 1
     source_sprite_self = "Avatar" + str(lua_idx)
@@ -1267,6 +1257,7 @@ def create_avatar_copy(num_players: int) -> Mapping[str, Any]:
         "groups": ["avatarCopies"]
     })
     copy_sprite_names.append(source_sprite_self)
+    sprite_shapes.append(ROLE_SPRITE_DICT[role])
     copy_palette_colors.append(color_palette)
 
   avatar_copy_object = {
@@ -1291,7 +1282,7 @@ def create_avatar_copy(num_players: int) -> Mapping[str, Any]:
               "kwargs": {
                   "renderMode": "ascii_shape",
                   "spriteNames": copy_sprite_names,
-                  "spriteShapes": [shapes.CUTE_AVATAR] * num_players,
+                  "spriteShapes": sprite_shapes,
                   "palettes": copy_palette_colors,
                   "noRotates": [True] * num_players
               }
@@ -1353,20 +1344,22 @@ def create_inventory_display() -> Mapping[str, Any]:
   }
     return prefab
 
-def create_avatar_and_associated_objects(num_players):
+def create_avatar_and_associated_objects(roles: list):
   """Returns list of avatars and their associated 
   marking objects of length 'num_players'."""
   avatar_objects = []
   additional_objects = []
-  for player_idx in range(0, num_players):
+  for player_idx, role in enumerate(roles):
+
     spawn_group = "spawnPoints"
     if player_idx < 2:
       # The first two player slots always spawn closer to the apples.
       spawn_group = "insideSpawnPoints"
 
     game_object = create_avatar_object(player_idx,
-                                       TARGET_SPRITE_SELF,
-                                       spawn_group=spawn_group)
+                                       role,
+                                       spawn_group=spawn_group,
+                                       )
     avatar_objects.append(game_object)
 
     marking_object = create_marking_overlay(player_idx)
@@ -1459,11 +1452,11 @@ def build(
       topology="BOUNDED",  # Choose from ["BOUNDED", "TORUS"],
       simulation={
           "map": ASCII_MAP,
-          "gameObjects": create_avatar_and_associated_objects(num_players),
+          "gameObjects": create_avatar_and_associated_objects(roles),
           "scene": create_scene(),
-          "prefabs": create_prefabs(APPLE_RESPAWN_RADIUS,
-                                    REGROWTH_PROBABILITIES,
-                                    num_players),
+          "prefabs": create_prefabs(roles,
+                                    APPLE_RESPAWN_RADIUS,
+                                    REGROWTH_PROBABILITIES),
           "charPrefabMap": CHAR_PREFAB_MAP,
       },
   )

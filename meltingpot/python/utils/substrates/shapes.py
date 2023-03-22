@@ -100,6 +100,13 @@ def get_palette(color: Color) -> Dict[str, ColorRGBA]:
       "O": DARK_GRAY,
       ",": BLACK,
       "x": ALPHA,
+      "a": (243, 185, 0, 255),
+      "b": (243, 185, 0, 255),
+      "c": (243, 185, 0, 255),
+      "d": (243, 185, 0, 255),
+      "-": (143, 96, 74, 255),
+      "+": (117, 79, 61, 255),
+      "k": (199, 176, 135, 255)
   }
   return palette
 # LINT.ThenChange(//meltingpot/lua/modules/colors.lua)

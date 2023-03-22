@@ -31,6 +31,12 @@ from copy import deepcopy
 
 from meltingpot.python.utils.policies import policy
 
+foreign_property = Symbol('CUR_CELL_IS_FOREIGN_PROPERTY', BOOL)
+cur_cell_has_apple = Symbol('CUR_CELL_HAS_APPLE', BOOL)
+agent_has_stolen = Symbol('AGENT_HAS_STOLEN', BOOL)
+num_cleaners = Symbol('NUM_CLEANERS', REAL)
+dirt_fraction = Symbol('DIRT_FRACTION', REAL)
+
 DEFAULT_OBLIGATIONS = [
     # every time the water gets too polluted, go clean the water
     ObligationRule(GT(dirt_fraction, Real(0.6)), 'CLEAN_ACTION'),

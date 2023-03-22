@@ -40,7 +40,7 @@ class RuleLearningAgent(policy.Policy):
              prev_states: list) -> Tuple[int, dm_env.TimeStep]:
         """See base class."""
         # update beliefs over rules given observations
-
+        
 
         # compute next action given a list of observations
         action, next_timestep = self._puppeteer.step(timestep, prev_states)
