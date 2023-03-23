@@ -5,6 +5,7 @@ import numpy as np
 
 class EnvironmentRule():
      """Parent class for one rule of the environment."""
+     solver = Solver()
 
      def __init__(self, precondition) -> None:
         """Creates a new rule.
@@ -14,24 +15,20 @@ class EnvironmentRule():
                 the current timestep observation
         """
         self.precondition = precondition
-        self.s = Solver()
 
      def holds(self, observations):
         """Returns True if a rule holds given a certain vector of observation."""
         variables = self.precondition.get_free_variables()
         substitutions = {v: self.get_property(v, observations) for v in variables}            
         problem = self.precondition.substitute(substitutions)
-        is_sat_val = self.s.is_sat(problem)
+        is_sat_val = EnvironmentRule.solver.is_sat(problem)
         return is_sat_val
      
      def get_property(self, property, observations):
         """Get the requested properties from the observations
         and cast to pySMT compatible type."""
-        
-        # INDEX THEM BY TIME
-        # VARIABLE NAMES HAVE TO TAKE IN SOME SORT OF NAME
-        # TIMESTEP 1.OBSERVATION
 
+        # TODO: why is this so slow
         value = observations[str(property)]
         if isinstance(value, np.ndarray) and value.shape == ():
             value = value.reshape(-1,) # unpack numpy array
@@ -63,7 +60,7 @@ class ProhibitionRule(EnvironmentRule):
 
         self.precondition = precondition
         self.prohibited_action = prohibited_action
-        self.s = Solver()
+
 
     def holds(self, observation, action):
         """Returns True if a rule holds given a certain observation."""
@@ -71,8 +68,10 @@ class ProhibitionRule(EnvironmentRule):
             variables = self.precondition.get_free_variables()
             substitutions = {v: self.get_property(v, observation) for v in variables}            
             problem = self.precondition.substitute(substitutions)
-            return self.s.is_sat(problem)
+            # return problem
+            return EnvironmentRule.solver.is_sat(problem)
         return False
+        # return FALSE()
     
 class ObligationRule(EnvironmentRule):
     """Contains rules that emit a subgoal."""
@@ -87,7 +86,15 @@ class ObligationRule(EnvironmentRule):
 
         self.precondition = precondition
         self.goal = goal
-        self.s = Solver()
+
+    def get_property(self, property, observations):
+        # INDEX THEM BY TIME
+        # VARIABLE NAMES HAVE TO TAKE IN SOME SORT OF NAME
+        # TIMESTEP 1.OBSERVATION
+        # LIST COMPREHENSION FOR THE CONVERSION
+        # LOOK AT WHAT TIMESTEP HAS THE REMARKABLE CRITERIUM AND RETURN THE VALUE?
+
+        return super().get_property(property, observations)
               
     def satisfied(self, action):
         return action == self.goal
@@ -97,3 +104,17 @@ class ObligationRule(EnvironmentRule):
         problem = self.goal.substitute(substitutions)
         is_sat_val = self.s.is_sat(problem)
         return is_sat_val"""
+
+class PermissionRule(EnvironmentRule):
+    """Contains rules that emit a subgoal."""
+
+    def __init__(self, precondition, action_to_stop):
+        """See base class.
+
+        Args:
+            precondition: only checks for an environment state.
+            goal: environment state to be achieved by the rule.
+        """
+
+        self.precondition = precondition
+        self.action_to_stop = action_to_stop

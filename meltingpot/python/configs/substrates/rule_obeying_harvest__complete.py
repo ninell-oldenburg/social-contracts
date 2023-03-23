@@ -547,7 +547,7 @@ ACTION_SET = (
 )
 
 ROLE_SPRITE_DICT = {
-   'default': shapes.CUTE_AVATAR,
+   'free': shapes.CUTE_AVATAR,
    'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
    'farmer': shapes.CUTE_AVATAR_HOLDING_PAINTBRUSH,
 }
@@ -1425,11 +1425,13 @@ def get_config():
   })
 
   # The roles assigned to each player.
-  config.valid_roles = frozenset({"default",
+  config.valid_roles = frozenset({"free",
                                   "cleaner", 
                                   "farmer",})
   # "bluie" as for one player
-  config.default_player_roles = ("cleaner",) * 1 + ("farmer",) * 1
+  config.default_player_roles = ("cleaner",) * 0 \
+                                + ("farmer",) * 0 \
+                                + ('free',) * 2
 
   return config
 

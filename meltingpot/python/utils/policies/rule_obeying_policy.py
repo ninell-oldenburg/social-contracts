@@ -24,7 +24,7 @@ from queue import PriorityQueue
 
 from pysmt.shortcuts import *
 
-from meltingpot.python.utils.policies.pysmt_rules import ProhibitionRule, ObligationRule
+from meltingpot.python.utils.policies.pysmt_rules import ProhibitionRule, ObligationRule, PermissionRule
 
 import numpy as np
 from copy import deepcopy
@@ -36,28 +36,29 @@ cur_cell_has_apple = Symbol('CUR_CELL_HAS_APPLE', BOOL)
 agent_has_stolen = Symbol('AGENT_HAS_STOLEN', BOOL)
 num_cleaners = Symbol('NUM_CLEANERS', REAL)
 dirt_fraction = Symbol('DIRT_FRACTION', REAL)
+cleaner_role = Symbol('CLEANER_ROLE', BOOL)
+farmer_role = Symbol('FARMER_ROLE', BOOL)
 
 DEFAULT_OBLIGATIONS = [
     # every time the water gets too polluted, go clean the water
     ObligationRule(GT(dirt_fraction, Real(0.6)), 'CLEAN_ACTION'),
     # clean the water if less than Y agents are cleaning
     ObligationRule(LT(num_cleaners, Real(1)), 'CLEAN_ACTION'),
+    # If you're in the farmer role, pay cleaner with apples
+    ObligationRule(And(farmer_role, GT(Symbol('SINCE_LAST_PAYED', INT),\
+                      Symbol('PAY_RHYTHM', INT))), "PAY_ACTION"),
+                      # If you're in the cleaner role, clean in a certain rhythm
+    ObligationRule(And(cleaner_role, GT(Symbol('SINCE_LAST_CLEANED', INT),\
+                          Symbol('CLEAN_RHYTHM', INT))), 'CLEAN_ACTION'),
 ]
 
-FARMER_OBLIGATIONS = [
-    # Pay cleaner with apples
-    ObligationRule(GT(Symbol('SINCE_LAST_PAYED', INT),\
-                      Symbol('PAY_RHYTHM', INT)), "PAY_ACTION"),
-    # Stop paying cleaner if they don't clean
-    #Not(Symbol('CLEANER_CLEANS', BOOL)), Not('PAY_ACTION')
-]
-
-CLEANER_OBLIGATIONS = [
-    # Clean in a certain rhythm
-    ObligationRule(GT(Symbol('SINCE_LAST_CLEANED', INT),\
-                          Symbol('CLEAN_RHYTHM', INT)), 'CLEAN_ACTION'),
-    # Stop cleaning if I'm not paid by farmer
-    #Not(Symbol('PAYED_BY_FARMER', BOOL)), Not('CLEAN_ACTION'),
+DEFAULT_PERMISSIONS = [
+    # If in the farmer role, stop paying cleaner if they don't clean
+    #PermissionRule(And(farmer_role, Not(LE(Symbol('SINCE_LAST_CLEANED', INT),\
+                      #Symbol('CLEAN_RHYTHM', INT)))), "PAY_ACTION"),
+    # If in cleaner role, stop cleaning if not paid by farmer
+    #PermissionRule(And(cleaner_role, Not(LE(Symbol('SINCE_LAST_PAYED', INT),\
+                        #Symbol('PAY_RHYTHM', INT)))), 'CLEAN_ACTION'),
 ]
 
 DEFAULT_PROHIBITIONS = [
@@ -87,7 +88,8 @@ class RuleObeyingPolicy(policy.Policy):
                player_idx: int, 
                role: str = "default",
                prohibitions: list = DEFAULT_PROHIBITIONS, 
-               obligations: list = DEFAULT_OBLIGATIONS) -> None:
+               obligations: list = DEFAULT_OBLIGATIONS,
+               permissions: list = DEFAULT_PERMISSIONS) -> None:
     """Initializes the policy.
 
     Args:
@@ -99,11 +101,9 @@ class RuleObeyingPolicy(policy.Policy):
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
     self.obligations = obligations
-    if self.role == "cleaner":
-      self.obligations = CLEANER_OBLIGATIONS
-    elif self.role == "farmer":
-      self.obligations = FARMER_OBLIGATIONS
     self.current_obligation = None
+    self.permissions = permissions
+    self.current_permission = None
 
     # move actions
     self.action_to_pos = [
@@ -137,18 +137,31 @@ class RuleObeyingPolicy(policy.Policy):
       End of episode defined in dm_env.TimeStep.
       """
 
-      # Check if any of obligations are active
+      # Check if any of the obligations are active
       self.current_obligation = None
-      for rule in self.obligations:
+      for obligation in self.obligations:
          # TAKES IN AN VECTOR OF OBSERVATION INSTEAD OF ONE
-         if rule.holds(timestep.observation):
-           self.current_obligation = rule
+         if obligation.holds(timestep.observation):
+         # if obligation.solver.is_sat(obligation.holds(timestep.observation)):
+           self.current_obligation = obligation
+           break
+         
+      # Check if any of the permission are active
+      self.current_permission = None
+      for permission in self.permissions:
+         # TAKES IN AN VECTOR OF OBSERVATION INSTEAD OF ONE
+         if permission.holds(timestep.observation):
+           self.current_permission = permission
            break
          
       print(f"player: {self._index} current_obligation active?: {self.current_obligation != None}")
 
       # Select an action based on the first satisfying rule
       action_plan = self.a_star(timestep)
+
+      # TODO: debug 
+      if action_plan == False:
+        action_plan = [0]
 
       return action_plan
   
@@ -273,6 +286,8 @@ class RuleObeyingPolicy(policy.Policy):
       observation = self.update_observation(observation, orientation, x, y)
       action_name = self.get_action_name(action)
       if not self.check_all(observation, action_name):
+        if action == 5 or action == 6:
+          print(f"player {self._index}: action {action}")
         continue
       
       actions.append(action)
@@ -281,6 +296,7 @@ class RuleObeyingPolicy(policy.Policy):
   def check_all(self, observation, action):
     for prohibition in self.prohibitions:
         if prohibition.holds(observation, action):
+        # if prohibition.solver.is_sat(prohibition.holds(observation, action)):
           return False
     return True
 
@@ -291,9 +307,20 @@ class RuleObeyingPolicy(policy.Policy):
     observation['CUR_CELL_HAS_APPLE'] = True if observation['SURROUNDINGS'][x][y] == 1 else False
     observation['IS_AT_WATER'] = True if observation['SURROUNDINGS'][x][y] == -1 else False
     observation['FACING_NORTH'] = True if orientation == 0 else False
-    self.get_territory(observation, x, y)
+    
+    self.make_role_observation(observation)
+    self.make_territory_observation(observation, x, y)
 
     return observation
+  
+  # TODO: outsource to Lua
+  def make_role_observation(self, observation):
+    observation['CLEANER_ROLE'] = False
+    observation['FARMER_ROLE'] = False
+    if self.role == "cleaner":
+      observation['CLEANER_ROLE'] = True
+    elif self.role == "farmer":
+      observation['FARMER_ROLE'] = True
   
   def get_action_name(self, action):
     """Add bool values for taken action to the observation dict."""
@@ -317,7 +344,7 @@ class RuleObeyingPolicy(policy.Policy):
     
     return sum
   
-  def get_territory(self, observation, x, y):
+  def make_territory_observation(self, observation, x, y):
     """
     Adds values for territory components to the observation dict.
       AGENT_HAS_STOLEN: if the owner of the current cell has stolen
@@ -352,17 +379,22 @@ class RuleObeyingPolicy(policy.Policy):
     if timestep.last():
       return True
     elif plan_length > self._max_depth:
-      #print(f'player: {self._index}, max depth reached')
       return True
     elif self.current_obligation != None:
-      if action >= 7:
-        action_name = self.action_to_name[action-7]
-        return self.current_obligation.satisfied(action_name)
-      # return self.current_obligation.satisfied(timestep.observation)
+      return self.check_obligations_and_permissions(action)
     elif timestep.reward >= 1.0:
-      #print(f'player: {self._index}, reward output')
       return True
     return False
+  
+  def check_obligations_and_permissions(self, action):
+    if action < 7:
+      return False
+    action_name = self.action_to_name[action-7]
+
+    if self.current_permission == None:
+        return self.current_obligation.satisfied(action_name)
+    return self.current_obligation.goal == self.current_permission.action_to_stop
+    # return self.current_obligation.satisfied(timestep.observation)
 
   def initial_state(self) -> policy.State:
     """See base class."""
