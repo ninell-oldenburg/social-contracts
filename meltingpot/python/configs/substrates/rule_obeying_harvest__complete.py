@@ -1130,7 +1130,7 @@ def create_avatar_object(player_idx: int,
                       },
                       {
                           "name": "NUM_CLEANERS",
-                          "type": "Doubles",
+                          "type": "Int32s",
                           "shape": [],
                           "component": "Cleaner",
                           "variable": "num_cleaners",
@@ -1418,6 +1418,7 @@ def get_config():
       # Global switching signals for puppeteers.
       "NUM_OTHERS_WHO_CLEANED_THIS_STEP": specs.float64(),
       "NUM_OTHERS_WHO_ATE_THIS_STEP": specs.float64(),
+      "DIRT_FRACTION": specs.float64(),
       # Debug only (do not use the following observations in policies).
       "POSITION": specs.OBSERVATION["POSITION"],
       "ORIENTATION": specs.OBSERVATION["ORIENTATION"],
