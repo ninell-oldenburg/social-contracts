@@ -36,7 +36,7 @@ POTENTIAL_PROHIBITIONS = [
 ]
 
 POTENTIAL_PERMISSION = [
-
+    # TODO
 ]
 
 class RuleLearningAgent(RuleObeyingPolicy):
@@ -125,6 +125,7 @@ class RuleLearningAgent(RuleObeyingPolicy):
                     likelihood = 0.0
                     break
 
+            # TODO: maybe group by type of action?
             likelihood *= 1/self.action_spec.num_values
 
         prior = self.priors[rule.precondition]
@@ -157,6 +158,7 @@ class RuleLearningAgent(RuleObeyingPolicy):
              timestep: dm_env.TimeStep,
              other_agent_actions) -> Tuple[int, dm_env.TimeStep]:
         """Use the learned rules to determine the actions of the agent."""
+        
         self.update_beliefs(timestep.observation, other_agent_actions)
         self.update_rules(num_rules = 5)
 
@@ -166,6 +168,7 @@ class RuleLearningAgent(RuleObeyingPolicy):
         print(self.prohibitions)
         print("="*50)
 
+        # use parent class to compute best step
         action = super().step(timestep)
         return action
 
