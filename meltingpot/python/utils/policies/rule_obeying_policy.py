@@ -88,7 +88,7 @@ class RuleObeyingPolicy(policy.Policy):
   def __init__(self, 
                env: dm_env.Environment, 
                player_idx: int, 
-               role: str = "default",
+               role: str = "free",
                prohibitions: list = DEFAULT_PROHIBITIONS, 
                obligations: list = DEFAULT_OBLIGATIONS,
                permissions: list = DEFAULT_PERMISSIONS) -> None:
@@ -144,7 +144,7 @@ class RuleObeyingPolicy(policy.Policy):
       # Check if any of the obligations are active
       self.current_obligation = None
       for obligation in self.obligations:
-         if obligation.holds(self.history, self.role):
+         if obligation.holds_in_history(self.history, self.role):
            self.current_obligation = obligation
            break
          

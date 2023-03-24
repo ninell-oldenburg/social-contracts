@@ -21,10 +21,12 @@ import argparse
 import dm_env
 from dmlab2d.ui_renderer import pygame
 import numpy as np
+from itertools import islice
 
 from meltingpot.python import substrate
 
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
+from meltingpot.python.utils.policies.rule_learning_agent import RuleLearningAgent
 
 
 def main():
@@ -43,14 +45,26 @@ def main():
   level_name = args.substrate_name
   substrate_name = f'rule_obeying_harvest__{level_name}'
   num_bots = substrate.get_config(substrate_name).default_player_roles
+  roles = list(num_bots)
+  num_focal_bots = len(roles) - roles.count("learning")
+  focal_roles = roles[:num_focal_bots]
 
   config = {'substrate': substrate_name,
-            'roles': list(num_bots)}
+            'roles': roles}
 
   env = substrate.build(config['substrate'], roles=config['roles'])
 
-  bots = [RuleObeyingPolicy(env=env, role=config['roles'][i], 
-                            player_idx=i) for i in range(len(num_bots))]
+  bots = []
+  for i in range(len(roles)):
+    if i < num_focal_bots:
+      bots.append(RuleObeyingPolicy(env=env, 
+                                    role=config['roles'][i], 
+                                    player_idx=i))
+    else:
+      bots.append(RuleLearningAgent(env=env, 
+                                    role=config['roles'][i], 
+                                    player_idx=i,
+                                    other_agents_roles=focal_roles))
 
   timestep = env.reset()
 
@@ -87,9 +101,12 @@ def main():
             reward=timestep.reward[i],
             discount=timestep.discount,
             observation=timestep.observation[i])
-        
-        next_step = bot.step(timestep_bot)
-        actions[i] = next_step
+                
+        if i < num_focal_bots:
+          actions[i] = bot.step(timestep_bot)
+        else:
+          other_agents_actions = [action[0] for _, action in islice(actions.items(), num_focal_bots)]
+          actions[i] = bot.step(timestep_bot, other_agents_actions)
         
     print(actions)
     action_list = [int(item[0]) for item in actions.values()]

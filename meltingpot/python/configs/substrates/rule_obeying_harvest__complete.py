@@ -550,6 +550,7 @@ ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
    'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
    'farmer': shapes.CUTE_AVATAR_HOLDING_PAINTBRUSH,
+   'learning': shapes.CUTE_AVATAR,
 }
 
 def get_brush_palette(
@@ -1428,11 +1429,13 @@ def get_config():
   # The roles assigned to each player.
   config.valid_roles = frozenset({"free",
                                   "cleaner", 
-                                  "farmer",})
+                                  "farmer",
+                                  "learning",})
   # "bluie" as for one player
   config.default_player_roles = ("cleaner",) * 0 \
                                 + ("farmer",) * 0 \
-                                + ('free',) * 2
+                                + ('free',) * 1 \
+                                + ('learning',) * 1
 
   return config
 

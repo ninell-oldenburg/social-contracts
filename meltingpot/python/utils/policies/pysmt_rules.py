@@ -100,17 +100,21 @@ class ObligationRule(EnvironmentRule):
 
         return super().get_property(property, observations)
     
-    def holds(self, observations, role):
+    def holds_in_history(self, observations, role):
         """Returns True if a rule holds given a certain vector of observation."""
+        for obs in observations:
+            if not self.holds(obs, role):
+                return False
+        return True
+    
+    def holds(self, observation, role):
         if self.role == role:
-            for obs in observations:
-                substitutions = {v: self.get_property(v, obs) for v in self.variables}
-                problem = self.precondition.substitute(substitutions)
-                is_sat_val = EnvironmentRule.solver.is_sat(problem)
-                if not is_sat_val:
-                    return False
-            return True
-        return False
+            substitutions = {v: self.get_property(v, observation) for v in self.variables}
+            problem = self.precondition.substitute(substitutions)
+            is_sat_val = EnvironmentRule.solver.is_sat(problem)
+            if not is_sat_val:
+                return False
+        return True
               
     def satisfied(self, action):
         return action == self.goal

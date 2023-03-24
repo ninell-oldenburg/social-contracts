@@ -933,7 +933,8 @@ function Paying:__init__(kwargs)
       {'beamRadius', args.positive},
       {'agentRole', args.default('free'), args.oneOf('free',
                                           'cleaner',
-                                          'farmer')},
+                                          'farmer',
+                                          'learning')},
   })
   Paying.Base.__init__(self, kwargs)
 
