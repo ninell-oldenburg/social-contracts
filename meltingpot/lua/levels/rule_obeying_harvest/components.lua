@@ -950,7 +950,7 @@ end
 function Paying:start()
   self.sinceLastPayed = 0
   self.paidBy = 0
-  self.gotPayed = 0  
+  self.gotPayed = 1
   local numPlayers = self.gameObject.simulation:getNumPlayers()
   self.payingTo = tensor.Int32Tensor(numPlayers):fill(0)
 end
@@ -1161,7 +1161,6 @@ function Surroundings:postStart()
   local sceneObject = self.gameObject.simulation:getSceneObject()
   self._riverMonitor = sceneObject:getComponent('RiverMonitor')
   self:update()
-  self:getWaterLocations()
 end
 
 function Surroundings:updateDirt()
@@ -1174,13 +1173,15 @@ function Surroundings:updateDirt()
   end
 end
 
-function Surroundings:getWaterLocations()
+function Surroundings:setDirtLocations()
   local mapSize = self._config.mapSize
   for i=1, mapSize[1] do
     for j=1, mapSize[2] do
       local potentialDirt = self.transform:queryPosition('overlay', {i, j})
       if potentialDirt ~= nil and potentialDirt:hasComponent('DirtTracker') then
+        if potentialDirt:getState() == 'dirt' then
           self.surroundings(i, j):val(-1) -- dirt
+        end
       end
     end
   end
@@ -1194,17 +1195,6 @@ function Surroundings:setPayeeLocations()
       cur_payee = self.gameObject.simulation:getAvatarFromIndex(cur_idx)
       target_pos = cur_payee:getPosition()
       self.surroundings(target_pos[1], target_pos[2]):val(cur_idx) -- set location
-    end
-  end
-end
-
-function Surroundings:empty()
-  local mapSize = self._config.mapSize
-  for i=1, mapSize[1] do
-    for j=1, mapSize[2] do
-      if self.surroundings(i, j):val() ~= -1 then -- don't override water
-        self.surroundings(i, j):val(0)
-      end
     end
   end
 end
@@ -1225,7 +1215,7 @@ function Surroundings:update()
 
   --[[ get all apples in this observation radius and 
   transform into observation tensor to output: sourroundings]]
-  self:empty()
+  self.surroundings:fill(0)
 
   for i=x, x_lim do
     for j=y, y_lim do
@@ -1234,10 +1224,10 @@ function Surroundings:update()
       end
 
       local resource = self.transform:queryPosition('resourceLayer', {i, j})
-      if resource ~= nil and resource:hasComponent('Resource') then
+      if resource ~= nil then
         playerClaimed = resource:getComponent('Resource')._claimedByAvatarComponent
         if playerClaimed ~= nil then
-          playerId = playerClaimed:getIndex()
+          local playerId = playerClaimed:getIndex()
           self.property(i, j):val(playerId) -- claimed resources
         else
           self.property(i, j):val(0) -- claimed resources
@@ -1245,7 +1235,7 @@ function Surroundings:update()
       end
     end
   end
-
+  self:setDirtLocations()
   self:setPayeeLocations()
 end
 
@@ -1256,7 +1246,10 @@ local Taste = class.Class(component.Component)
 function Taste:__init__(kwargs)
   kwargs = args.parse(kwargs, {
       {'name', args.default('Taste')},
-      {'role', args.default('free'), args.oneOf('free', 'cleaner', 'farmer')},
+      {'role', args.default('free'), args.oneOf('free', 
+                                                'cleaner', 
+                                                'farmer', 
+                                                'learning')},
       {'rewardAmount', args.default(1), args.numberType},
 
   })

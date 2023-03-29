@@ -23,9 +23,9 @@ POTENTIAL_OBLIGATIONS = [
     ObligationRule(GT(dirt_fraction, Real(0.6)), 'CLEAN_ACTION'),
     ObligationRule(LT(num_cleaners, Int(1)), 'CLEAN_ACTION'),
     ObligationRule(GT(Symbol('SINCE_LAST_PAYED', INT),\
-                      Int(5)), "PAY_ACTION", farmer_role),
+                      Int(1)), "PAY_ACTION", farmer_role),
     ObligationRule(GT(Symbol('SINCE_LAST_CLEANED', INT),\
-                          Int(5)), 'CLEAN_ACTION', cleaner_role),
+                          Int(1)), 'CLEAN_ACTION', cleaner_role),
 ]
 
 POTENTIAL_PROHIBITIONS = [

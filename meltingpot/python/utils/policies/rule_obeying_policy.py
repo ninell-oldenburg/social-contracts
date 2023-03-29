@@ -51,9 +51,10 @@ DEFAULT_OBLIGATIONS = [
     ObligationRule(GT(since_last_payed, Int(1)), LE(since_last_payed, Int(1)), 
                    "farmer"),
                       # If you're in the cleaner role, clean in a certain rhythm
-    ObligationRule(GT(since_last_cleaned, Int(5)), LE(since_last_cleaned, Int(5)), 
+    ObligationRule(GT(since_last_cleaned, Int(1)), LE(since_last_cleaned, Int(1)), 
                    "cleaner"),
-    ObligationRule(LT(got_payed_step, Int(1)), GE(got_payed_step, Int(1)), "cleaner"),
+    ObligationRule(Not(Equals(got_payed_step, Int(1))), Equals(got_payed_step, Int(1)), 
+                    "cleaner"),
 ]
 
 DEFAULT_PERMISSIONS = [
