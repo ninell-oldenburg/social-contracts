@@ -30,7 +30,7 @@ class EnvironmentRule():
         """Get the requested properties from the observations
         and cast to pySMT compatible type."""
 
-        return self.cast(observations[str(property)])
+        return self.cast(observations[property.symbol_name()])
 
      def cast(self, value):
         if isinstance(value, np.ndarray) and value.shape == ():
@@ -101,31 +101,26 @@ class ObligationRule(EnvironmentRule):
         return super().get_property(property, observations)
     
     def holds_in_history(self, observations, role):
-        """Returns True if a rule holds given a certain vector of observation."""
-        for obs in observations:
-            if not self.holds(obs, role):
-                return False
-        return True
+        """Returns True if a precondition holds given a certain vector of observation."""
+        if self.role == role:
+            for obs in observations:
+                if not self.holds(obs):
+                    return False
+            return True
+        return False
     
-    def holds(self, observation, role):
+    def holds(self, observation):
+        substitutions = {v: self.get_property(v, observation) for v in self.variables}
+        problem = self.precondition.substitute(substitutions)
+        return EnvironmentRule.solver.is_sat(problem)
+              
+    def satisfied(self, observation, role):
+        """Returns True if the rule goal is satisfied."""
         if self.role == role:
             substitutions = {v: self.get_property(v, observation) for v in self.variables}
-            problem = self.precondition.substitute(substitutions)
-            is_sat_val = EnvironmentRule.solver.is_sat(problem)
-            if not is_sat_val:
-                return False
-        return True
-              
-    def satisfied(self, action):
-        return action == self.goal
-        """
-        Returns True if a goal is achieved given a certain observation.
-        variables = self.goal.get_free_variables()
-        substitutions = {v: self.get_property(v, observation) for v in variables}            
-        problem = self.goal.substitute(substitutions)
-        is_sat_val = self.s.is_sat(problem)
-        return is_sat_val
-        """
+            problem = self.goal.substitute(substitutions)
+            return EnvironmentRule.solver.is_sat(problem)
+        return False
 
 class PermissionRule(EnvironmentRule):
     """Contains rules that emit a subgoal."""

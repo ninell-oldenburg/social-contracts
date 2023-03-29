@@ -5,6 +5,8 @@ from collections import deque
 
 from pysmt.shortcuts import *
 
+import numpy as np
+
 from meltingpot.python.utils.policies.pysmt_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 
@@ -21,9 +23,9 @@ POTENTIAL_OBLIGATIONS = [
     ObligationRule(GT(dirt_fraction, Real(0.6)), 'CLEAN_ACTION'),
     ObligationRule(LT(num_cleaners, Int(1)), 'CLEAN_ACTION'),
     ObligationRule(GT(Symbol('SINCE_LAST_PAYED', INT),\
-                      Symbol('PAY_RHYTHM', INT)), "PAY_ACTION", farmer_role),
+                      Int(5)), "PAY_ACTION", farmer_role),
     ObligationRule(GT(Symbol('SINCE_LAST_CLEANED', INT),\
-                          Symbol('CLEAN_RHYTHM', INT)), 'CLEAN_ACTION', cleaner_role),
+                          Int(5)), 'CLEAN_ACTION', cleaner_role),
 ]
 
 POTENTIAL_PROHIBITIONS = [
@@ -63,9 +65,11 @@ class RuleLearningAgent(RuleObeyingPolicy):
         self.current_obligation = None
         self.current_permission = None
         self.potential_rules = self.potential_obligations + self.potential_prohibitions
-        self.priors = {rule.precondition: 0.5 for rule in self.potential_rules}
         self.num_rules = len(self.potential_rules)
-        self.history = deque(maxlen=20)
+        self.rule_beliefs = np.array([0.2]*self.num_rules)
+        # poisson distribution can be modified
+        self.poisson_distribution = np.random.poisson(lam=5, size=self.num_rules)
+        self.history = deque(maxlen=10)
 
         # move actions
         self.action_to_pos = [
@@ -94,19 +98,17 @@ class RuleLearningAgent(RuleObeyingPolicy):
     def update_beliefs(self, observations, other_agent_actions):
         """Update the beliefs of the rules based on the 
         observations and actions."""
-        for rule in self.potential_rules:
+        for i, rule in enumerate(self.potential_rules):
             # Compute the likelihood of the rule
-            posterior = self.compute_posterior(rule,
+            posterior = self.compute_posterior(i,
+                                              rule,
                                                observations, 
                                                other_agent_actions)
-            self.priors[rule.precondition] = posterior
-
-        # Normalize the priors
-        total_prior = sum(self.priors.values())
-        for rule in self.potential_rules:
-            self.priors[rule.precondition] /= total_prior
+            
+            self.rule_beliefs[i] = posterior
 
     def compute_posterior(self, 
+                          index,
                           rule, 
                           observations, 
                           other_agent_actions):
@@ -118,37 +120,28 @@ class RuleLearningAgent(RuleObeyingPolicy):
         # check if the action violates the rule
             if isinstance(rule, ProhibitionRule):
                 if not rule.holds(observations, action):
-                    likelihood = 0.0  # 0 if rule is violated
+                    likelihood *= 0.1  # 0 if rule is violated
                     break
             elif isinstance(rule, ObligationRule):
                 if not rule.holds(observations, role):
                     likelihood = 0.0
                     break
 
-            # TODO: maybe group by type of action?
-            likelihood *= 1/self.action_spec.num_values
+            likelihood *= 0.9 # only for prohibition
 
-        prior = self.priors[rule.precondition]
+        prior = self.rule_beliefs[index]
         marginal = prior * likelihood + (1 - prior) * (1 - likelihood)
         posterior = (likelihood * prior) / marginal
 
         return posterior
     
-    def sample_learned_rules(self, num_rules):
-        """Sample a set of learned rules based on the updated priors"""
-        sorted_rules = sorted(self.rule_priors.items(), key=lambda x: x[1], reverse=True)
-        learned_rules = [rule for rule, _ in sorted_rules[:num_rules]]
-        return learned_rules
-    
-    def update_rules(self, num_rules) -> None:
+    def sample_rules(self, threshold) -> None:
         """Updates the rules given a fixed number of highest priors."""
-        # TODO: maybe make it a threshold?
         self.obligations = []
         self.prohibitions = []
-        sorted_rules = sorted(self.priors.items(), key=lambda x: x[1], reverse=True)
-        for rule in self.potential_rules:
-            if rule.precondition in sorted_rules[:num_rules]:
-                # TODO: make it work
+        for i, belief in enumerate(self.rule_beliefs):
+            if belief > threshold:
+                rule = self.potential_rules[i]
                 if isinstance(rule, ObligationRule):
                     self.obligations.append(rule)
                 elif isinstance(rule, ProhibitionRule):
@@ -160,7 +153,8 @@ class RuleLearningAgent(RuleObeyingPolicy):
         """Use the learned rules to determine the actions of the agent."""
         
         self.update_beliefs(timestep.observation, other_agent_actions)
-        self.update_rules(num_rules = 5)
+        threshold = 0.6
+        self.sample_rules(threshold)
 
         print("="*50)
         print("CURRENT RULES")

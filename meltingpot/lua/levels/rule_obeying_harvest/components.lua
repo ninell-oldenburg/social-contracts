@@ -317,6 +317,7 @@ function DirtCleaning:onHit(hittingGameObject, hitName)
     end
     if hittingGameObject:hasComponent('Cleaner') then
       hittingGameObject:getComponent('Cleaner'):setCumulant()
+      hittingGameObject:getComponent('Cleaner'):setNumCleaners()
     end
     local avatar = hittingGameObject:getComponent('Avatar')
     events:add('player_cleaned', 'dict',
@@ -648,14 +649,12 @@ function Cleaner:__init__(kwargs)
       {'cooldownTime', args.positive},
       {'beamLength', args.positive},
       {'beamRadius', args.positive},
-      {'cleanRhythm', args.numberType},
   })
   Cleaner.Base.__init__(self, kwargs)
 
   self._config.cooldownTime = kwargs.cooldownTime
   self._config.beamLength = kwargs.beamLength
   self._config.beamRadius = kwargs.beamRadius
-  self.cleanRhythm = kwargs.cleanRhythm
 end
 
 function Cleaner:start()
@@ -699,8 +698,17 @@ function Cleaner:registerUpdaters(updaterRegistry)
         end
       end
     end
-    self.num_cleaners = self:getNumCleaners()
     self.sinceLastCleaned = self.sinceLastCleaned + 1
+  end
+
+  function Cleaner:setNumCleaners()
+    self.num_cleaners = self:getNumCleaners()
+  end
+
+  function Cleaner:getNumCleaners()
+    local globalData = self.gameObject.simulation:getSceneObject():getComponent(
+        'GlobalData')
+      return globalData:getNumCleaners()
   end
 
   updaterRegistry:registerUpdater{
@@ -710,6 +718,7 @@ function Cleaner:registerUpdaters(updaterRegistry)
 
   local function resetCumulant()
     self.player_cleaned = 0
+    self.num_cleaners = 0
   end
 
   updaterRegistry:registerUpdater{
@@ -733,17 +742,10 @@ end
 
 function Cleaner:setCumulant()
   self.player_cleaned = self.player_cleaned + 1
-
   local globalData = self.gameObject.simulation:getSceneObject():getComponent(
       'GlobalData')
   local playerIndex = self.gameObject:getComponent('Avatar'):getIndex()
   globalData:setCleanedThisStep(playerIndex)
-end
-
-function Cleaner:getNumCleaners()
-  local globalData = self.gameObject.simulation:getSceneObject():getComponent(
-      'GlobalData')
-    return globalData:getNumCleaners()
 end
 
 --[[ `Eating` endows avatars with the ability to eat items from their inventory
@@ -928,7 +930,6 @@ function Paying:__init__(kwargs)
   kwargs = args.parse(kwargs, {
       {'name', args.default('Paying')},
       {'amount', args.numberType},
-      {'payRhythm', args.numberType},
       {'beamLength', args.positive},
       {'beamRadius', args.positive},
       {'agentRole', args.default('free'), args.oneOf('free',
@@ -940,7 +941,6 @@ function Paying:__init__(kwargs)
 
   self._kwargs = kwargs
   self._config.amount = kwargs.amount
-  self.payRhythm = kwargs.payRhythm
   self._config.beamLength = kwargs.beamLength
   self._config.beamRadius = kwargs.beamRadius
   self._config.agentRole = kwargs.agentRole
@@ -949,23 +949,59 @@ end
 
 function Paying:start()
   self.sinceLastPayed = 0
+  self.paidBy = 0
+  self.gotPayed = 0  
+  local numPlayers = self.gameObject.simulation:getNumPlayers()
+  self.payingTo = tensor.Int32Tensor(numPlayers):fill(0)
+end
+
+function Paying:postStart()
+  local globalData = self.gameObject.simulation:getSceneObject():getComponent(
+      'GlobalData')
+  self.maxPayees = globalData:getMaxPayeesPerPayer()
+  local numPlayers = self.gameObject.simulation:getNumPlayers()
+  if self._config.agentRole == 'farmer' then
+    for i=1,numPlayers do
+      local avatarObject = self.gameObject.simulation:getAvatarFromIndex(i)
+      local theirPayingComponent = avatarObject:getComponent('Paying')
+      if theirPayingComponent._config.agentRole == 'cleaner' and 
+      theirPayingComponent.paidBy == 0 then
+        if self.payingTo:sum() < self.maxPayees then
+          self.payingTo(i):val(1)
+          theirPayingComponent._config.paidBy = self.gameObject:getComponent(
+                                                        'Avatar'):getIndex()
+        end
+      end
+    end
+  end
+end
+
+function Paying:getPayingTo()
+  return self.payingTo
 end
 
 function Paying:getAgentRole()
   return self._config.agentRole
 end
 
+function Paying:setSinceLastPayed()
+  self.sinceLastPayed = 0
+end
+
+function Paying:setGotPayed(val)
+  self.gotPayed = val
+end
+
 function Paying:registerUpdaters(updaterRegistry)
   local function pay()
-    -- Listen for the action and set the appropriate self._offer.
     local playerVolatileVariables = (
         self.gameObject:getComponent('Avatar'):getVolatileData())
     local actions = playerVolatileVariables.actions
+    -- Execute the beam if applicable.
     if self.gameObject:getComponent('Avatar'):isAlive() then
         if actions['pay'] == 1 then
-          local payee = self:getBestPayee()
-          self:pay(payee)
-          self.sinceLastPayed = 0
+          self.gameObject:hitBeam(
+                  'payHit', self._config.beamLength, self._config.beamRadius)
         end
     end
     self.sinceLastPayed = self.sinceLastPayed + 1
@@ -974,6 +1010,45 @@ function Paying:registerUpdaters(updaterRegistry)
   updaterRegistry:registerUpdater{
       updateFn = pay,
       priority = 250,
+  }
+
+  function Paying:getPayed(payer)
+  if payer ~= nil then
+    --transfer apples from one inventory to the other
+    local myInventory = self.gameObject:getComponent('Inventory')
+    local theirInventory = payer:getComponent('Inventory')
+    
+    if self:hasEnough() then
+      -- Update the inventories.
+      theirInventory:add(-(self._config.amount))
+      myInventory:add(self._config.amount)
+      self:setGotPayed(1)
+      payer:getComponent('Paying'):setSinceLastPayed()
+
+      events:add('paying', 'dict',
+              'amount', self._config.amount,
+              'payer_index', payer:getComponent('Avatar'):getIndex(),
+              'payer_role', payer:getComponent('Paying'):getAgentRole(),
+              'payee_index', self.gameObject:getComponent('Avatar'):getIndex(),
+              'payee_role', self.gameObject:getComponent('Paying'):getAgentRole()
+              )
+    end
+  end
+end
+
+function Paying:onHit(hitterGameObject, hitName)
+  if hitName == 'payHit' then
+    self:getPayed(hitterGameObject)
+  end
+end
+
+  local function resetCumulants()
+    self.gotPayed = 0
+  end
+
+  updaterRegistry:registerUpdater{
+      updateFn = resetCumulants,
+      priority = 2,
   }
 end
 
@@ -997,46 +1072,6 @@ end
 function Paying:addSprites(tileSet)
   -- This color is pink.
   tileSet:addColor('BeamPay', {255, 202, 202})
-end
-
-function Paying:pay(payee)
-  --transfer apples from one inventory to the other
-  local myInventory = self.gameObject:getComponent('Inventory')
-  local theirInventory = payee:getComponent('Inventory')
-  
-  if self:hasEnough() then
-    -- Update the inventories.
-    myInventory:add(-(self._config.amount))
-    theirInventory:add(self._config.amount)
-
-    self.gameObject:hitBeam(
-                'payHit', self._config.beamLength, self._config.beamRadius)
-
-    events:add('trade', 'dict',
-             'amount', self._config.amount,
-             'payer_index', self.gameObject:getComponent('Avatar'):getIndex(),
-             'payer_role', self.gameObject:getComponent('Paying'):getAgentRole(),
-             'payee_index', payee:getComponent('Avatar'):getIndex(),
-             'payee_role', payee:getComponent('Paying'):getAgentRole()
-            )
-  end
-end
-
-function Paying:getBestPayee()
-  local numPlayers = self.gameObject.simulation:getNumPlayers()
-  -- Get the agent with the lowest inventory.
-  local bestPayee = nil
-  local bestPayeesInventory = 100
-  for i=1,numPlayers do
-    local avatarObject = self.gameObject.simulation:getAvatarFromIndex(i)
-    local theirInventory = avatarObject:getComponent('Inventory'):quantity()
-    if theirInventory < bestPayeesInventory then
-      bestPayee = avatarObject
-      bestPayeesInventory = theirInventory
-    end
-  end
-
-  return bestPayee
 end
 
 --[[ Property class assigns each agent initial property
@@ -1111,8 +1146,8 @@ end
 
 function Surroundings:reset()
   x_len, y_len = self._config.mapSize[1], self._config.mapSize[2]
-  self.surroundings = tensor.DoubleTensor(x_len, y_len):fill(0)
-  self.property = tensor.DoubleTensor(x_len, y_len):fill(0)
+  self.surroundings = tensor.Int32Tensor(x_len, y_len):fill(0)
+  self.property = tensor.Int32Tensor(x_len, y_len):fill(0)
   self.numApplesAround = 0
   self.dirtFraction = 0.0
 end
@@ -1126,7 +1161,7 @@ function Surroundings:postStart()
   local sceneObject = self.gameObject.simulation:getSceneObject()
   self._riverMonitor = sceneObject:getComponent('RiverMonitor')
   self:update()
-  self.surrounding = self:getWaterLocations()
+  self:getWaterLocations()
 end
 
 function Surroundings:updateDirt()
@@ -1151,6 +1186,29 @@ function Surroundings:getWaterLocations()
   end
 end
 
+function Surroundings:setPayeeLocations()
+  local payingTo = self.gameObject:getComponent('Paying'):getPayingTo()
+  for i=1, payingTo:size() do
+    cur_idx = payingTo(i):val()
+    if cur_idx ~= 0 then
+      cur_payee = self.gameObject.simulation:getAvatarFromIndex(cur_idx)
+      target_pos = cur_payee:getPosition()
+      self.surroundings(target_pos[1], target_pos[2]):val(cur_idx) -- set location
+    end
+  end
+end
+
+function Surroundings:empty()
+  local mapSize = self._config.mapSize
+  for i=1, mapSize[1] do
+    for j=1, mapSize[2] do
+      if self.surroundings(i, j):val() ~= -1 then -- don't override water
+        self.surroundings(i, j):val(0)
+      end
+    end
+  end
+end
+
 function Surroundings:update()
   -- update dirtFraction
   self.dirtFraction = self:updateDirt()
@@ -1166,14 +1224,15 @@ function Surroundings:update()
   local y_lim = pos[2]+radius <= mapSize[2] and pos[2]+radius or mapSize[2]
 
   --[[ get all apples in this observation radius and 
-  transform into binary observation tensor to output ]]
+  transform into observation tensor to output: sourroundings]]
+  self:empty()
+
   for i=x, x_lim do
     for j=y, y_lim do
       if self.transform:queryPosition('appleLayer', {i, j}) ~= nil then
-          self.surroundings(i, j):val(1) -- apples
-      elseif self.surroundings(i, j):val() ~= -1 then -- don't override river
-        self.surroundings(i, j):val(0)
+          self.surroundings(i, j):val(-2) -- apples
       end
+
       local resource = self.transform:queryPosition('resourceLayer', {i, j})
       if resource ~= nil and resource:hasComponent('Resource') then
         playerClaimed = resource:getComponent('Resource')._claimedByAvatarComponent
@@ -1186,6 +1245,8 @@ function Surroundings:update()
       end
     end
   end
+
+  self:setPayeeLocations()
 end
 
 --[[ The Taste component assigns specific roles to agents. Not used in defaults.
@@ -1391,23 +1452,19 @@ local GlobalData = class.Class(component.Component)
 function GlobalData:__init__(kwargs)
   kwargs = args.parse(kwargs, {
       {'name', args.default('GlobalData')},
-      {'recordWindow', args.default(10), args.numberType},
   })
   GlobalData.Base.__init__(self, kwargs)
-  self.recordWindow = kwargs.recordWindow
 end
 
 function GlobalData:reset()
   self.numPlayers = self.gameObject.simulation:getNumPlayers()
   self.playersWhoCleanedThisStep = tensor.Tensor(self.numPlayers):fill(0)
-  self.playersWhoCleanedRecently = tensor.DoubleTensor(self.numPlayers, self.recordWindow):fill(0)
   self.playersWhoAteThisStep = tensor.Tensor(self.numPlayers):fill(0)
   self.stolenRecords = tensor.DoubleTensor(self.numPlayers, self.numPlayers):fill(0)
 end
 
 function GlobalData:registerUpdaters(updaterRegistry)
   local function resetCumulants()
-    self.playersWhoCleanedRecently = self:updateNumCleaners()
     self.playersWhoCleanedThisStep:fill(0)
     self.playersWhoAteThisStep:fill(0)
   end
@@ -1417,24 +1474,27 @@ function GlobalData:registerUpdaters(updaterRegistry)
   }
 end
 
+function GlobalData:getMaxPayeesPerPayer()
+  numFarmers = 0
+  numCleaners = 0
+  for i=1, self.numPlayers do
+    avatarPaying = self.gameObject.simulation:getAvatarFromIndex(i
+                                                ):getComponent('Paying')
+    if avatarPaying._config.agentRole == "farmer" then
+      numFarmers = numFarmers + 1
+    elseif avatarPaying._config.agentRole == "cleaner" then
+      numCleaners = numCleaners + 1
+    end
+  end
+  return math.floor((numCleaners / numFarmers) * 10) / 10
+end
+
 function GlobalData:setCleanedThisStep(playerIndex)
   self.playersWhoCleanedThisStep(playerIndex):val(1)
 end
 
 function GlobalData:setAteThisStep(playerIndex)
   self.playersWhoAteThisStep(playerIndex):val(1)
-end
-
-function GlobalData:updateNumCleaners()
-  local temp_tensor = tensor.DoubleTensor(self.numPlayers, self.recordWindow):fill(0)
-  for i = 1, self.numPlayers do
-      for j = 2, self.recordWindow do
-        local tempVal = self.playersWhoCleanedRecently(i,j):val()
-        temp_tensor(i, j-1):val(tempVal)
-      end
-      temp_tensor(i, self.recordWindow):val(self.playersWhoCleanedThisStep(i):val())
-    end
-  return temp_tensor
 end
 
 -- Note: a stolen-record never gets set to 0 again
@@ -1447,13 +1507,7 @@ function GlobalData:getStoleInGame(stolenFrom)
 end
 
 function GlobalData:getNumCleaners()
-  local numCleaners = 0
-  for i=1, self.numPlayers do
-    if self.playersWhoCleanedRecently:select(1,i):maxElement() > 0 then
-      numCleaners = numCleaners + 1
-    end
-  end
-  return numCleaners
+  return self.playersWhoCleanedThisStep():sum()
 end
 
 

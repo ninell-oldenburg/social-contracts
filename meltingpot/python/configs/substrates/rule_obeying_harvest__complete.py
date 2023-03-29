@@ -104,9 +104,9 @@ WD-----WD-----WD-----WD-----W
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 """
 
-x_size = ASCII_MAP.find('\n', 1) -1
-y_size = ASCII_MAP.count('\n') -1
-MAP_SIZE = (x_size, y_size)
+x_size = ASCII_MAP.find('\n', 1) -2
+y_size = ASCII_MAP.count('\n') -2
+MAP_SIZE = (x_size, y_size) # lua is i-indexed
 
 # `prefab` determines which prefab game object to use for each `char` in the
 # ascii map.
@@ -193,6 +193,12 @@ WALL = {
             "component": "BeamBlocker",
             "kwargs": {
                 "beamType": "cleanHit"
+            }
+        },
+        {
+            "component": "BeamBlocker",
+            "kwargs": {
+                "beamType": "payHit"
             }
         },
         {
@@ -882,9 +888,6 @@ def create_scene():
           },
           {
               "component": "GlobalData",
-              "kwargs": {
-                  "recordWindow": 20,
-              }
           },
           {
               "component": "Neighborhoods",
@@ -1006,8 +1009,7 @@ def create_avatar_object(player_idx: int,
               "component": "Paying",
               "kwargs": {
                   "amount": 1.0,
-                  "payRhythm": 5,
-                  "beamLength": 1,
+                  "beamLength": 2,
                   "beamRadius": 1,
                   "agentRole": role,
               }
@@ -1028,7 +1030,6 @@ def create_avatar_object(player_idx: int,
                   "cooldownTime": 2,
                   "beamLength": 3,
                   "beamRadius": 1,
-                  "cleanRhythm": 5,
               }
           },
           {
@@ -1088,7 +1089,7 @@ def create_avatar_object(player_idx: int,
               "kwargs": {
                   "metrics": [
                       {
-                          "name": "PLAYER_CLEANED",
+                          "name": "AGENT_CLEANED",
                           "type": "Doubles",
                           "shape": [],
                           "component": "Cleaner",
@@ -1102,35 +1103,42 @@ def create_avatar_object(player_idx: int,
                           "variable": "dirtFraction",
                       },
                       {
-                          "name": "SINCE_LAST_CLEANED",
-                          "type": "Doubles",
+                          "name": "SINCE_AGENT_LAST_CLEANED",
+                          "type": "Int32s",
                           "shape": [],
                           "component": "Cleaner",
                           "variable": "sinceLastCleaned",
                       },
                       {
-                          "name": "CLEAN_RHYTHM",
-                          "type": "Doubles",
-                          "shape": [],
-                          "component": "Cleaner",
-                          "variable": "cleanRhythm",
-                      },
-                      {
-                          "name": "SINCE_LAST_PAYED",
-                          "type": "Doubles",
+                          "name": "SINCE_AGENT_LAST_PAYED",
+                          "type": "Int32s",
                           "shape": [],
                           "component": "Paying",
                           "variable": "sinceLastPayed",
                       },
                       {
-                          "name": "PAY_RHYTHM",
-                          "type": "Doubles",
+                          "name": "ALWAYS_PAYING_TO",
+                          "type": "tensor.Int32Tensor",
                           "shape": [],
                           "component": "Paying",
-                          "variable": "payRhythm",
+                          "variable": "payingTo",
                       },
                       {
-                          "name": "NUM_CLEANERS",
+                          "name": "ALWAYS_PAYED_BY",
+                          "type": "Int32s",
+                          "shape": [],
+                          "component": "Paying",
+                          "variable": "paidBy",
+                      },
+                      {
+                          "name": "GOT_PAYED_THIS_STEP",
+                          "type": "Int32s",
+                          "shape": [],
+                          "component": "Paying",
+                          "variable": "gotPayed",
+                      },
+                      {
+                          "name": "TOTAL_NUM_CLEANERS",
                           "type": "Int32s",
                           "shape": [],
                           "component": "Cleaner",
@@ -1144,34 +1152,6 @@ def create_avatar_object(player_idx: int,
                           "variable": "inventory",
                       },
                       {
-                          "name": "PLAYER_ATE_APPLE",
-                          "type": "Doubles",
-                          "shape": [],
-                          "component": "Taste",
-                          "variable": "player_ate_apple",
-                      },
-                      {
-                          "name": "NUM_OTHERS_PLAYER_ZAPPED_THIS_STEP",
-                          "type": "Doubles",
-                          "shape": [],
-                          "component": "Zapper",
-                          "variable": "num_others_player_zapped_this_step",
-                      },
-                      {
-                          "name": "NUM_OTHERS_WHO_CLEANED_THIS_STEP",
-                          "type": "Doubles",
-                          "shape": [],
-                          "component": "AllNonselfCumulants",
-                          "variable": "num_others_who_cleaned_this_step",
-                      },
-                      {
-                          "name": "NUM_OTHERS_WHO_ATE_THIS_STEP",
-                          "type": "Doubles",
-                          "shape": [],
-                          "component": "AllNonselfCumulants",
-                          "variable": "num_others_who_ate_this_step",
-                      },
-                      {
                           "name": "STOLEN_RECORDS",
                           "type": "Doubles",
                           "shape": [],
@@ -1180,14 +1160,14 @@ def create_avatar_object(player_idx: int,
                       },
                       {
                           "name": "PROPERTY",
-                          "type": "tensor.DoubleTensor",
+                          "type": "tensor.Int32Tensor",
                           "shape": [OBSERVATION_RADIUS],
                           "component": "Surroundings",
                           "variable": "property"
                       },
                       {
                           "name": "SURROUNDINGS",
-                          "type": "tensor.DoubleTensor",
+                          "type": "tensor.Int32Tensor",
                           "shape": [OBSERVATION_RADIUS],
                           "component": "Surroundings",
                           "variable": "surroundings"
@@ -1381,22 +1361,20 @@ def get_config():
       "READY_TO_SHOOT",
 
       # Cumulants.
-      "PLAYER_CLEANED",
+      "AGENT_CLEANED",
       "PROPERTY",
       "INVENTORY",
       "SURROUNDINGS",
-      "NUM_CLEANERS",
-      "SINCE_LAST_CLEANED",
-      "SINCE_LAST_PAYED",
-      "CLEAN_RHYTHM",
-      "PAY_RHYTHM",
+      "TOTAL_NUM_CLEANERS",
+      "SINCE_AGENT_LAST_CLEANED",
+      "SINCE_AGENT_LAST_PAYED",
+      "ALWAYS_PAYING_TO",
+      "ALWAYS_PAYED_BY",
+      "GOT_PAYED_THIS_STEP",
 
       # Global observations
       "DIRT_FRACTION",
       "STOLEN_RECORDS",
-
-      # Global switching signals for puppeteers.
-      "NUM_OTHERS_WHO_CLEANED_THIS_STEP",
 
       # Debug only (do not use the following observations in policies).
       "POSITION",
@@ -1432,10 +1410,10 @@ def get_config():
                                   "farmer",
                                   "learning",})
   # "bluie" as for one player
-  config.default_player_roles = ("cleaner",) * 0 \
-                                + ("farmer",) * 0 \
-                                + ('free',) * 1 \
-                                + ('learning',) * 1
+  config.default_player_roles = ("cleaner",) * 1 \
+                                + ("farmer",) * 1 \
+                                + ('free',) * 0 \
+                                + ('learning',) * 0
 
   return config
 
