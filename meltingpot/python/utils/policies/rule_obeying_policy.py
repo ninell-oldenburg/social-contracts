@@ -38,9 +38,9 @@ cur_cell_has_apple = Symbol('CUR_CELL_HAS_APPLE', BOOL)
 agent_has_stolen = Symbol('AGENT_HAS_STOLEN', BOOL)
 num_cleaners = Symbol('TOTAL_NUM_CLEANERS', INT)
 dirt_fraction = Symbol('DIRT_FRACTION', REAL)
-since_last_payed = Symbol('SINCE_AGENT_LAST_PAYED', INT)
-since_last_cleaned = Symbol('SINCE_AGENT_LAST_CLEANED', INT)
-got_payed_step = Symbol('GOT_PAYED_THIS_STEP', INT)
+sent_last_payment = Symbol('SINCE_AGENT_LAST_PAYED', INT)
+did_last_cleaning = Symbol('SINCE_AGENT_LAST_CLEANED', INT)
+received_last_payment = Symbol('SINCE_RECEIVED_LAST_PAYMENT', INT)
 
 DEFAULT_OBLIGATIONS = [
     # every time the water gets too polluted, go clean the water
@@ -48,12 +48,12 @@ DEFAULT_OBLIGATIONS = [
     # clean the water if less than Y agents are cleaning
     ObligationRule(LT(num_cleaners, Int(1)), GE(num_cleaners, Int(1))),
     # If you're in the farmer role, pay cleaner with apples
-    ObligationRule(GT(since_last_payed, Int(1)), LE(since_last_payed, Int(1)), 
+    ObligationRule(GT(sent_last_payment, Int(1)), LE(sent_last_payment, Int(1)), 
                    "farmer"),
                       # If you're in the cleaner role, clean in a certain rhythm
-    ObligationRule(GT(since_last_cleaned, Int(1)), LE(since_last_cleaned, Int(1)), 
+    ObligationRule(GT(did_last_cleaning, Int(1)), LE(did_last_cleaning, Int(1)), 
                    "cleaner"),
-    ObligationRule(Not(Equals(got_payed_step, Int(1))), Equals(got_payed_step, Int(1)), 
+    ObligationRule(GT(received_last_payment, Int(1)), LE(received_last_payment, Int(1)), 
                     "cleaner"),
 ]
 
@@ -184,7 +184,7 @@ class RuleObeyingPolicy(policy.Policy):
       # Simulate changes to observation based on action
       if action <= 4: # move actions
         if action == 0 and self.role == 'cleaner':
-          observation['GOT_PAYED_THIS_STEP'] = 1
+          observation['SINCE_RECEIVED_LAST_PAYMENT'] = 0
         observation['POSITION'] += self.action_to_pos[orientation][action]
         cur_inventory += self.maybe_collect_apple(observation)
       
@@ -210,14 +210,15 @@ class RuleObeyingPolicy(policy.Policy):
           if action >= 10: # eat and pay
             if action_name == "EAT_ACTION":
               reward += 1
+              cur_inventory -= 1 # eat
             if action_name == "PAY_ACTION":
               if self.role == "farmer":
                 if self.payees == None:
                   self.payees = self.get_payees(observation)
                 for payee in self.payees:
                   if self.is_close_to_agent(observation, payee):
+                    cur_inventory -= 1 # pay
                     observation['SINCE_AGENT_LAST_PAYED'] = 0
-            cur_inventory -= 1 # pay
 
       observation['INVENTORY'] = cur_inventory
 
@@ -236,16 +237,14 @@ class RuleObeyingPolicy(policy.Policy):
   def is_close_to_agent(self, observation, payee):
     x_start = observation['POSITION'][0]-1
     y_start = observation['POSITION'][1]-1
-    x_stop = observation['POSITION'][0]+2
-    y_stop = observation['POSITION'][1]+2
+    x_stop = observation['POSITION'][0]+1
+    y_stop = observation['POSITION'][1]+1
 
     for i in range(x_start, x_stop):
       for j in range(y_start, y_stop):
         if not self.exceeds_map(observation['WORLD.RGB'], i, j):
           if observation['SURROUNDINGS'][i][j] == payee:
-            payee_pos = (i, j)
-            print('found')
-            return self.is_facing_agent(observation, payee_pos)
+            return self.is_facing_agent(observation, (i, j))
     return False
   
   def is_facing_agent(self, observation, payee_pos):

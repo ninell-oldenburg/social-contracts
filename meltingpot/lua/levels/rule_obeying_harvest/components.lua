@@ -950,7 +950,7 @@ end
 function Paying:start()
   self.sinceLastPayed = 0
   self.paidBy = 0
-  self.gotPayed = 1
+  self.gotPayed = 0
   local numPlayers = self.gameObject.simulation:getNumPlayers()
   self.payingTo = tensor.Int32Tensor(numPlayers):fill(0)
 end
@@ -984,12 +984,12 @@ function Paying:getAgentRole()
   return self._config.agentRole
 end
 
-function Paying:setSinceLastPayed()
+function Paying:resetSinceLastPayed()
   self.sinceLastPayed = 0
 end
 
-function Paying:setGotPayed(val)
-  self.gotPayed = val
+function Paying:resetGotPayed()
+  self.gotPayed = 0
 end
 
 function Paying:registerUpdaters(updaterRegistry)
@@ -1005,6 +1005,7 @@ function Paying:registerUpdaters(updaterRegistry)
         end
     end
     self.sinceLastPayed = self.sinceLastPayed + 1
+    self.gotPayed = self.gotPayed + 1
   end
 
   updaterRegistry:registerUpdater{
@@ -1017,13 +1018,15 @@ function Paying:registerUpdaters(updaterRegistry)
     --transfer apples from one inventory to the other
     local myInventory = self.gameObject:getComponent('Inventory')
     local theirInventory = payer:getComponent('Inventory')
+    local theirPaying = payer:getComponent('Paying')
     
-    if self:hasEnough() then
+    if theirPaying:hasEnough() then
       -- Update the inventories.
       theirInventory:add(-(self._config.amount))
       myInventory:add(self._config.amount)
-      self:setGotPayed(1)
-      payer:getComponent('Paying'):setSinceLastPayed()
+
+      self:resetGotPayed(1)
+      theirPaying:resetSinceLastPayed()
 
       events:add('paying', 'dict',
               'amount', self._config.amount,

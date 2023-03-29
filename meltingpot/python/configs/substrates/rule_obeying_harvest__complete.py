@@ -1131,7 +1131,7 @@ def create_avatar_object(player_idx: int,
                           "variable": "paidBy",
                       },
                       {
-                          "name": "GOT_PAYED_THIS_STEP",
+                          "name": "SINCE_RECEIVED_LAST_PAYMENT",
                           "type": "Int32s",
                           "shape": [],
                           "component": "Paying",
@@ -1370,7 +1370,7 @@ def get_config():
       "SINCE_AGENT_LAST_PAYED",
       "ALWAYS_PAYING_TO",
       "ALWAYS_PAYED_BY",
-      "GOT_PAYED_THIS_STEP",
+      "SINCE_RECEIVED_LAST_PAYMENT",
 
       # Global observations
       "DIRT_FRACTION",
