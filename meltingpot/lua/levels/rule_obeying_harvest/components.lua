@@ -955,11 +955,13 @@ function Paying:start()
   self.payingTo = tensor.Int32Tensor(numPlayers):fill(0)
 end
 
+-- [[ function to set up who is paying who (doesn't change during game) ]]
 function Paying:postStart()
   local globalData = self.gameObject.simulation:getSceneObject():getComponent(
       'GlobalData')
   self.maxPayees = globalData:getMaxPayeesPerPayer()
   local numPlayers = self.gameObject.simulation:getNumPlayers()
+  
   if self._config.agentRole == 'farmer' then
     for i=1,numPlayers do
       local avatarObject = self.gameObject.simulation:getAvatarFromIndex(i)

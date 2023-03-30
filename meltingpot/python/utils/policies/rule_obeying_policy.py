@@ -53,6 +53,7 @@ DEFAULT_OBLIGATIONS = [
                       # If you're in the cleaner role, clean in a certain rhythm
     ObligationRule(GT(did_last_cleaning, Int(1)), LE(did_last_cleaning, Int(1)), 
                    "cleaner"),
+    # if you're a cleaner, wait until you've received a payment
     ObligationRule(GT(received_last_payment, Int(1)), LE(received_last_payment, Int(1)), 
                     "cleaner"),
 ]
@@ -149,6 +150,7 @@ class RuleObeyingPolicy(policy.Policy):
       for obligation in self.obligations:
          if obligation.holds_in_history(self.history, self.role):
            self.current_obligation = obligation
+           print(self.current_obligation.precondition)
            break
          
       # Check if any of the permission are active
