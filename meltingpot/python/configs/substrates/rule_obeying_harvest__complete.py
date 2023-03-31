@@ -1412,7 +1412,7 @@ def get_config():
   # "bluie" as for one player
   config.default_player_roles = ("cleaner",) * 1 \
                                 + ("farmer",) * 1 \
-                                + ('free',) * 0 \
+                                + ('free',) * 1 \
                                 + ('learning',) * 0
 
   return config

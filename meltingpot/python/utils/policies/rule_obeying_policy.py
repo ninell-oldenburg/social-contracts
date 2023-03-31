@@ -91,8 +91,7 @@ class RuleObeyingPolicy(policy.Policy):
                player_idx: int, 
                role: str = "free",
                prohibitions: list = DEFAULT_PROHIBITIONS, 
-               obligations: list = DEFAULT_OBLIGATIONS,
-               permissions: list = DEFAULT_PERMISSIONS) -> None:
+               obligations: list = DEFAULT_OBLIGATIONS) -> None:
     """Initializes the policy.
 
     Args:
@@ -105,8 +104,6 @@ class RuleObeyingPolicy(policy.Policy):
     self.prohibitions = prohibitions
     self.obligations = obligations
     self.current_obligation = None
-    self.permissions = permissions
-    self.current_permission = None
     self.history = deque(maxlen=5)
     self.payees = []
     if self.role == 'farmer':
@@ -150,14 +147,6 @@ class RuleObeyingPolicy(policy.Policy):
       for obligation in self.obligations:
          if obligation.holds_in_history(self.history, self.role):
            self.current_obligation = obligation
-           print(self.current_obligation.precondition)
-           break
-         
-      # Check if any of the permission are active
-      self.current_permission = None
-      for permission in self.permissions:
-         if permission.holds(timestep.observation):
-           self.current_permission = permission
            break
          
       print(f"player: {self._index} current_obligation active?: {self.current_obligation != None}")
@@ -207,6 +196,7 @@ class RuleObeyingPolicy(policy.Policy):
               if observation['ORIENTATION'] == 0 \
                 and observation['SURROUNDINGS'][x][y] == -1:
                 observation['SINCE_AGENT_LAST_CLEANED'] = 0
+                observation['TOTAL_NUM_CLEANERS'] = 1
 
         if cur_inventory > 0:
           if action >= 10: # eat and pay
@@ -340,8 +330,6 @@ class RuleObeyingPolicy(policy.Policy):
       observation = self.update_observation(observation, orientation, x, y)
       action_name = self.get_action_name(action)
       if not self.check_all(observation, action_name):
-        if action == 5 or action == 6:
-          print(f"player {self._index}: action {action}")
         continue
       
       actions.append(action)

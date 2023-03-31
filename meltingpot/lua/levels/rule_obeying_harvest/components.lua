@@ -961,13 +961,14 @@ function Paying:postStart()
       'GlobalData')
   self.maxPayees = globalData:getMaxPayeesPerPayer()
   local numPlayers = self.gameObject.simulation:getNumPlayers()
-  
+
   if self._config.agentRole == 'farmer' then
     for i=1,numPlayers do
       local avatarObject = self.gameObject.simulation:getAvatarFromIndex(i)
       local theirPayingComponent = avatarObject:getComponent('Paying')
       if theirPayingComponent._config.agentRole == 'cleaner' and 
       theirPayingComponent.paidBy == 0 then
+        print('paying')
         if self.payingTo:sum() < self.maxPayees then
           self.payingTo(i):val(1)
           theirPayingComponent._config.paidBy = self.gameObject:getComponent(

@@ -26,7 +26,7 @@ from itertools import islice
 from meltingpot.python import substrate
 
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
-from meltingpot.python.utils.policies.rule_learning_agent import RuleLearningAgent
+from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
 
 
 def main():
@@ -61,10 +61,10 @@ def main():
                                     role=config['roles'][i], 
                                     player_idx=i))
     else:
-      bots.append(RuleLearningAgent(env=env, 
+      bots.append(RuleLearningPolicy(env=env, 
                                     role=config['roles'][i], 
                                     player_idx=i,
-                                    other_agents_roles=focal_roles))
+                                    num_total_agents=num_bots))
 
   timestep = env.reset()
 
