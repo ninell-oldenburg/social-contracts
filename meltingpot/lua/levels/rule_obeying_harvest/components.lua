@@ -1155,7 +1155,6 @@ function Surroundings:reset()
   self.surroundings = tensor.Int32Tensor(x_len, y_len):fill(0)
   self.property = tensor.Int32Tensor(x_len, y_len):fill(0)
   self.numApplesAround = 0
-  self.dirtFraction = 0.0
 end
 
 function Surroundings:start()
@@ -1167,16 +1166,6 @@ function Surroundings:postStart()
   local sceneObject = self.gameObject.simulation:getSceneObject()
   self._riverMonitor = sceneObject:getComponent('RiverMonitor')
   self:update()
-end
-
-function Surroundings:updateDirt()
-  local dirtCount = self._riverMonitor:getDirtCount()
-  local cleanCount = self._riverMonitor:getCleanCount()
-  local dirtFraction = dirtCount / (dirtCount + cleanCount)
-  -- check for nan value
-  if dirtFraction == dirtFraction then return dirtFraction
-  else return 0 
-  end
 end
 
 function Surroundings:setDirtLocations()
@@ -1206,8 +1195,6 @@ function Surroundings:setPayeeLocations()
 end
 
 function Surroundings:update()
-  -- update dirtFraction
-  self.dirtFraction = self:updateDirt()
   -- unpack observation arguments
   local radius = self._config.observationRadius
   local mapSize = self._config.mapSize

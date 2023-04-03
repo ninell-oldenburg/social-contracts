@@ -1,5 +1,4 @@
 from pysmt.shortcuts import *
-# from pysmt.solvers.solver import Solver
 
 import numpy as np
 
@@ -23,7 +22,7 @@ class EnvironmentRule():
         variables = self.precondition.get_free_variables()
         substitutions = {v: self.get_property(v, observations) for v in variables}            
         problem = self.precondition.substitute(substitutions)
-        is_sat_val = EnvironmentRule.solver.is_sat(problem)
+        is_sat_val = EnvironmentRule.solver.solve(problem)
         return is_sat_val
      
      def get_property(self, property, observations):
@@ -71,7 +70,7 @@ class ProhibitionRule(EnvironmentRule):
         """Returns True if a rule holds given a certain observation."""
         if action == self.prohibited_action:
             substitutions = {v: self.get_property(v, observation) for v in self.variables}            
-            problem = self.precondition.substitute(substitutions)
+            problem = self.precondition.substitute(substitutions).simplify()
             return EnvironmentRule.solver.is_sat(problem)
         return False
     

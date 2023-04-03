@@ -1096,13 +1096,6 @@ def create_avatar_object(player_idx: int,
                           "variable": "player_cleaned",
                       },
                       {
-                          "name": "DIRT_FRACTION",
-                          "type": "Doubles",
-                          "shape": [],
-                          "component": "Surroundings",
-                          "variable": "dirtFraction",
-                      },
-                      {
                           "name": "SINCE_AGENT_LAST_CLEANED",
                           "type": "Int32s",
                           "shape": [],
@@ -1357,7 +1350,7 @@ def get_config():
   config.action_set = ACTION_SET
   # Observation format configuration.
   config.individual_observation_names = [
-      "RGB",
+      #"RGB",
       "READY_TO_SHOOT",
 
       # Cumulants.
@@ -1373,7 +1366,7 @@ def get_config():
       "SINCE_RECEIVED_LAST_PAYMENT",
 
       # Global observations
-      "DIRT_FRACTION",
+      #"DIRT_FRACTION",
       "STOLEN_RECORDS",
 
       # Debug only (do not use the following observations in policies).
@@ -1387,17 +1380,17 @@ def get_config():
   # The specs of the environment (from a single-agent perspective).
   config.action_spec = specs.action(len(ACTION_SET))
   config.timestep_spec = specs.timestep({
-     "RGB": specs.OBSERVATION["RGB"],
-      "READY_TO_SHOOT": specs.OBSERVATION["READY_TO_SHOOT"],
+     #"RGB": specs.OBSERVATION["RGB"],
+     # "READY_TO_SHOOT": specs.OBSERVATION["READY_TO_SHOOT"],
       # Cumulants.
-      "PLAYER_ATE_APPLE": specs.float64(),
-      "PLAYER_CLEANED": specs.float64(),
+      #"PLAYER_ATE_APPLE": specs.float64(),
+      #"PLAYER_CLEANED": specs.float64(),
       "SOURROUNDINGS": specs.surroundings(OBSERVATION_RADIUS),
-      "NUM_OTHERS_PLAYER_ZAPPED_THIS_STEP": specs.float64(),
+      #"NUM_OTHERS_PLAYER_ZAPPED_THIS_STEP": specs.float64(),
       # Global switching signals for puppeteers.
-      "NUM_OTHERS_WHO_CLEANED_THIS_STEP": specs.float64(),
-      "NUM_OTHERS_WHO_ATE_THIS_STEP": specs.float64(),
-      "DIRT_FRACTION": specs.float64(),
+      #"NUM_OTHERS_WHO_CLEANED_THIS_STEP": specs.float64(),
+      #"NUM_OTHERS_WHO_ATE_THIS_STEP": specs.float64(),
+      #"DIRT_FRACTION": specs.float64(),
       # Debug only (do not use the following observations in policies).
       "POSITION": specs.OBSERVATION["POSITION"],
       "ORIENTATION": specs.OBSERVATION["ORIENTATION"],
@@ -1410,8 +1403,8 @@ def get_config():
                                   "farmer",
                                   "learning",})
   # "bluie" as for one player
-  config.default_player_roles = ("cleaner",) * 1 \
-                                + ("farmer",) * 1 \
+  config.default_player_roles = ("cleaner",) * 0 \
+                                + ("farmer",) * 0 \
                                 + ('free',) * 1 \
                                 + ('learning',) * 0
 

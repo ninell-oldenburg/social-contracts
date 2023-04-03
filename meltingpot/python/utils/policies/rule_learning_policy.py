@@ -7,42 +7,54 @@ from pysmt.shortcuts import *
 
 import numpy as np
 
-import random
-from scipy.stats import beta
-import math
+from ast import parse
 
-from meltingpot.python.utils.policies.pysmt_rules import ProhibitionRule, ObligationRule
+from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 
 
-foreign_property = Symbol('CUR_CELL_IS_FOREIGN_PROPERTY', BOOL)
-cur_cell_has_apple = Symbol('CUR_CELL_HAS_APPLE', BOOL)
-agent_has_stolen = Symbol('AGENT_HAS_STOLEN', BOOL)
-num_cleaners = Symbol('TOTAL_NUM_CLEANERS', INT)
-dirt_fraction = Symbol('DIRT_FRACTION', REAL)
-sent_last_payment = Symbol('SINCE_AGENT_LAST_PAYED', INT)
-did_last_cleaning = Symbol('SINCE_AGENT_LAST_CLEANED', INT)
-received_last_payment = Symbol('SINCE_RECEIVED_LAST_PAYMENT', INT)
+# VARIABLES
+foreign_property = parse("lambda obs : obs['CUR_CELL_IS_FOREIGN_PROPERTY']")
+cur_cell_has_apple = parse("lambda obs : obs['CUR_CELL_HAS_APPLE']")
+num_apples_around = parse("lambda obs : obs['NUM_APPLES_AROUND']")
+agent_has_stolen = parse("lambda obs : obs['AGENT_HAS_STOLEN']")
+num_cleaners = parse("lambda obs : obs['TOTAL_NUM_CLEANERS']")
+sent_last_payment = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED']")
+did_last_cleaning = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED']")
+received_last_payment = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT']")
+
+# PRECONDITIONS AND GOALS FOR OBLIGATIONS
+cleaning_precondition_free = parse("lambda obs : num_cleaners(obs) < 1")
+cleaning_goal_free = parse("lambda obs : num_cleaners(obs) >= 1")
+payment_precondition_farmer = parse("lambda obs : sent_last_payment(obs) > 1")
+payment_goal_farmer = parse("lambda obs : sent_last_payment(obs) <= 1")
+cleaning_precondition_cleaner = parse("lambda obs : did_last_cleaning(obs) > 1")
+cleaning_goal_cleaner = parse("lambda obs : did_last_cleaning(obs) <= 1")
+payment_precondition_cleaner = parse("lambda obs : received_last_payment(obs) > 1")
+payment_goal_cleaner = parse("lambda obs : received_last_payment(obs) <= 1")
 
 POTENTIAL_OBLIGATIONS = [
-    ObligationRule(LT(num_cleaners, Int(1)), GE(num_cleaners, Int(1))),
-    ObligationRule(GT(sent_last_payment, Int(1)), LE(sent_last_payment, Int(1)), 
-                   "farmer"),
-    ObligationRule(GT(did_last_cleaning, Int(1)), LE(did_last_cleaning, Int(1)), 
-                   "cleaner"),
-    ObligationRule(GT(received_last_payment, Int(1)), LE(received_last_payment, Int(1)), 
-                    "cleaner"),
+  # clean the water if less than 1 agent is cleaning
+  ObligationRule(cleaning_precondition_free, cleaning_goal_free),
+  # If you're in the farmer role, pay cleaner with apples
+  ObligationRule(payment_precondition_farmer, payment_goal_farmer, "farmer"),
+  # If you're in the cleaner role, clean in a certain rhythm
+  ObligationRule(cleaning_precondition_cleaner, cleaning_goal_cleaner, "cleaner"),
+  # if you're a cleaner, wait until you've received a payment
+  ObligationRule(payment_precondition_cleaner, payment_goal_cleaner, "cleaner")
 ]
 
+# PRECONDITIONS FOR PROHIBTIONS
+harvest_apple_precondition = parse("lambda obs : cur_cell_has_apple(obs) \
+                                   and num_apples_around(obs) < 3")
+steal_from_forgein_cell_precondition = parse("lambda obs : cur_cell_has_apple(obs) \
+                                   and not agent_has_stolen(obs)")
+  
 POTENTIAL_PROHIBITIONS = [
-    ProhibitionRule(And(cur_cell_has_apple, LT(Symbol
-                   ('NUM_APPLES_AROUND', INT), Int(3))), 'MOVE_ACTION'),
-    ProhibitionRule(And(Not(agent_has_stolen), And(foreign_property, 
-                    cur_cell_has_apple)), 'MOVE_ACTION'),
-]
-
-POTENTIAL_PERMISSIONS = [
-    # TODO
+  # don't go if <2 apples around
+  ProhibitionRule(harvest_apple_precondition, 'MOVE_ACTION'),
+  # don't go if it is foreign property and cell has apples 
+  ProhibitionRule(steal_from_forgein_cell_precondition, 'MOVE_ACTION'),
 ]
 
 class RuleLearningPolicy(RuleObeyingPolicy):
@@ -72,8 +84,6 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.rule_beliefs = np.array([0.2]*self.num_rules)
         self.count_rule_tries = np.array([1]*self.num_rules)
         self.role_beliefs = np.array([[0.25]*4]*len(self.num_total_agents))
-        # poisson distribution can be modified
-        self.poisson_distribution = np.random.poisson(lam=5, size=self.num_rules)
         self.history = deque(maxlen=5)
         self.confidence_level = 1.0
         self.count_timestep = 0
@@ -125,32 +135,29 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         for player_idx, action in enumerate(other_agent_actions):
         # check if the action violates the rule
             if isinstance(rule, ProhibitionRule):
-                # TODO: observations currently don't specify the position of the agent
-                # that is complying/not complying to the norm
+                # TODO: implement full observability
                 if not rule.holds(observations, action):
-                    likelihood *= 0.1  # 0 if rule is violated
+                    if action == rule.prohibited_action:
+                        likelihood *= 0.1  # rule is violated
+                    else:
+                        likelihood = 0.5 # action doesn't belong to rule
                 else:
-                    likelihood *= 0.9
+                    likelihood *= 0.9 # rule is obeyed
 
             elif isinstance(rule, ObligationRule):
                 if not player_idx == self._index:
-                    for role_idx, role in enumerate(self.potential_roles):
-                        if rule.holds(observations):
-                            if not rule in self.nonself_active_obligations:
-                                # if we encounter an obligation precondition, save it
-                                self.nonself_active_obligations.append(rule)
-                        if rule.satisfied(observations, role):
-                            # if a previous precondition is fulfilled, likelihood increases
-                            if rule in self.nonself_active_obligations:
-                                likelihood *= 0.9
-                                self.compute_role_likelihood(player_idx,
-                                                             role_idx,
-                                                             holds=True)
-                            else:
-                                likelihood *= 0.1
-                                self.compute_role_likelihood(player_idx,
-                                                             role_idx,
-                                                             holds=False)
+                    if rule.holds(observations):
+                        # TODO: in the last 10 timesteps
+                        # TODO: get roles from surface-level features
+                        if not rule in self.nonself_active_obligations:
+                            # if we encounter an obligation precondition, save it
+                            self.nonself_active_obligations.append(rule)
+                    if rule.satisfied(observations):
+                        # if a previous precondition is fulfilled, likelihood increases
+                        if rule in self.nonself_active_obligations:
+                            likelihood *= 0.9
+                        else:
+                            likelihood *= 0.1
 
         prior = self.rule_beliefs[rule_index]
         marginal = prior * likelihood + (1 - prior) * (1 - likelihood)
@@ -158,32 +165,13 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         return posterior
     
-    def compute_role_likelihood(self, player_idx, role_idx, holds: bool) -> None:
-        likelihood = 0.9 if holds == True else 0.1
-
-        prior = self.role_beliefs[player_idx][role_idx]
-        marginal = prior * likelihood + (1 - prior) * (1 - likelihood)
-        posterior = (prior * likelihood) / marginal
-            
-        self.role_beliefs[player_idx][role_idx] = posterior
-
-    # from https://gist.github.com/WhatIThinkAbout/235be75b217e8da40a4abe31d2f22c86#file-ucbsocket-py
-    def uncertainty(self, t, i): 
-        """ calculate the uncertainty in the estimate of this socket's mean """
-        if self.count_rule_tries[i] == 0: return float('inf')                         
-        return self.confidence_level * (np.sqrt(np.log(t) / self.count_rule_tries[i]))   
-        
-    
-    def sample_rules(self, t, threshold) -> None:
+    def sample_rules(self, threshold) -> None:
         """Updates the rules given a fixed number of highest priors."""
         obligations = []
         prohibitions = []
         for i, belief in enumerate(self.rule_beliefs):
-            ucb = belief + self.uncertainty(t, i)
-
-            if ucb > threshold:
+            if belief > threshold:
                 rule = self.potential_rules[i]
-                self.count_rule_tries[i] += 1
                 if isinstance(rule, ObligationRule):
                     obligations.append(rule)
                 elif isinstance(rule, ProhibitionRule):
@@ -199,7 +187,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.count_timestep += 1
 
         self.update_beliefs(timestep.observation, other_agent_actions)
-        self.sample_rules(self.count_timestep, threshold=0.5)
+        self.sample_rules(self.count_timestep, threshold=0.8)
 
         print("="*50)
         print("CURRENT RULES")
