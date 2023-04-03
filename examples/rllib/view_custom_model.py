@@ -112,7 +112,6 @@ def main():
     action_list = [int(item[0]) for item in actions.values()]
     timestep = env.step(action_list)
     actions = update(actions)
-
     
     # Saving files in superdircetory
     filename = '../videos/screen_%04d.png' % (k)

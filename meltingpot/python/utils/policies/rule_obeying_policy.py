@@ -26,8 +26,6 @@ from collections import deque
 
 from ast import parse
 
-from pysmt.shortcuts import *
-
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 
 import numpy as np
@@ -35,25 +33,15 @@ from copy import deepcopy
 
 from meltingpot.python.utils.policies import policy
 
-# VARIABLES
-foreign_property = parse("lambda obs : obs['CUR_CELL_IS_FOREIGN_PROPERTY']")
-cur_cell_has_apple = parse("lambda obs : obs['CUR_CELL_HAS_APPLE']")
-num_apples_around = parse("lambda obs : obs['NUM_APPLES_AROUND']")
-agent_has_stolen = parse("lambda obs : obs['AGENT_HAS_STOLEN']")
-num_cleaners = parse("lambda obs : obs['TOTAL_NUM_CLEANERS']")
-sent_last_payment = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED']")
-did_last_cleaning = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED']")
-received_last_payment = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT']")
-
 # PRECONDITIONS AND GOALS FOR OBLIGATIONS
-cleaning_precondition_free = parse("lambda obs : num_cleaners(obs) < 1")
-cleaning_goal_free = parse("lambda obs : num_cleaners(obs) >= 1")
-payment_precondition_farmer = parse("lambda obs : sent_last_payment(obs) > 1")
-payment_goal_farmer = parse("lambda obs : sent_last_payment(obs) <= 1")
-cleaning_precondition_cleaner = parse("lambda obs : did_last_cleaning(obs) > 1")
-cleaning_goal_cleaner = parse("lambda obs : did_last_cleaning(obs) <= 1")
-payment_precondition_cleaner = parse("lambda obs : received_last_payment(obs) > 1")
-payment_goal_cleaner = parse("lambda obs : received_last_payment(obs) <= 1")
+cleaning_precondition_free = parse("lambda obs : obs['TOTAL_NUM_CLEANERS'] < 1")
+cleaning_goal_free = parse("lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 1")
+payment_precondition_farmer = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 1")
+payment_goal_farmer = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED'] <= 1")
+cleaning_precondition_cleaner = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 1")
+cleaning_goal_cleaner = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] <= 1")
+payment_precondition_cleaner = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] > 1")
+payment_goal_cleaner = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] <= 1")
 
 DEFAULT_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
@@ -67,10 +55,10 @@ DEFAULT_OBLIGATIONS = [
 ]
 
 # PRECONDITIONS FOR PROHIBTIONS
-harvest_apple_precondition = parse("lambda obs : cur_cell_has_apple(obs) \
-                                   and num_apples_around(obs) < 3")
-steal_from_forgein_cell_precondition = parse("lambda obs : cur_cell_has_apple(obs) \
-                                   and not agent_has_stolen(obs)")
+harvest_apple_precondition = parse("lambda obs : obs['CUR_CELL_HAS_APPLE'] \
+                                   and obs['NUM_APPLES_AROUND'] < 3")
+steal_from_forgein_cell_precondition = parse("lambda obs : obs['CUR_CELL_HAS_APPLE'] \
+                                   and not obs['AGENT_HAS_STOLEN']")
   
 DEFAULT_PROHIBITIONS = [
   # don't go if <2 apples around
@@ -169,17 +157,18 @@ class RuleObeyingPolicy(policy.Policy):
 
   def env_step(self, timestep: dm_env.TimeStep, action) -> dm_env.TimeStep:
       # Unpack observations from timestep
-      observation = deepcopy(timestep.observation)
+      observation = self.deepcopy(timestep.observation)
       orientation = observation['ORIENTATION'].item()
-      reward = timestep.reward
       cur_inventory = observation['INVENTORY']
+      cur_pos = observation['POSITION']
+      reward = timestep.reward
       action_name = None
 
       # Simulate changes to observation based on action
       if action <= 4: # move actions
         if action == 0 and self.role == 'cleaner':
           observation['SINCE_RECEIVED_LAST_PAYMENT'] = 0
-        observation['POSITION'] += self.action_to_pos[orientation][action]
+        observation['POSITION'] = cur_pos + self.action_to_pos[orientation][action]
         cur_inventory += self.maybe_collect_apple(observation)
       
       elif action <= 6: # turn actions
@@ -188,7 +177,7 @@ class RuleObeyingPolicy(policy.Policy):
                                              [orientation][action])
         
       else: # beams, pay, and eat actions
-        cur_pos = tuple(observation['POSITION'])
+        cur_pos = tuple(cur_pos)
         x, y = cur_pos[0]-1, cur_pos[1]-1 # lua is 1-indexed
         action_name = self.action_to_name[action-7]
 
@@ -222,6 +211,14 @@ class RuleObeyingPolicy(policy.Policy):
                                      discount=1.0,
                                      observation=observation,
                                      )
+  
+  def deepcopy(self, old_obs):
+    new_obs = {}
+    for key in old_obs:
+      new_obs[key] = deepcopy(old_obs[key])
+
+    return new_obs
+
   def get_payees(self, observation):
     payees = []
     for i in range(len(observation['ALWAYS_PAYING_TO'])):
@@ -315,7 +312,7 @@ class RuleObeyingPolicy(policy.Policy):
   def available_actions(self, timestep: dm_env.TimeStep) -> list[int]:
     """Return the available actions at a given timestep."""
     actions = []
-    observation = deepcopy(timestep.observation)
+    observation = self.deepcopy(timestep.observation)
 
     for action in range(self.action_spec.num_values):
       cur_pos = deepcopy(observation['POSITION'])
@@ -338,14 +335,15 @@ class RuleObeyingPolicy(policy.Policy):
     for prohibition in self.prohibitions:
         if prohibition.holds(observation, action):
           return False
+        
     return True
 
   def update_observation(self, observation, x, y):
     """Updates the observation with requested information."""
     
     observation['NUM_APPLES_AROUND'] = self.get_apples(observation, x, y)
-    observation['CUR_CELL_HAS_APPLE'] = TRUE() if \
-      observation['SURROUNDINGS'][x][y] == 1 else FALSE()
+    observation['CUR_CELL_HAS_APPLE'] = True if \
+      observation['SURROUNDINGS'][x][y] == 1 else False
     self.make_territory_observation(observation, x, y)
 
     return observation
@@ -370,7 +368,7 @@ class RuleObeyingPolicy(policy.Policy):
           if observation['SURROUNDINGS'][i][j] == -2:
             sum += 1
     
-    return Int(sum)
+    return sum
     
   def make_territory_observation(self, observation, x, y):
     """
@@ -382,23 +380,23 @@ class RuleObeyingPolicy(policy.Policy):
     """
     own_idx = self._index+1
     property_idx = int(observation['PROPERTY'][x][y])
-    observation['AGENT_HAS_STOLEN'] = TRUE()
+    observation['AGENT_HAS_STOLEN'] = True
 
     if property_idx != own_idx and property_idx != 0:
       observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = True
       if observation['STOLEN_RECORDS'][property_idx-1] != 1:
-        observation['AGENT_HAS_STOLEN'] = FALSE()
+        observation['AGENT_HAS_STOLEN'] = False
     else:
       # free or own property
-      observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = FALSE()
+      observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = False
 
   def exceeds_map(self, world_rgb, x, y):
     """Returns True if current cell index exceeds game map."""
     x_max = world_rgb.shape[1] / 8
     y_max = world_rgb.shape[0] / 8
-    if x <= 0 or x >= x_max-1:
+    if x < 0 or x >= x_max-1:
       return True
-    if y <= 0 or y >= y_max-1:
+    if y < 0 or y >= y_max-1:
       return True
     return False
 
@@ -414,17 +412,6 @@ class RuleObeyingPolicy(policy.Policy):
     elif timestep.reward >= 1.0:
       return True
     return False
-  
-  """def __deepcopy__(self, timestep: dm_env.TimeStep) -> dm_env.TimeStep:
-    new_timestep = dm_env.TimeStep()
-    orientation = observation['ORIENTATION'].item()
-    reward = timestep.reward
-    cur_inventory = observation['INVENTORY']
-    observation['SINCE_RECEIVED_LAST_PAYMENT']
-    observation['POSITION'] += self.action_to_pos[orientation][action]
-    observation['SINCE_AGENT_LAST_CLEANED'] = 0
-    observation['TOTAL_NUM_CLEANERS'] = 1
-    return new_timestep"""
 
   def initial_state(self) -> policy.State:
     """See base class."""

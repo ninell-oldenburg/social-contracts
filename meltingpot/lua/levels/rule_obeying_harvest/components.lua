@@ -1200,8 +1200,8 @@ function Surroundings:update()
   local mapSize = self._config.mapSize
 
   local pos = self.gameObject:getPosition()
-  local x = pos[1]-radius > 0 and pos[1]-radius or 1
-  local y = pos[2]-radius > 0 and pos[2]-radius or 1
+  local x = pos[1]-radius >= 0 and pos[1]-radius or 0
+  local y = pos[2]-radius >= 0 and pos[2]-radius or 0
 
   local x_lim = pos[1]+radius <= mapSize[1] and pos[1]+radius or mapSize[1]
   local y_lim = pos[2]+radius <= mapSize[2] and pos[2]+radius or mapSize[2]
@@ -1213,7 +1213,7 @@ function Surroundings:update()
   for i=x, x_lim do
     for j=y, y_lim do
       if self.transform:queryPosition('appleLayer', {i, j}) ~= nil then
-          self.surroundings(i, j):val(-2) -- apples
+        self.surroundings(i, j):val(-2) -- apples
       end
 
       local resource = self.transform:queryPosition('resourceLayer', {i, j})

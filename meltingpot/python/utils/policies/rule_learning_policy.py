@@ -1,9 +1,6 @@
 import dm_env
 
-from typing import Tuple
 from collections import deque
-
-from pysmt.shortcuts import *
 
 import numpy as np
 
@@ -14,24 +11,24 @@ from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPoli
 
 
 # VARIABLES
-foreign_property = parse("lambda obs : obs['CUR_CELL_IS_FOREIGN_PROPERTY']")
-cur_cell_has_apple = parse("lambda obs : obs['CUR_CELL_HAS_APPLE']")
-num_apples_around = parse("lambda obs : obs['NUM_APPLES_AROUND']")
-agent_has_stolen = parse("lambda obs : obs['AGENT_HAS_STOLEN']")
-num_cleaners = parse("lambda obs : obs['TOTAL_NUM_CLEANERS']")
-sent_last_payment = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED']")
-did_last_cleaning = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED']")
-received_last_payment = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT']")
+# foreign_property = parse("lambda obs : obs['CUR_CELL_IS_FOREIGN_PROPERTY']")
+# cur_cell_has_apple = parse("lambda obs : obs['CUR_CELL_HAS_APPLE']")
+# num_apples_around = parse("lambda obs : obs['NUM_APPLES_AROUND']")
+# agent_has_stolen = parse("lambda obs : obs['AGENT_HAS_STOLEN']")
+# num_cleaners = parse("lambda obs : obs['TOTAL_NUM_CLEANERS']")
+# sent_last_payment = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED']")
+# did_last_cleaning = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED']")
+# received_last_payment = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT']")
 
 # PRECONDITIONS AND GOALS FOR OBLIGATIONS
-cleaning_precondition_free = parse("lambda obs : num_cleaners(obs) < 1")
-cleaning_goal_free = parse("lambda obs : num_cleaners(obs) >= 1")
-payment_precondition_farmer = parse("lambda obs : sent_last_payment(obs) > 1")
-payment_goal_farmer = parse("lambda obs : sent_last_payment(obs) <= 1")
-cleaning_precondition_cleaner = parse("lambda obs : did_last_cleaning(obs) > 1")
-cleaning_goal_cleaner = parse("lambda obs : did_last_cleaning(obs) <= 1")
-payment_precondition_cleaner = parse("lambda obs : received_last_payment(obs) > 1")
-payment_goal_cleaner = parse("lambda obs : received_last_payment(obs) <= 1")
+cleaning_precondition_free = parse("lambda obs : obs['TOTAL_NUM_CLEANERS'] < 1")
+cleaning_goal_free = parse("lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 1")
+payment_precondition_farmer = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 1")
+payment_goal_farmer = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED'] <= 1")
+cleaning_precondition_cleaner = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 1")
+cleaning_goal_cleaner = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] <= 1")
+payment_precondition_cleaner = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] > 1")
+payment_goal_cleaner = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] <= 1")
 
 POTENTIAL_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
@@ -45,10 +42,10 @@ POTENTIAL_OBLIGATIONS = [
 ]
 
 # PRECONDITIONS FOR PROHIBTIONS
-harvest_apple_precondition = parse("lambda obs : cur_cell_has_apple(obs) \
-                                   and num_apples_around(obs) < 3")
-steal_from_forgein_cell_precondition = parse("lambda obs : cur_cell_has_apple(obs) \
-                                   and not agent_has_stolen(obs)")
+harvest_apple_precondition = parse("lambda obs : obs['CUR_CELL_HAS_APPLE'] \
+                                   and obs['NUM_APPLES_AROUND'] < 3")
+steal_from_forgein_cell_precondition = parse("lambda obs : obs['CUR_CELL_HAS_APPLE'] \
+                                   and not obs['AGENT_HAS_STOLEN']")
   
 POTENTIAL_PROHIBITIONS = [
   # don't go if <2 apples around
