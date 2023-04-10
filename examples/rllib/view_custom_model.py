@@ -25,9 +25,17 @@ from itertools import islice
 
 from meltingpot.python import substrate
 
+from meltingpot.python.utils.substrates import shapes
+
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
 
+ROLE_SPRITE_DICT = {
+   'free': shapes.CUTE_AVATAR,
+   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
+   'farmer': shapes.CUTE_AVATAR_HOLDING_PAINTBRUSH,
+   'learner': shapes.CUTE_AVATAR, 
+   }
 
 def main():
   parser = argparse.ArgumentParser(description=__doc__)
@@ -47,12 +55,14 @@ def main():
   num_bots = substrate.get_config(substrate_name).default_player_roles
   roles = list(num_bots)
   num_focal_bots = len(roles) - roles.count("learning")
-  focal_roles = roles[:num_focal_bots]
+  # focal_roles = roles[:num_focal_bots]
 
   config = {'substrate': substrate_name,
             'roles': roles}
 
   env = substrate.build(config['substrate'], roles=config['roles'])
+
+  player_looks = [ROLE_SPRITE_DICT[role] for role in config['roles']]
 
   bots = []
   for i in range(len(roles)):
@@ -64,7 +74,7 @@ def main():
       bots.append(RuleLearningPolicy(env=env, 
                                     role=config['roles'][i], 
                                     player_idx=i,
-                                    num_total_agents=num_bots))
+                                    player_looks=player_looks))
 
   timestep = env.reset()
 
@@ -107,6 +117,7 @@ def main():
         else:
           other_agents_actions = [action[0] for _, action in islice(actions.items(), num_focal_bots)]
           actions[i] = bot.step(timestep_bot, other_agents_actions)
+
         
     print(actions)
     action_list = [int(item[0]) for item in actions.values()]

@@ -6,19 +6,17 @@ import numpy as np
 
 from ast import parse
 
+from meltingpot.python.utils.substrates import shapes
+
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 
-
-# VARIABLES
-# foreign_property = parse("lambda obs : obs['CUR_CELL_IS_FOREIGN_PROPERTY']")
-# cur_cell_has_apple = parse("lambda obs : obs['CUR_CELL_HAS_APPLE']")
-# num_apples_around = parse("lambda obs : obs['NUM_APPLES_AROUND']")
-# agent_has_stolen = parse("lambda obs : obs['AGENT_HAS_STOLEN']")
-# num_cleaners = parse("lambda obs : obs['TOTAL_NUM_CLEANERS']")
-# sent_last_payment = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED']")
-# did_last_cleaning = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED']")
-# received_last_payment = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT']")
+ROLE_SPRITE_DICT = {
+   'free': shapes.CUTE_AVATAR,
+   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
+   'farmer': shapes.CUTE_AVATAR_HOLDING_PAINTBRUSH,
+   'learner': shapes.CUTE_AVATAR,
+   }
 
 # PRECONDITIONS AND GOALS FOR OBLIGATIONS
 cleaning_precondition_free = parse("lambda obs : obs['TOTAL_NUM_CLEANERS'] < 1")
@@ -58,7 +56,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
     def __init__(self,
                  env: dm_env.Environment,
                  player_idx: int,
-                 num_total_agents: int,
+                 player_looks: list,
                  role: str = "free",
                  potential_obligations: list = POTENTIAL_OBLIGATIONS,
                  potential_prohibitions: list = POTENTIAL_PROHIBITIONS
@@ -70,19 +68,16 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.action_spec = env.action_spec()[0]
         self.potential_obligations = potential_obligations
         self.potential_prohibitions = potential_prohibitions
-        self.potential_roles = ['free', 'cleaner', 'farmer', 'learner']
+        self.potential_rules = self.potential_obligations + self.potential_prohibitions
         self.obligations = []
         self.prohibitions = []
-        self.nonself_active_obligations = []
         self.current_obligation = None
-        self.num_total_agents = num_total_agents
-        self.potential_rules = self.potential_obligations + self.potential_prohibitions
+        self.player_looks = player_looks
+        self.num_total_agents = len(player_looks)
         self.num_rules = len(self.potential_rules)
-        self.rule_beliefs = np.array([0.2]*self.num_rules)
-        self.count_rule_tries = np.array([1]*self.num_rules)
-        self.role_beliefs = np.array([[0.25]*4]*len(self.num_total_agents))
+        self.rule_beliefs = np.array([np.log(0.2)]*self.num_rules)
+        self.nonself_active_obligations = np.array(set()*len(self.num_total_agents))
         self.history = deque(maxlen=5)
-        self.confidence_level = 1.0
         self.count_timestep = 0
 
         # move actions
@@ -128,46 +123,51 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                           other_agent_actions):
         """Returns a posterior for a rule given an observation 
         and other agents' actions."""
-        likelihood = 1.0
+        log_likelihood = np.log(1.0)
         for player_idx, action in enumerate(other_agent_actions):
         # check if the action violates the rule
             if isinstance(rule, ProhibitionRule):
                 # TODO: implement full observability
                 if not rule.holds(observations, action):
                     if action == rule.prohibited_action:
-                        likelihood *= 0.1  # rule is violated
+                        log_likelihood *= 0.1  # rule is violated
                     else:
-                        likelihood = 0.5 # action doesn't belong to rule
+                        log_likelihood = 0.5 # action doesn't belong to rule
                 else:
-                    likelihood *= 0.9 # rule is obeyed
+                    log_likelihood *= 0.9 # rule is obeyed
 
             elif isinstance(rule, ObligationRule):
                 if not player_idx == self._index:
-                    if rule.holds(observations):
-                        # TODO: in the last 10 timesteps
-                        # TODO: get roles from surface-level features
-                        if not rule in self.nonself_active_obligations:
+                    player_role = self.get_role(player_idx)
+                    if rule.holds_in_history(observations, player_role):
+                        if not rule in self.nonself_active_obligations[player_idx]:
                             # if we encounter an obligation precondition, save it
-                            self.nonself_active_obligations.append(rule)
-                    if rule.satisfied(observations):
+                            self.nonself_active_obligations[player_idx].add(rule)
+                    if rule.satisfied(observations, player_role):
                         # if a previous precondition is fulfilled, likelihood increases
                         if rule in self.nonself_active_obligations:
-                            likelihood *= 0.9
+                            log_likelihood *= 0.9
                         else:
-                            likelihood *= 0.1
+                            log_likelihood *= 0.1
 
         prior = self.rule_beliefs[rule_index]
-        marginal = prior * likelihood + (1 - prior) * (1 - likelihood)
-        posterior = (prior * likelihood) / marginal
+        marginal = prior * log_likelihood + (1 - prior) * (1 - log_likelihood)
+        posterior = (prior * log_likelihood) / np.log(marginal)
 
         return posterior
+    
+    def get_role(self, player_idx):
+        for role in ROLE_SPRITE_DICT.keys():
+            if self.player_looks[player_idx] == ROLE_SPRITE_DICT[role]:
+                return role
+        return "free"
     
     def sample_rules(self, threshold) -> None:
         """Updates the rules given a fixed number of highest priors."""
         obligations = []
         prohibitions = []
         for i, belief in enumerate(self.rule_beliefs):
-            if belief > threshold:
+            if np.exp(belief) > threshold:
                 rule = self.potential_rules[i]
                 if isinstance(rule, ObligationRule):
                     obligations.append(rule)

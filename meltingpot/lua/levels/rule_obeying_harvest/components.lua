@@ -968,7 +968,6 @@ function Paying:postStart()
       local theirPayingComponent = avatarObject:getComponent('Paying')
       if theirPayingComponent._config.agentRole == 'cleaner' and 
       theirPayingComponent.paidBy == 0 then
-        print('paying')
         if self.payingTo:sum() < self.maxPayees then
           self.payingTo(i):val(1)
           theirPayingComponent._config.paidBy = self.gameObject:getComponent(
@@ -1142,12 +1141,14 @@ function Surroundings:__init__(kwargs)
   kwargs = args.parse(kwargs, {
       {'name', args.default('Surroundings')},
       {'observationRadius', args.numberType},
-      {'mapSize', args.tableType}
+      {'mapSize', args.tableType},
+      {'agentRole', args.stringType}
   })
   Surroundings.Base.__init__(self, kwargs)
 
   self._config.observationRadius = kwargs.observationRadius
   self._config.mapSize = kwargs.mapSize
+  self._config.agentRole = kwargs.agentRole
 end
 
 function Surroundings:reset()
@@ -1178,6 +1179,12 @@ function Surroundings:setDirtLocations()
           self.surroundings(i, j):val(-1) -- dirt
         end
       end
+      local potentialWater = self.transform:queryPosition('upperPhysical', {i, j})
+      if potentialWater ~= nil and string.find(potentialWater:getState(), 'water') then
+        if self.surroundings(i, j):val() == 0 then
+          self.surroundings(i, j):val(-2) -- water
+        end
+      end
     end
   end
 end
@@ -1194,6 +1201,11 @@ function Surroundings:setPayeeLocations()
   end
 end
 
+function Surroundings:setOwnLocation()
+  local pos = self.gameObject:getPosition()
+  self.surroundings(pos[1], pos[2]):val(70)
+end
+
 function Surroundings:update()
   -- unpack observation arguments
   local radius = self._config.observationRadius
@@ -1206,6 +1218,14 @@ function Surroundings:update()
   local x_lim = pos[1]+radius <= mapSize[1] and pos[1]+radius or mapSize[1]
   local y_lim = pos[2]+radius <= mapSize[2] and pos[2]+radius or mapSize[2]
 
+  -- full observability for learning agents
+  if self.agentRole == "learner" then 
+    x = 0
+    y = 0
+    x_lim = mapSize[1]
+    y_lim = mapSize[2]
+  end
+
   --[[ get all apples in this observation radius and 
   transform into observation tensor to output: sourroundings]]
   self.surroundings:fill(0)
@@ -1213,7 +1233,7 @@ function Surroundings:update()
   for i=x, x_lim do
     for j=y, y_lim do
       if self.transform:queryPosition('appleLayer', {i, j}) ~= nil then
-        self.surroundings(i, j):val(-2) -- apples
+        self.surroundings(i, j):val(-3) -- apples
       end
 
       local resource = self.transform:queryPosition('resourceLayer', {i, j})
@@ -1230,6 +1250,7 @@ function Surroundings:update()
   end
   self:setDirtLocations()
   self:setPayeeLocations()
+  self:setOwnLocation()
 end
 
 --[[ The Taste component assigns specific roles to agents. Not used in defaults.

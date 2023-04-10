@@ -48,10 +48,10 @@ DEFAULT_OBLIGATIONS = [
   ObligationRule(cleaning_precondition_free, cleaning_goal_free),
   # If you're in the farmer role, pay cleaner with apples
   ObligationRule(payment_precondition_farmer, payment_goal_farmer, "farmer"),
+  # if you're a cleaner, wait until you've received a payment
+  ObligationRule(payment_precondition_cleaner, payment_goal_cleaner, "cleaner"),
   # If you're in the cleaner role, clean in a certain rhythm
   ObligationRule(cleaning_precondition_cleaner, cleaning_goal_cleaner, "cleaner"),
-  # if you're a cleaner, wait until you've received a payment
-  ObligationRule(payment_precondition_cleaner, payment_goal_cleaner, "cleaner")
 ]
 
 # PRECONDITIONS FOR PROHIBTIONS
@@ -106,7 +106,7 @@ class RuleObeyingPolicy(policy.Policy):
             [[0,0],[1,0],[-1,0],[0,-1],[0,1]], # E
             [[0,0],[0,1],[0,-1],[1,0],[-1,0]], # S
             [[0,0],[-1,0],[1,0],[0,1],[0,-1]], # W
-            # N    # F    # SR  # B   # SL
+            # N    # F    # B    # SR   # SL
           ]
     # turn actions
     self.action_to_orientation = [
@@ -144,14 +144,14 @@ class RuleObeyingPolicy(policy.Policy):
 
       # Select an action based on the first satisfying rule
       return self.a_star(timestep)
+
   
   def maybe_collect_apple(self, observation) -> float:
-    # lua is one indexed
-    x, y = observation['POSITION'][0]-1, observation['POSITION'][1]-1
+    x, y = observation['POSITION'][0], observation['POSITION'][1]
     reward_map = observation['SURROUNDINGS']
     if self.exceeds_map(observation['WORLD.RGB'], x, y):
       return 0
-    if reward_map[x][y] == -2:
+    if reward_map[x][y] == -3:
       return 1
     return 0
 
@@ -178,7 +178,7 @@ class RuleObeyingPolicy(policy.Policy):
         
       else: # beams, pay, and eat actions
         cur_pos = tuple(cur_pos)
-        x, y = cur_pos[0]-1, cur_pos[1]-1 # lua is 1-indexed
+        x, y = cur_pos[0], cur_pos[1]
         action_name = self.action_to_name[action-7]
 
         if action_name == 'CLEAN_ACTION':
@@ -229,8 +229,8 @@ class RuleObeyingPolicy(policy.Policy):
   def is_close_to_agent(self, observation, payee):
     x_start = observation['POSITION'][0]-1
     y_start = observation['POSITION'][1]-1
-    x_stop = observation['POSITION'][0]+1
-    y_stop = observation['POSITION'][1]+1
+    x_stop = observation['POSITION'][0]+2
+    y_stop = observation['POSITION'][1]+2
 
     for i in range(x_start, x_stop):
       for j in range(y_start, y_stop):
@@ -271,6 +271,10 @@ class RuleObeyingPolicy(policy.Policy):
     queue = PriorityQueue()
     action = 0
     came_from = {}
+    observation = timestep.observation
+    # lua is one indexed
+    observation['POSITION']= np.array([observation['POSITION'][0]-1, 
+                                       observation['POSITION'][1]-1])
     timestep = timestep._replace(reward=0.0) # inherits from calling timestep
     queue.put(PrioritizedItem(0, 0, (timestep, action))) # ordered by reward
 
@@ -313,15 +317,19 @@ class RuleObeyingPolicy(policy.Policy):
     """Return the available actions at a given timestep."""
     actions = []
     observation = self.deepcopy(timestep.observation)
+    cur_pos = deepcopy(observation['POSITION'])
+    x, y = cur_pos[0], cur_pos[1]
 
     for action in range(self.action_spec.num_values):
-      cur_pos = deepcopy(observation['POSITION'])
       orientation = observation['ORIENTATION'].item()
       if action <= 4: # move actions
-        cur_pos += self.action_to_pos[orientation][action]
-      # lua is 1-indexed
-      x, y = cur_pos[0]-1, cur_pos[1]-1
+        new_pos = cur_pos + self.action_to_pos[orientation][action]
+        x, y = new_pos[0], new_pos[1]
+
       if self.exceeds_map(observation['WORLD.RGB'], x, y):
+        continue
+
+      if observation['SURROUNDINGS'][x][y] == -2:
         continue
 
       observation = self.update_observation(observation, x, y)
@@ -365,8 +373,9 @@ class RuleObeyingPolicy(policy.Policy):
     for i in range(x-1, x+2):
       for j in range(y-1, y+2):
         if not self.exceeds_map(observation['WORLD.RGB'], i, j):
-          if observation['SURROUNDINGS'][i][j] == -2:
-            sum += 1
+          if i != x and  j != y: # don't count target apple
+            if observation['SURROUNDINGS'][i][j] == -3:
+              sum += 1
     
     return sum
     
