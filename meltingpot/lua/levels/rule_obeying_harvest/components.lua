@@ -1006,8 +1006,12 @@ function Paying:registerUpdaters(updaterRegistry)
                   'payHit', self._config.beamLength, self._config.beamRadius)
         end
     end
-    self.sinceLastPayed = self.sinceLastPayed + 1
-    self.gotPayed = self.gotPayed + 1
+    if self.payingTo:sum() > 0 then
+      self.sinceLastPayed = self.sinceLastPayed + 1
+    end
+    if self.paidBy ~= 0 then
+      self.gotPayed = self.gotPayed + 1
+    end
   end
 
   updaterRegistry:registerUpdater{

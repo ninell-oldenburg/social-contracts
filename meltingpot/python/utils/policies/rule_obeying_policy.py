@@ -199,6 +199,8 @@ class RuleObeyingPolicy(policy.Policy):
               if self.role == "farmer":
                 if self.payees == None:
                   self.payees = self.get_payees(observation)
+                if len(self.payees) == 0:
+                  observation['SINCE_AGENT_LAST_PAYED'] = 0
                 for payee in self.payees:
                   if self.is_close_to_agent(observation, payee):
                     cur_inventory -= 1 # pay
