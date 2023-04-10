@@ -55,8 +55,8 @@ DEFAULT_OBLIGATIONS = [
 ]
 
 # PRECONDITIONS FOR PROHIBTIONS
-harvest_apple_precondition = parse("lambda obs : obs['CUR_CELL_HAS_APPLE'] \
-                                   and obs['NUM_APPLES_AROUND'] < 3")
+harvest_apple_precondition = parse("lambda obs : obs['NUM_APPLES_AROUND'] < 2 \
+                                    and obs['CUR_CELL_HAS_APPLE']")
 steal_from_forgein_cell_precondition = parse("lambda obs : obs['CUR_CELL_HAS_APPLE'] \
                                    and not obs['AGENT_HAS_STOLEN']")
   
@@ -199,8 +199,6 @@ class RuleObeyingPolicy(policy.Policy):
               if self.role == "farmer":
                 if self.payees == None:
                   self.payees = self.get_payees(observation)
-                if len(self.payees) == 0:
-                  observation['SINCE_AGENT_LAST_PAYED'] = 0
                 for payee in self.payees:
                   if self.is_close_to_agent(observation, payee):
                     cur_inventory -= 1 # pay
@@ -275,7 +273,7 @@ class RuleObeyingPolicy(policy.Policy):
     came_from = {}
     observation = timestep.observation
     # lua is one indexed
-    observation['POSITION']= np.array([observation['POSITION'][0]-1, 
+    observation['POSITION'] = np.array([observation['POSITION'][0]-1, 
                                        observation['POSITION'][1]-1])
     timestep = timestep._replace(reward=0.0) # inherits from calling timestep
     queue.put(PrioritizedItem(0, 0, (timestep, action))) # ordered by reward
@@ -343,7 +341,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def check_all(self, observation, action):
     for prohibition in self.prohibitions:
-        if prohibition.holds(observation, action):
+       if prohibition.holds(observation, action):
           return False
         
     return True
@@ -353,7 +351,7 @@ class RuleObeyingPolicy(policy.Policy):
     
     observation['NUM_APPLES_AROUND'] = self.get_apples(observation, x, y)
     observation['CUR_CELL_HAS_APPLE'] = True if \
-      observation['SURROUNDINGS'][x][y] == 1 else False
+      observation['SURROUNDINGS'][x][y] == -3 else False
     self.make_territory_observation(observation, x, y)
 
     return observation

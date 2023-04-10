@@ -935,7 +935,7 @@ function Paying:__init__(kwargs)
       {'agentRole', args.default('free'), args.oneOf('free',
                                           'cleaner',
                                           'farmer',
-                                          'learning')},
+                                          'learner')},
   })
   Paying.Base.__init__(self, kwargs)
 

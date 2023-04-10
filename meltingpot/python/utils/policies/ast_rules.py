@@ -22,7 +22,7 @@ class EnvironmentRule():
 
     def holds(self, obs):
         return self.precondition_formula(obs)
-    
+
 class ProhibitionRule(EnvironmentRule):
     """Contains rules that prohibit an action."""
 
