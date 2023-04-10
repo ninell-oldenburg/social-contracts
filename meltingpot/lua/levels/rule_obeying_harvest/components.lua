@@ -1223,7 +1223,7 @@ function Surroundings:update()
   local y_lim = pos[2]+radius <= mapSize[2] and pos[2]+radius or mapSize[2]
 
   -- full observability for learning agents
-  if self.agentRole == "learner" then 
+  if self._config.agentRole == "learner" then 
     x = 0
     y = 0
     x_lim = mapSize[1]

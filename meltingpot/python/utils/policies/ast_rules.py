@@ -10,7 +10,7 @@ class EnvironmentRule():
                 the current timestep observation
         """
         self.precondition = precondition
-        self.precondition_formula = self.walk_lambda(self.precondition)
+        self.precondition_formula = self.walk_lambda(ast.parse(self.precondition))
 
     def walk_lambda(self, ast_tree):
         # Wrap the lambda node in a complete expression
@@ -22,6 +22,7 @@ class EnvironmentRule():
 
     def holds(self, obs):
         return self.precondition_formula(obs)
+    
 
 class ProhibitionRule(EnvironmentRule):
     """Contains rules that prohibit an action."""
@@ -36,7 +37,7 @@ class ProhibitionRule(EnvironmentRule):
         """
 
         self.precondition = precondition
-        self.precondition_formula = super().walk_lambda(self.precondition)
+        self.precondition_formula = self.walk_lambda(ast.parse(self.precondition))
         self.prohibited_action = prohibited_action
 
     def holds(self, obs, action):
@@ -59,14 +60,14 @@ class ObligationRule(EnvironmentRule):
         """
 
         self.precondition = precondition
-        self.precondition_formula = super().walk_lambda(self.precondition)
+        self.precondition_formula = self.walk_lambda(ast.parse(self.precondition))
         self.goal = goal
-        self.goal_formula = super().walk_lambda(self.goal)
+        self.goal_formula = super().walk_lambda(ast.parse(self.goal))
         self.role = role
 
     def holds_in_history(self, observations, role):
         """Returns True if a precondition holds given a certain vector of observation."""
-        if not self.role == role:
+        if self.role != role and role != 'learner':
             return False
         
         for obs in observations:
@@ -77,7 +78,7 @@ class ObligationRule(EnvironmentRule):
     
     def satisfied(self, observation, role):
         """Returns True if the rule goal is satisfied."""
-        if not self.role == role:
+        if self.role != role and role != 'learner':
             return False
         
         return self.goal_formula(observation)

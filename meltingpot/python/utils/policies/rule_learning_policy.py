@@ -19,14 +19,14 @@ ROLE_SPRITE_DICT = {
    }
 
 # PRECONDITIONS AND GOALS FOR OBLIGATIONS
-cleaning_precondition_free = parse("lambda obs : obs['TOTAL_NUM_CLEANERS'] < 1")
-cleaning_goal_free = parse("lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 1")
-payment_precondition_farmer = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 1")
-payment_goal_farmer = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED'] <= 1")
-cleaning_precondition_cleaner = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 1")
-cleaning_goal_cleaner = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] <= 1")
-payment_precondition_cleaner = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] > 1")
-payment_goal_cleaner = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] <= 1")
+cleaning_precondition_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] < 1"
+cleaning_goal_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 1"
+payment_precondition_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 1"
+payment_goal_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] <= 1"
+cleaning_precondition_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 1"
+cleaning_goal_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] <= 1"
+payment_precondition_cleaner = "lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] > 1"
+payment_goal_cleaner = "lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] <= 1"
 
 POTENTIAL_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
@@ -40,10 +40,10 @@ POTENTIAL_OBLIGATIONS = [
 ]
 
 # PRECONDITIONS FOR PROHIBTIONS
-harvest_apple_precondition = parse("lambda obs : obs['CUR_CELL_HAS_APPLE'] \
-                                   and obs['NUM_APPLES_AROUND'] < 3")
-steal_from_forgein_cell_precondition = parse("lambda obs : obs['CUR_CELL_HAS_APPLE'] \
-                                   and not obs['AGENT_HAS_STOLEN']")
+harvest_apple_precondition = "lambda obs : obs['NUM_APPLES_AROUND'] < 2 \
+                                    and obs['CUR_CELL_HAS_APPLE']"
+steal_from_forgein_cell_precondition = "lambda obs : obs['CUR_CELL_HAS_APPLE'] \
+                                   and not obs['AGENT_HAS_STOLEN']"
   
 POTENTIAL_PROHIBITIONS = [
   # don't go if <2 apples around
@@ -76,7 +76,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.num_total_agents = len(player_looks)
         self.num_rules = len(self.potential_rules)
         self.rule_beliefs = np.array([np.log(0.2)]*self.num_rules)
-        self.nonself_active_obligations = np.array(set()*len(self.num_total_agents))
+        self.nonself_active_obligations = np.array([set()]*self.num_total_agents)
         self.history = deque(maxlen=5)
         self.count_timestep = 0
 
@@ -103,7 +103,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             "EAT_ACTION",
             "PAY_ACTION"
           ]
-
+        
     def update_beliefs(self, observations, other_agent_actions):
         """Update the beliefs of the rules based on the 
         observations and actions."""
@@ -127,7 +127,6 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         for player_idx, action in enumerate(other_agent_actions):
         # check if the action violates the rule
             if isinstance(rule, ProhibitionRule):
-                # TODO: implement full observability
                 if not rule.holds(observations, action):
                     if action == rule.prohibited_action:
                         log_likelihood *= 0.1  # rule is violated
@@ -139,7 +138,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             elif isinstance(rule, ObligationRule):
                 if not player_idx == self._index:
                     player_role = self.get_role(player_idx)
-                    if rule.holds_in_history(observations, player_role):
+                    if rule.holds_in_history(self.history, player_role):
                         if not rule in self.nonself_active_obligations[player_idx]:
                             # if we encounter an obligation precondition, save it
                             self.nonself_active_obligations[player_idx].add(rule)
@@ -152,7 +151,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         prior = self.rule_beliefs[rule_index]
         marginal = prior * log_likelihood + (1 - prior) * (1 - log_likelihood)
-        posterior = (prior * log_likelihood) / np.log(marginal)
+        posterior = (prior * log_likelihood) / marginal
 
         return posterior
     
@@ -183,8 +182,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         """Use the learned rules to determine the actions of the agent."""
         self.count_timestep += 1
 
+        self.history.append(timestep.observation)
+
         self.update_beliefs(timestep.observation, other_agent_actions)
-        self.sample_rules(self.count_timestep, threshold=0.8)
+        self.sample_rules(threshold=0.8)
 
         print("="*50)
         print("CURRENT RULES")
@@ -194,8 +195,16 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             print(x.precondition)
         print("="*50)
 
+        # Check if any of the obligations are active
+        self.current_obligation = None
+        for obligation in self.obligations:
+            if obligation.holds_in_history(self.history, self.role):
+                self.current_obligation = obligation
+            break
+
+        print(f"player: {self._index} current_obligation active?: {self.current_obligation != None}")
+
         # use parent class to compute best step
-        action = super().step(timestep)
-        return action
+        return super().a_star(timestep)
 
 

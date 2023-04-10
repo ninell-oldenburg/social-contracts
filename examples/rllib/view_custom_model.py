@@ -54,7 +54,7 @@ def main():
   substrate_name = f'rule_obeying_harvest__{level_name}'
   num_bots = substrate.get_config(substrate_name).default_player_roles
   roles = list(num_bots)
-  num_focal_bots = len(roles) - roles.count("learning")
+  num_focal_bots = len(roles) - roles.count("learner")
   # focal_roles = roles[:num_focal_bots]
 
   config = {'substrate': substrate_name,
@@ -119,7 +119,7 @@ def main():
           actions[i] = bot.step(timestep_bot, other_agents_actions)
 
         
-    print(actions)
+    # print(actions)
     action_list = [int(item[0]) for item in actions.values()]
     timestep = env.step(action_list)
     actions = update(actions)

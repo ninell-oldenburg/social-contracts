@@ -34,14 +34,14 @@ from copy import deepcopy
 from meltingpot.python.utils.policies import policy
 
 # PRECONDITIONS AND GOALS FOR OBLIGATIONS
-cleaning_precondition_free = parse("lambda obs : obs['TOTAL_NUM_CLEANERS'] < 1")
-cleaning_goal_free = parse("lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 1")
-payment_precondition_farmer = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 1")
-payment_goal_farmer = parse("lambda obs : obs['SINCE_AGENT_LAST_PAYED'] <= 1")
-cleaning_precondition_cleaner = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 1")
-cleaning_goal_cleaner = parse("lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] <= 1")
-payment_precondition_cleaner = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] > 1")
-payment_goal_cleaner = parse("lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] <= 1")
+cleaning_precondition_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] < 1"
+cleaning_goal_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 1"
+payment_precondition_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 1"
+payment_goal_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] <= 1"
+cleaning_precondition_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 1"
+cleaning_goal_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] <= 1"
+payment_precondition_cleaner = "lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] > 1"
+payment_goal_cleaner = "lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] <= 1"
 
 DEFAULT_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
@@ -55,10 +55,10 @@ DEFAULT_OBLIGATIONS = [
 ]
 
 # PRECONDITIONS FOR PROHIBTIONS
-harvest_apple_precondition = parse("lambda obs : obs['NUM_APPLES_AROUND'] < 2 \
-                                    and obs['CUR_CELL_HAS_APPLE']")
-steal_from_forgein_cell_precondition = parse("lambda obs : obs['CUR_CELL_HAS_APPLE'] \
-                                   and not obs['AGENT_HAS_STOLEN']")
+harvest_apple_precondition = "lambda obs : obs['NUM_APPLES_AROUND'] < 2 \
+                                    and obs['CUR_CELL_HAS_APPLE']"
+steal_from_forgein_cell_precondition = "lambda obs : obs['CUR_CELL_HAS_APPLE'] \
+                                   and not obs['AGENT_HAS_STOLEN']"
   
 DEFAULT_PROHIBITIONS = [
   # don't go if <2 apples around
