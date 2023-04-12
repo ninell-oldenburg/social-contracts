@@ -11,11 +11,6 @@ from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 
-class Learnable():
-    def __init__(self, init_value, name):
-        self.val = init_value
-        self.name = name
-
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
    'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
@@ -134,37 +129,34 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         log_likelihood = np.log(0.5)
         pos_list = self.get_position_list(observations)
         has_learnable = False
-        temp_node_id = ''
+        temp_precondition = ''
 
         for player_idx, action in enumerate(other_agent_actions):
         # check if the action violates the rule
             action_name = super().get_action_name(action)
             if not player_idx == self._index:
+                # check if rule has a learnable
+                precondition_ast = ast.parse(rule.precondition).body[0].value
+                for node in ast.walk(precondition_ast):
+                    if isinstance(node, ast.Name) and node.id in learnables.keys():
+                        temp_precondition = rule.precondition
+                        rule.precondition = rule.precondition.replace(node.id, str(learnables[node.id]))
+                        has_learnable = True
+
                 if isinstance(rule, ProhibitionRule):
+                    # should only trigger if rule concerns behavior
                     if action_name == rule.prohibited_action:
-
-                        # check if rule has a learnable
-                        precondition_ast = ast.parse(rule.precondition).body[0].value
-                        for node in ast.walk(precondition_ast):
-                            if isinstance(node, ast.Name) and node.id in learnables.keys():
-                                rule.precondition = rule.precondition.replace(node.id, str(learnables[node.id]))
-                                temp_node_id = node.id
-                                has_learnable = True
-
                         pos = pos_list[player_idx]
                         x, y = pos[0], pos[1]
+                        # update observation is only relevant for prohibitions
                         cur_player_obs = super().update_observation(observations, x, y)
 
                         if rule.holds(cur_player_obs, action_name):
                             log_likelihood *= 0.1  # rule is violated
                         else:
-                            print(f"rule: {rule.precondition}, action: {action}")
                             log_likelihood *= 0.9 # rule is obeyed
                             if has_learnable:
                                 self.update_apple_param(cur_player_obs)
-
-                if has_learnable:
-                    rule.precondition = rule.precondition.replace(str(learnables[temp_node_id]), temp_node_id)
 
                 elif isinstance(rule, ObligationRule):
                     player_role = self.get_role(player_idx)
@@ -179,16 +171,15 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                         else:
                             log_likelihood *= 0.1
 
+                # change back the inserted learnable param
+                if has_learnable:
+                    rule.precondition = temp_precondition
+
         prior = self.rule_beliefs[rule_index]
         marginal = prior * log_likelihood + (1 - prior) * (1 - log_likelihood)
         posterior = (prior * log_likelihood) / marginal
 
         return posterior
-    
-    def get_param_val_from_name(self, name):
-        for param in learnables:
-            if param.name == name:
-                return str(param.val)
     
     def get_role(self, player_idx):
         for role in ROLE_SPRITE_DICT.keys():
@@ -226,14 +217,14 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.update_beliefs(timestep.observation, other_agent_actions)
         self.sample_rules(threshold=0.8)
 
-        print("="*50)
-        print("CURRENT RULES")
+        """print('='*50)
+        print('CURRENT RULES')
         for x in self.obligations:
             print(x.precondition)
         for x in self.prohibitions:
             print(x.precondition)
-        print("="*50)
-
+        print('='*50)
+        """
         # Check if any of the obligations are active
         self.current_obligation = None
         for obligation in self.obligations:
