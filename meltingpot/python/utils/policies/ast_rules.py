@@ -10,7 +10,6 @@ class EnvironmentRule():
                 the current timestep observation
         """
         self.precondition = precondition
-        self.precondition_formula = self.walk_lambda(ast.parse(self.precondition))
 
     def walk_lambda(self, ast_tree):
         # Wrap the lambda node in a complete expression
@@ -21,7 +20,8 @@ class EnvironmentRule():
         return types.FunctionType(code.co_consts[0], globals())
 
     def holds(self, obs):
-        return self.precondition_formula(obs)
+        precondition_formula = self.walk_lambda(ast.parse(self.precondition))
+        return precondition_formula(obs)
     
 
 class ProhibitionRule(EnvironmentRule):
@@ -37,7 +37,6 @@ class ProhibitionRule(EnvironmentRule):
         """
 
         self.precondition = precondition
-        self.precondition_formula = self.walk_lambda(ast.parse(self.precondition))
         self.prohibited_action = prohibited_action
 
     def holds(self, obs, action):
@@ -60,9 +59,7 @@ class ObligationRule(EnvironmentRule):
         """
 
         self.precondition = precondition
-        self.precondition_formula = self.walk_lambda(ast.parse(self.precondition))
         self.goal = goal
-        self.goal_formula = super().walk_lambda(ast.parse(self.goal))
         self.role = role
 
     def holds_in_history(self, observations, role):
@@ -81,4 +78,5 @@ class ObligationRule(EnvironmentRule):
         if self.role != role and role != 'learner':
             return False
         
-        return self.goal_formula(observation)
+        goal_formula = super().walk_lambda(ast.parse(self.goal))
+        return goal_formula(observation)

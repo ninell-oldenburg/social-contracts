@@ -4,12 +4,17 @@ from collections import deque
 
 import numpy as np
 
-from ast import parse
+import ast
 
 from meltingpot.python.utils.substrates import shapes
 
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
+
+class Learnable():
+    def __init__(self, init_value, name):
+        self.val = init_value
+        self.name = name
 
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
@@ -39,8 +44,10 @@ POTENTIAL_OBLIGATIONS = [
   ObligationRule(payment_precondition_cleaner, payment_goal_cleaner, "cleaner")
 ]
 
-# PRECONDITIONS FOR PROHIBTIONS
-harvest_apple_precondition = "lambda obs : obs['NUM_APPLES_AROUND'] < 2 \
+learnables = {'num_apples_around': 3}
+
+# PRECONDITIONS FOR PROHIBITIONS
+harvest_apple_precondition = "lambda obs : obs['NUM_APPLES_AROUND'] < num_apples_around \
                                     and obs['CUR_CELL_HAS_APPLE']"
 steal_from_forgein_cell_precondition = "lambda obs : obs['CUR_CELL_HAS_APPLE'] \
                                    and not obs['AGENT_HAS_STOLEN']"
@@ -78,7 +85,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.rule_beliefs = np.array([np.log(0.2)]*self.num_rules)
         self.nonself_active_obligations = np.array([set()]*self.num_total_agents)
         self.history = deque(maxlen=5)
-        self.count_timestep = 0
+        self.num_iterations = 0
+        self.apple_count_list = []
 
         # move actions
         self.action_to_pos = [
@@ -123,20 +131,42 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                           other_agent_actions):
         """Returns a posterior for a rule given an observation 
         and other agents' actions."""
-        log_likelihood = np.log(1.0)
+        log_likelihood = np.log(0.5)
+        pos_list = self.get_position_list(observations)
+        has_learnable = False
+        temp_node_id = ''
+
         for player_idx, action in enumerate(other_agent_actions):
         # check if the action violates the rule
-            if isinstance(rule, ProhibitionRule):
-                if not rule.holds(observations, action):
-                    if action == rule.prohibited_action:
-                        log_likelihood *= 0.1  # rule is violated
-                    else:
-                        log_likelihood = 0.5 # action doesn't belong to rule
-                else:
-                    log_likelihood *= 0.9 # rule is obeyed
+            action_name = super().get_action_name(action)
+            if not player_idx == self._index:
+                if isinstance(rule, ProhibitionRule):
+                    if action_name == rule.prohibited_action:
 
-            elif isinstance(rule, ObligationRule):
-                if not player_idx == self._index:
+                        # check if rule has a learnable
+                        precondition_ast = ast.parse(rule.precondition).body[0].value
+                        for node in ast.walk(precondition_ast):
+                            if isinstance(node, ast.Name) and node.id in learnables.keys():
+                                rule.precondition = rule.precondition.replace(node.id, str(learnables[node.id]))
+                                temp_node_id = node.id
+                                has_learnable = True
+
+                        pos = pos_list[player_idx]
+                        x, y = pos[0], pos[1]
+                        cur_player_obs = super().update_observation(observations, x, y)
+
+                        if rule.holds(cur_player_obs, action_name):
+                            log_likelihood *= 0.1  # rule is violated
+                        else:
+                            print(f"rule: {rule.precondition}, action: {action}")
+                            log_likelihood *= 0.9 # rule is obeyed
+                            if has_learnable:
+                                self.update_apple_param(cur_player_obs)
+
+                if has_learnable:
+                    rule.precondition = rule.precondition.replace(str(learnables[temp_node_id]), temp_node_id)
+
+                elif isinstance(rule, ObligationRule):
                     player_role = self.get_role(player_idx)
                     if rule.holds_in_history(self.history, player_role):
                         if not rule in self.nonself_active_obligations[player_idx]:
@@ -155,11 +185,21 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         return posterior
     
+    def get_param_val_from_name(self, name):
+        for param in learnables:
+            if param.name == name:
+                return str(param.val)
+    
     def get_role(self, player_idx):
         for role in ROLE_SPRITE_DICT.keys():
             if self.player_looks[player_idx] == ROLE_SPRITE_DICT[role]:
                 return role
         return "free"
+    
+    def update_apple_param(self, observations):
+        cur_num_apples = observations['NUM_APPLES_AROUND']
+        self.apple_count_list.append(cur_num_apples)
+        learnables['num_apples_around'] = sum(self.apple_count_list) / len(self.apple_count_list)
     
     def sample_rules(self, threshold) -> None:
         """Updates the rules given a fixed number of highest priors."""
@@ -180,10 +220,9 @@ class RuleLearningPolicy(RuleObeyingPolicy):
              timestep: dm_env.TimeStep,
              other_agent_actions):
         """Use the learned rules to determine the actions of the agent."""
-        self.count_timestep += 1
+        self.num_iterations += 1
 
         self.history.append(timestep.observation)
-
         self.update_beliefs(timestep.observation, other_agent_actions)
         self.sample_rules(threshold=0.8)
 
@@ -206,5 +245,13 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         # use parent class to compute best step
         return super().a_star(timestep)
+    
+    def get_position_list(self, observation):
+        position_list = [None]*self.num_total_agents
+        for i in range(observation['SURROUNDINGS'].shape[0]):
+            for j in range(observation['SURROUNDINGS'].shape[1]):
+                if observation['SURROUNDINGS'][i][j] > 0: # agent encountered
+                    agent_idx = observation['SURROUNDINGS'][i][j] 
+                    position_list[agent_idx-1] = (i, j)
 
-
+        return position_list

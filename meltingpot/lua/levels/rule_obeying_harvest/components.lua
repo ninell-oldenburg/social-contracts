@@ -1170,6 +1170,8 @@ end
 function Surroundings:postStart()
   local sceneObject = self.gameObject.simulation:getSceneObject()
   self._riverMonitor = sceneObject:getComponent('RiverMonitor')
+  self._config.index = self.gameObject:getComponent('Avatar'):getIndex()
+  self._config.numPlayers = self.gameObject.simulation:getNumPlayers()
   self:update()
 end
 
@@ -1207,7 +1209,15 @@ end
 
 function Surroundings:setOwnLocation()
   local pos = self.gameObject:getPosition()
-  self.surroundings(pos[1], pos[2]):val(70)
+  self.surroundings(pos[1], pos[2]):val(self._config.index)
+end
+
+function Surroundings:setOtherPlayersLocation()
+  for i=1, self._config.numPlayers do
+    cur_avatar = self.gameObject.simulation:getAvatarFromIndex(i)
+    avatar_pos = cur_avatar:getPosition()
+    self.surroundings(avatar_pos[1], avatar_pos[2]):val(i) -- set location
+  end
 end
 
 function Surroundings:update()
@@ -1255,6 +1265,9 @@ function Surroundings:update()
   self:setDirtLocations()
   self:setPayeeLocations()
   self:setOwnLocation()
+  if self._config.agentRole == "learner" then 
+    self:setOtherPlayersLocation()
+  end
 end
 
 --[[ The Taste component assigns specific roles to agents. Not used in defaults.
