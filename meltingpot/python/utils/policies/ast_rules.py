@@ -19,7 +19,7 @@ class EnvironmentRule():
         # Create the lambda function
         return types.FunctionType(code.co_consts[0], globals())
 
-    def holds(self, obs):
+    def holds_precondition(self, obs):
         precondition_formula = self.walk_lambda(ast.parse(self.precondition))
         return precondition_formula(obs)
     
@@ -44,7 +44,7 @@ class ProhibitionRule(EnvironmentRule):
         if not action == self.prohibited_action:
             return False
         
-        return super().holds(obs)
+        return super().holds_precondition(obs)
     
 class ObligationRule(EnvironmentRule):
     """Contains rules that emit a subgoal."""
@@ -68,7 +68,7 @@ class ObligationRule(EnvironmentRule):
             return False
         
         for obs in observations:
-            if not super().holds(obs):
+            if not super().holds_precondition(obs):
                 return False
         
         return True

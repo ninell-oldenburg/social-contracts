@@ -31,6 +31,9 @@ DARK_FLAME = (226, 88, 34, 255)
 LIGHT_FLAME = (226, 184, 34, 255)
 DARK_STONE = (153, 153, 153, 255)
 LIGHT_STONE = (204, 204, 204, 255)
+ORANGE_RED = (255, 69, 0, 255)
+HAT_BROWN = (222, 184, 135, 255)
+MAROON = (139, 0, 0, 255)
 
 
 def rgb_to_rgba(rgb: ColorRGB, alpha: int = 255) -> ColorRGBA:
@@ -100,10 +103,9 @@ def get_palette(color: Color) -> Dict[str, ColorRGBA]:
       "O": DARK_GRAY,
       ",": BLACK,
       "x": ALPHA,
-      "a": (243, 185, 0, 255),
-      "b": (243, 185, 0, 255),
-      "c": (243, 185, 0, 255),
-      "d": (243, 185, 0, 255),
+      "a": ORANGE_RED,
+      "f": HAT_BROWN,
+      "g": MAROON,
       "-": (143, 96, 74, 255),
       "+": (117, 79, 61, 255),
       "k": (199, 176, 135, 255)
@@ -437,14 +439,111 @@ xx*&&*xx
 
 CUTE_AVATAR_LAST_BITE = [CUTE_AVATAR_LAST_BITE_SPRITE] * 4
 
+CUTE_AVATAR_WITH_FARMER_HAT_N = """
+xxxxxxxx
+xxffffxx
+xffffffx
+xx&&&&xx
+x******x
+x&****&x
+xx****xx
+xx&xx&xx
+"""
+
+CUTE_AVATAR_WITH_FARMER_HAT_E = """
+xxxxxxxx
+xxffffxx
+xffffffx
+xx*O*Oxx
+x**##*&x
+x&****&x
+xx****xx
+xx&&x&xx
+"""
+
+CUTE_AVATAR_WITH_FARMER_HAT_S = """
+xxxxxxxx
+xxffffxx
+xffffffx
+xxO**Oxx
+x&*##*&x
+x&****&x
+xx****xx
+xx&xx&xx
+"""
+
+CUTE_AVATAR_WITH_FARMER_HAT_W = """
+xxxxxxxx
+xxffffxx
+xffffffx
+xxO*O*xx
+x&*##**x
+x&****&x
+xx****xx
+xx&x&&xx
+"""
+
+CUTE_AVATAR_W_FARMER_HAT = [CUTE_AVATAR_WITH_FARMER_HAT_N, CUTE_AVATAR_WITH_FARMER_HAT_E,
+                        CUTE_AVATAR_WITH_FARMER_HAT_S, CUTE_AVATAR_WITH_FARMER_HAT_W]
+
+
+CUTE_AVATAR_WITH_STUDENT_HAT_N = """
+xxxxxxxx
+xxggggxx
+xxggggxx
+xx&&&&xx
+x******x
+x&****&x
+xx****xx
+xx&xx&xx
+"""
+
+CUTE_AVATAR_WITH_STUDENT_HAT_E = """
+xxxxxxxx
+xxggggxx
+xxgggggx
+xx*O*Oxx
+x**##*&x
+x&****&x
+xx****xx
+xx&&x&xx
+"""
+
+CUTE_AVATAR_WITH_STUDENT_HAT_S = """
+xxxxxxxx
+xxggggxx
+xxggggxx
+xxO**Oxx
+x&*##*&x
+x&****&x
+xx****xx
+xx&xx&xx
+"""
+
+CUTE_AVATAR_WITH_STUDENT_HAT_W = """
+xxxxxxxx
+xxggggxx
+xgggggxx
+xxO*O*xx
+x&*##**x
+x&****&x
+xx****xx
+xx&x&&xx
+"""
+
+CUTE_AVATAR_W_STUDENT_HAT = [CUTE_AVATAR_WITH_STUDENT_HAT_N, CUTE_AVATAR_WITH_STUDENT_HAT_E,
+                        CUTE_AVATAR_WITH_STUDENT_HAT_S, CUTE_AVATAR_WITH_STUDENT_HAT_W]
+
+
+
 CUTE_AVATAR_W_SHORTS_N = """
 xxxxxxxx
 xx*xx*xx
 xx****xx
 xx&&&&xx
-x******x
-x&****&x
-xxabcdxx
+x*a**a*x
+x&aaaa&x
+xxa&&axx
 xx&xx&xx
 """
 
@@ -453,9 +552,9 @@ xxxxxxxx
 xx*x*xxx
 xx****xx
 xx*O*Oxx
-x**##*&x
-x&****&x
-xxabcdxx
+x*a##a&x
+x&aaaa&x
+xxa&&axx
 xx&&x&xx
 """
 
@@ -464,9 +563,9 @@ xxxxxxxx
 xx*xx*xx
 xx****xx
 xxO**Oxx
-x&*##*&x
-x&****&x
-xxabcdxx
+x&a##a&x
+x&aaaa&x
+xxa&&axx
 xx&xx&xx
 """
 
@@ -475,9 +574,9 @@ xxxxxxxx
 xxx*x*xx
 xx****xx
 xxO*O*xx
-x&*##**x
-x&****&x
-xxabcdxx
+x&a##a*x
+x&aaaa&x
+xxa&&axx
 xx&x&&xx
 """
 

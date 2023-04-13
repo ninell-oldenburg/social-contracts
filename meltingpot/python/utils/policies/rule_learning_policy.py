@@ -14,8 +14,8 @@ from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPoli
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
    'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
-   'farmer': shapes.CUTE_AVATAR_HOLDING_PAINTBRUSH,
-   'learner': shapes.CUTE_AVATAR,
+   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
+   'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
    }
 
 # PRECONDITIONS AND GOALS FOR OBLIGATIONS
@@ -81,7 +81,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.nonself_active_obligations = np.array([set()]*self.num_total_agents)
         self.history = deque(maxlen=5)
         self.num_iterations = 0
-        self.apple_count_list = []
+        self.apple_count_list = [learnables["num_apples_around"]]
 
         # move actions
         self.action_to_pos = [
@@ -151,11 +151,13 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                         # update observation is only relevant for prohibitions
                         cur_player_obs = super().update_observation(observations, x, y)
 
-                        if rule.holds(cur_player_obs, action_name):
+                        if rule.holds_precondition(cur_player_obs):
                             log_likelihood *= 0.1  # rule is violated
                         else:
                             log_likelihood *= 0.9 # rule is obeyed
+                            # also holds if current cell does not have an apple!
                             if has_learnable:
+                                # TODO: specify over which learnable
                                 self.update_apple_param(cur_player_obs)
 
                 elif isinstance(rule, ObligationRule):
@@ -181,16 +183,18 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         return posterior
     
-    def get_role(self, player_idx):
+    def get_role(self, player_idx) -> str:
         for role in ROLE_SPRITE_DICT.keys():
             if self.player_looks[player_idx] == ROLE_SPRITE_DICT[role]:
                 return role
         return "free"
     
-    def update_apple_param(self, observations):
+    def update_apple_param(self, observations) -> None:
         cur_num_apples = observations['NUM_APPLES_AROUND']
-        self.apple_count_list.append(cur_num_apples)
+        if not cur_num_apples == 0: # maybe flag in lua file?
+            self.apple_count_list.append(cur_num_apples)
         learnables['num_apples_around'] = sum(self.apple_count_list) / len(self.apple_count_list)
+        print(learnables['num_apples_around'])
     
     def sample_rules(self, threshold) -> None:
         """Updates the rules given a fixed number of highest priors."""
@@ -217,14 +221,16 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.update_beliefs(timestep.observation, other_agent_actions)
         self.sample_rules(threshold=0.8)
 
-        """print('='*50)
+        # """
+        print('='*50)
         print('CURRENT RULES')
         for x in self.obligations:
             print(x.precondition)
         for x in self.prohibitions:
             print(x.precondition)
         print('='*50)
-        """
+        # """
+
         # Check if any of the obligations are active
         self.current_obligation = None
         for obligation in self.obligations:
@@ -237,7 +243,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         # use parent class to compute best step
         return super().a_star(timestep)
     
-    def get_position_list(self, observation):
+    def get_position_list(self, observation) -> list:
         position_list = [None]*self.num_total_agents
         for i in range(observation['SURROUNDINGS'].shape[0]):
             for j in range(observation['SURROUNDINGS'].shape[1]):

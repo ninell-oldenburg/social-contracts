@@ -33,8 +33,8 @@ from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPo
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
    'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
-   'farmer': shapes.CUTE_AVATAR_HOLDING_PAINTBRUSH,
-   'learner': shapes.CUTE_AVATAR, 
+   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
+   'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
    }
 
 def main():

@@ -555,9 +555,9 @@ ACTION_SET = (
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
    'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
-   'farmer': shapes.CUTE_AVATAR_HOLDING_PAINTBRUSH,
-   'learner': shapes.CUTE_AVATAR,
-}
+   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
+   'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
+   }
 
 def get_brush_palette(
     base_color: shapes.Color) -> Mapping[str, shapes.ColorRGBA]:
@@ -1391,8 +1391,8 @@ def get_config():
                                   "farmer",
                                   "learner",})
   # "bluie" as for one player
-  config.default_player_roles = ("cleaner",) * 0 \
-                                + ("farmer",) * 0 \
+  config.default_player_roles = ("cleaner",) * 1 \
+                                + ("farmer",) * 1 \
                                 + ('free',) * 1 \
                                 + ('learner',) * 1
 
