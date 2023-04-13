@@ -317,7 +317,7 @@ function DirtCleaning:onHit(hittingGameObject, hitName)
     end
     if hittingGameObject:hasComponent('Cleaner') then
       hittingGameObject:getComponent('Cleaner'):setCumulant()
-      hittingGameObject:getComponent('Cleaner'):setNumCleaners()
+      --hittingGameObject:getComponent('Cleaner'):setNumCleaners()
     end
     local avatar = hittingGameObject:getComponent('Avatar')
     events:add('player_cleaned', 'dict',
@@ -698,6 +698,7 @@ function Cleaner:registerUpdaters(updaterRegistry)
         end
       end
     end
+    self:setNumCleaners()
     self.sinceLastCleaned = self.sinceLastCleaned + 1
   end
 

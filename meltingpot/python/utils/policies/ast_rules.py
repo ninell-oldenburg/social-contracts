@@ -46,6 +46,9 @@ class ProhibitionRule(EnvironmentRule):
         
         return super().holds_precondition(obs)
     
+    def make_str_repr(self):
+        return self.precondition + ' -> !' + self.prohibited_action
+    
 class ObligationRule(EnvironmentRule):
     """Contains rules that emit a subgoal."""
 
@@ -80,3 +83,6 @@ class ObligationRule(EnvironmentRule):
         
         goal_formula = super().walk_lambda(ast.parse(self.goal))
         return goal_formula(observation)
+    
+    def make_str_repr(self):
+        return self.precondition + ' -> ' + self.goal
