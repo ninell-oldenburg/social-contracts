@@ -90,7 +90,7 @@ class RuleObeyingPolicy(policy.Policy):
     """
     self._index = player_idx
     self.role = role
-    self._max_depth = 30
+    self._max_depth = 35
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
     self.obligations = obligations
@@ -165,9 +165,11 @@ class RuleObeyingPolicy(policy.Policy):
 
       # 2. Simulate changes to observation based on action
       if action <= 4: # MOVE ACTIONS
-        time_received_payment, new_pos, cur_inventory = self.compute_move_action(self)
-        observation['SINCE_RECEIVED_LAST_PAYMENT'] = time_received_payment
-        observation['POSITION'] = new_pos
+        if action == 0 and self.role == 'cleaner':
+          # make the cleaner wait for it's paying farmer
+          observation['SINCE_RECEIVED_LAST_PAYMENT'] = 0
+        observation['POSITION'] = cur_pos + self.action_to_pos[orientation][action]
+        cur_inventory += self.maybe_collect_apple(observation)
 
       elif action <= 6: # TURN ACTIONS
         observation['ORIENTATION'] = np.array(self.action_to_orientation
@@ -179,12 +181,13 @@ class RuleObeyingPolicy(policy.Policy):
         action_name = self.action_to_name[action-7]
 
         if action_name == 'CLEAN_ACTION':
-          last_cleaned_time, num_cleaners = self.compute_clean_action(observation, x, y)
+          last_cleaned_time, num_cleaners = self.compute_clean(observation, x, y)
           observation['SINCE_AGENT_LAST_CLEANED'] = last_cleaned_time
           observation['TOTAL_NUM_CLEANERS'] = num_cleaners
 
         if cur_inventory > 0: # EAT AND PAY
-          reward, cur_inventory, payed_time = self.compute_eat_or_pay_action()
+          reward, cur_inventory, payed_time = self.compute_eat_pay(action, action_name, 
+                                                    reward, cur_inventory, observation)
           observation['SINCE_AGENT_LAST_PAYED'] = payed_time
 
       observation['INVENTORY'] = cur_inventory
@@ -194,17 +197,10 @@ class RuleObeyingPolicy(policy.Policy):
                                      discount=1.0,
                                      observation=observation,
                                      )
-  
-  def compute_move_action(self, observation, orientation, action, cur_pos):
-    if action == 0 and self.role == 'cleaner':
-      # make the cleaner wait for it's paying farmer
-      time_received_payment = 0
-    new_pos = cur_pos + self.action_to_pos[orientation][action]
-    cur_inventory += self.maybe_collect_apple(observation)
 
-    return time_received_payment, new_pos, cur_inventory
-
-  def compute_clean_action(self, observation, x, y):
+  def compute_clean(self, observation, x, y):
+    last_cleaned_time = observation['SINCE_AGENT_LAST_CLEANED']
+    num_cleaners = observation['TOTAL_NUM_CLEANERS']
     if not self.role == 'farmer':
       # if facing north and is at water
       if not self.exceeds_map(observation['WORLD.RGB'], x, y):
@@ -215,8 +211,9 @@ class RuleObeyingPolicy(policy.Policy):
 
     return last_cleaned_time, num_cleaners
   
-  def compute_eat_or_pay_action(self, action, action_name, reward, 
+  def compute_eat_pay(self, action, action_name, reward, 
                                 cur_inventory, observation):
+    payed_time = observation['SINCE_AGENT_LAST_PAYED']
     if action >= 10: # eat and pay
       if action_name == "EAT_ACTION":
         reward += 1

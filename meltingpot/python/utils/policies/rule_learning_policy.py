@@ -66,7 +66,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         
         self._index = player_idx
         self.role = role
-        self._max_depth = 30
+        self._max_depth = 35
         self.action_spec = env.action_spec()[0]
         self.potential_obligations = potential_obligations
         self.potential_prohibitions = potential_prohibitions
@@ -110,12 +110,14 @@ class RuleLearningPolicy(RuleObeyingPolicy):
     def update_beliefs(self, observations, other_agent_actions):
         """Update the beliefs of the rules based on the 
         observations and actions."""
+        pos_list = self.get_position_list(observations)
         for rule_index, rule in enumerate(self.potential_rules):
             # Compute the likelihood of the rule
             posterior = self.compute_posterior(rule_index,
                                                rule,
                                                observations, 
-                                               other_agent_actions)
+                                               other_agent_actions,
+                                               pos_list)
             
             self.rule_beliefs[rule_index] = posterior
 
@@ -123,65 +125,81 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                           rule_index,
                           rule, 
                           observations, 
-                          other_agent_actions):
+                          other_agent_actions,
+                          pos_list):
         """Returns a posterior for a rule given an observation 
         and other agents' actions."""
         log_likelihood = np.log(0.5)
-        pos_list = self.get_position_list(observations)
-        has_learnable = False
-        temp_precondition = ''
 
         for player_idx, action in enumerate(other_agent_actions):
         # check if the action violates the rule
             action_name = super().get_action_name(action)
             if not player_idx == self._index:
-                # check if rule has a learnable
-                precondition_ast = ast.parse(rule.precondition).body[0].value
-                for node in ast.walk(precondition_ast):
-                    if isinstance(node, ast.Name) and node.id in learnables.keys():
-                        temp_precondition = rule.precondition
-                        rule.precondition = rule.precondition.replace(node.id, str(learnables[node.id]))
-                        has_learnable = True
+                has_learnable, og_precondition = self.comp_has_learnable(rule)
 
                 if isinstance(rule, ProhibitionRule):
-                    # should only trigger if rule concerns behavior
-                    if action_name == rule.prohibited_action:
-                        pos = pos_list[player_idx]
-                        x, y = pos[0], pos[1]
-                        # update observation is only relevant for prohibitions
-                        cur_player_obs = super().update_observation(observations, x, y)
-
-                        if rule.holds_precondition(cur_player_obs):
-                            log_likelihood *= 0.1  # rule is violated
-                        else:
-                            log_likelihood *= 0.9 # rule is obeyed
-                            # also holds if current cell does not have an apple!
-                            if has_learnable:
-                                # TODO: specify over which learnable
-                                self.update_apple_param(cur_player_obs)
-
+                    log_likelihood = self.comp_prohib_llh(action_name, rule, 
+                                                        pos_list, log_likelihood,
+                                                        player_idx, observations, has_learnable)
+ 
                 elif isinstance(rule, ObligationRule):
-                    player_role = self.get_role(player_idx)
-                    if rule.holds_in_history(self.history, player_role):
-                        if not rule in self.nonself_active_obligations[player_idx]:
-                            # if we encounter an obligation precondition, save it
-                            self.nonself_active_obligations[player_idx].add(rule)
-                    if rule.satisfied(observations, player_role):
-                        # if a previous precondition is fulfilled, likelihood increases
-                        if rule in self.nonself_active_obligations:
-                            log_likelihood *= 0.9
-                        else:
-                            log_likelihood *= 0.1
+                    log_likelihood = self.comp_oblig_llh(player_idx, rule, 
+                                                         observations, log_likelihood)
 
                 # change back the inserted learnable param
                 if has_learnable:
-                    rule.precondition = temp_precondition
+                    rule.precondition = og_precondition
 
+        # do bayesian updating
         prior = self.rule_beliefs[rule_index]
         marginal = prior * log_likelihood + (1 - prior) * (1 - log_likelihood)
         posterior = (prior * log_likelihood) / marginal
 
         return posterior
+    
+    def comp_has_learnable(self, rule) -> bool:
+        og_precondition = rule.precondition
+        precondition_ast = ast.parse(rule.precondition).body[0].value
+        for node in ast.walk(precondition_ast):
+            if isinstance(node, ast.Name) and node.id in learnables.keys():
+                rule.precondition = rule.precondition.replace(node.id, str(learnables[node.id]))
+                return True, og_precondition
+        return False, og_precondition
+    
+    def comp_oblig_llh(self, player_idx, rule, observations, log_likelihood) -> np.log:
+        player_role = self.get_role(player_idx)
+        if rule.holds_in_history(self.history, player_role):
+            if not rule in self.nonself_active_obligations[player_idx]:
+                # if we encounter an obligation precondition, save it
+                self.nonself_active_obligations[player_idx].add(rule)
+        if rule.satisfied(observations, player_role):
+            # if a previous precondition is fulfilled, likelihood increases
+            if rule in self.nonself_active_obligations:
+                log_likelihood *= 0.9
+            else:
+                log_likelihood *= 0.1
+
+        return log_likelihood
+    
+    def comp_prohib_llh(self, action_name, rule, pos_list, log_likelihood,
+                        player_idx, observations, has_learnable) -> np.log:
+            # should only trigger if rule concerns behavior
+        if action_name == rule.prohibited_action:
+            pos = pos_list[player_idx]
+            x, y = pos[0], pos[1]
+            # update observation is only relevant for prohibitions
+            cur_player_obs = super().update_observation(observations, x, y)
+
+            if rule.holds_precondition(cur_player_obs):
+                log_likelihood *= 0.1  # rule is violated
+            else:
+                log_likelihood *= 0.9 # rule is obeyed
+                # also holds if current cell does not have an apple!
+                if has_learnable:
+                    # TODO: specify over which learnable
+                    self.update_apple_param(cur_player_obs)
+
+        return log_likelihood
     
     def get_role(self, player_idx) -> str:
         for role in ROLE_SPRITE_DICT.keys():
@@ -215,8 +233,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
              timestep: dm_env.TimeStep,
              other_agent_actions):
         """Use the learned rules to determine the actions of the agent."""
-        self.num_iterations += 1
 
+        self.num_iterations += 1
         self.history.append(timestep.observation)
         self.update_beliefs(timestep.observation, other_agent_actions)
         self.sample_rules(threshold=0.8)
@@ -245,6 +263,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
     
     def get_position_list(self, observation) -> list:
         position_list = [None]*self.num_total_agents
+        print(observation.keys())
         for i in range(observation['SURROUNDINGS'].shape[0]):
             for j in range(observation['SURROUNDINGS'].shape[1]):
                 if observation['SURROUNDINGS'][i][j] > 0: # agent encountered

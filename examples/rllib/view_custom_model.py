@@ -105,18 +105,25 @@ def main():
     clock.tick(fps)
 
     for i, bot in enumerate(bots):
-      if len(actions[i]) == 0:
-        timestep_bot = dm_env.TimeStep(
+      timestep_bot = dm_env.TimeStep(
             step_type=timestep.step_type,
             reward=timestep.reward[i],
             discount=timestep.discount,
             observation=timestep.observation[i])
-                
+      
+      if len(actions[i]) == 0: # when action pipeline empty
         if i < num_focal_bots:
           actions[i] = bot.step(timestep_bot)
         else:
-          other_agents_actions = [action[0] for _, action in islice(actions.items(), num_focal_bots)]
+          other_agents_actions = [action[0] for _, action in islice(
+            actions.items(), num_focal_bots)]
           actions[i] = bot.step(timestep_bot, other_agents_actions)
+
+      else: # when actions are still planned
+        if i >= num_focal_bots: # still update learners' beliefs
+          other_agents_actions = [action[0] for _, action in islice(
+            actions.items(), num_focal_bots)]
+          bot.update_beliefs(timestep_bot.observation, other_agents_actions)
             
     # print(actions)
     action_list = [int(item[0]) for item in actions.values()]
