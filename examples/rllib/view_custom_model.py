@@ -117,8 +117,7 @@ def main():
         else:
           other_agents_actions = [action[0] for _, action in islice(actions.items(), num_focal_bots)]
           actions[i] = bot.step(timestep_bot, other_agents_actions)
-
-        
+            
     # print(actions)
     action_list = [int(item[0]) for item in actions.values()]
     timestep = env.step(action_list)

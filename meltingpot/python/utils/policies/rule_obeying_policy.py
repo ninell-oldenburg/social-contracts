@@ -145,7 +145,6 @@ class RuleObeyingPolicy(policy.Policy):
       # Select an action based on the first satisfying rule
       return self.a_star(timestep)
 
-  
   def maybe_collect_apple(self, observation) -> float:
     x, y = observation['POSITION'][0], observation['POSITION'][1]
     reward_map = observation['SURROUNDINGS']
@@ -156,7 +155,7 @@ class RuleObeyingPolicy(policy.Policy):
     return 0
 
   def env_step(self, timestep: dm_env.TimeStep, action) -> dm_env.TimeStep:
-      # Unpack observations from timestep
+      # 1. Unpack observations from timestep
       observation = self.deepcopy(timestep.observation)
       orientation = observation['ORIENTATION'].item()
       cur_inventory = observation['INVENTORY']
@@ -164,45 +163,29 @@ class RuleObeyingPolicy(policy.Policy):
       reward = timestep.reward
       action_name = None
 
-      # Simulate changes to observation based on action
-      if action <= 4: # move actions
-        if action == 0 and self.role == 'cleaner':
-          observation['SINCE_RECEIVED_LAST_PAYMENT'] = 0
-        observation['POSITION'] = cur_pos + self.action_to_pos[orientation][action]
-        cur_inventory += self.maybe_collect_apple(observation)
-      
-      elif action <= 6: # turn actions
-        action = action - 5 # indexing starts at 0
+      # 2. Simulate changes to observation based on action
+      if action <= 4: # MOVE ACTIONS
+        time_received_payment, new_pos, cur_inventory = self.compute_move_action(self)
+        observation['SINCE_RECEIVED_LAST_PAYMENT'] = time_received_payment
+        observation['POSITION'] = new_pos
+
+      elif action <= 6: # TURN ACTIONS
         observation['ORIENTATION'] = np.array(self.action_to_orientation
-                                             [orientation][action])
+                                             [orientation][action-5])
         
-      else: # beams, pay, and eat actions
+      else: # BEAMS, EAT, & PAY ACTIONS
         cur_pos = tuple(cur_pos)
         x, y = cur_pos[0], cur_pos[1]
         action_name = self.action_to_name[action-7]
 
         if action_name == 'CLEAN_ACTION':
-          if not self.role == 'farmer':
-            # if facing north and is at water
-            if not self.exceeds_map(observation['WORLD.RGB'], x, y):
-              if observation['ORIENTATION'] == 0 \
-                and observation['SURROUNDINGS'][x][y] == -1:
-                observation['SINCE_AGENT_LAST_CLEANED'] = 0
-                observation['TOTAL_NUM_CLEANERS'] = 1
+          last_cleaned_time, num_cleaners = self.compute_clean_action(observation, x, y)
+          observation['SINCE_AGENT_LAST_CLEANED'] = last_cleaned_time
+          observation['TOTAL_NUM_CLEANERS'] = num_cleaners
 
-        if cur_inventory > 0:
-          if action >= 10: # eat and pay
-            if action_name == "EAT_ACTION":
-              reward += 1
-              cur_inventory -= 1 # eat
-            if action_name == "PAY_ACTION":
-              if self.role == "farmer":
-                if self.payees == None:
-                  self.payees = self.get_payees(observation)
-                for payee in self.payees:
-                  if self.is_close_to_agent(observation, payee):
-                    cur_inventory -= 1 # pay
-                    observation['SINCE_AGENT_LAST_PAYED'] = 0
+        if cur_inventory > 0: # EAT AND PAY
+          reward, cur_inventory, payed_time = self.compute_eat_or_pay_action()
+          observation['SINCE_AGENT_LAST_PAYED'] = payed_time
 
       observation['INVENTORY'] = cur_inventory
 
@@ -211,6 +194,43 @@ class RuleObeyingPolicy(policy.Policy):
                                      discount=1.0,
                                      observation=observation,
                                      )
+  
+  def compute_move_action(self, observation, orientation, action, cur_pos):
+    if action == 0 and self.role == 'cleaner':
+      # make the cleaner wait for it's paying farmer
+      time_received_payment = 0
+    new_pos = cur_pos + self.action_to_pos[orientation][action]
+    cur_inventory += self.maybe_collect_apple(observation)
+
+    return time_received_payment, new_pos, cur_inventory
+
+  def compute_clean_action(self, observation, x, y):
+    if not self.role == 'farmer':
+      # if facing north and is at water
+      if not self.exceeds_map(observation['WORLD.RGB'], x, y):
+        if observation['ORIENTATION'] == 0 \
+          and observation['SURROUNDINGS'][x][y] == -1:
+          last_cleaned_time = 0
+          num_cleaners = 1
+
+    return last_cleaned_time, num_cleaners
+  
+  def compute_eat_or_pay_action(self, action, action_name, reward, 
+                                cur_inventory, observation):
+    if action >= 10: # eat and pay
+      if action_name == "EAT_ACTION":
+        reward += 1
+        cur_inventory -= 1 # eat
+      if action_name == "PAY_ACTION":
+        if self.role == "farmer": # other roles don't pay
+          if self.payees == None:
+            self.payees = self.get_payees(observation)
+          for payee in self.payees:
+            if self.is_close_to_agent(observation, payee):
+              cur_inventory -= 1 # pay
+              payed_time = 0
+
+    return reward, cur_inventory, payed_time
   
   def deepcopy(self, old_obs):
     new_obs = {}
@@ -259,8 +279,7 @@ class RuleObeyingPolicy(policy.Policy):
     while coordinates in came_from.keys():
       if not coordinates == came_from[coordinates]:
         coordinates = came_from[coordinates]
-        if not coordinates[2] == 0:
-          path = np.append(path, coordinates[2])
+        path = np.append(path, coordinates[2])
       else:
         break
     path = np.flip(path)
@@ -268,25 +287,23 @@ class RuleObeyingPolicy(policy.Policy):
   
   def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
     """Perform a A* search to generate plan."""
-    queue = PriorityQueue()
-    action = 0
-    came_from = {}
+    queue, action, came_from = PriorityQueue(), 0, {}
     observation = timestep.observation
-    # lua is one indexed
-    observation['POSITION'] = np.array([observation['POSITION'][0]-1, 
-                                       observation['POSITION'][1]-1])
-    timestep = timestep._replace(reward=0.0) # inherits from calling timestep
+    timestep = timestep._replace(reward=0.0)
     queue.put(PrioritizedItem(0, 0, (timestep, action))) # ordered by reward
+
+    observation['POSITION'] = np.array([observation['POSITION'][0]-1, 
+                              observation['POSITION'][1]-1]) # lua is 1-indexed
 
     while not queue.empty():
       priority_item = queue.get()
       cur_timestep, cur_action = priority_item.item
-      cur_position = tuple(cur_timestep.observation['POSITION'])
-      cur_orientation = cur_timestep.observation['ORIENTATION'].item()
+      cur_pos = tuple(cur_timestep.observation['POSITION'])
+      cur_orient = cur_timestep.observation['ORIENTATION'].item()
       cur_depth = priority_item.priority
 
       if self.is_done(cur_timestep, cur_depth):
-        return self.reconstruct_path(came_from, (cur_position, cur_orientation, cur_action))
+        return self.reconstruct_path(came_from, (cur_pos, cur_orient, cur_action))
 
       # Get the list of actions that are possible and satisfy the rules
       available_actions = self.available_actions(cur_timestep)
@@ -294,19 +311,17 @@ class RuleObeyingPolicy(policy.Policy):
       for action in available_actions:
         # simulate environment for that action
         next_timestep = self.env_step(cur_timestep, action)
-        next_position = tuple(next_timestep.observation['POSITION'])
-        next_orientation = next_timestep.observation['ORIENTATION'].item()
+        next_pos = tuple(next_timestep.observation['POSITION'])
+        next_orient = next_timestep.observation['ORIENTATION'].item()
         # record path if it's new or has higer reward
-        if not (next_position, next_orientation, action) in came_from.keys() \
+        if not (next_pos, next_orient, action) in came_from.keys() \
           or next_timestep.reward > cur_timestep.reward:
-          came_from[(next_position, next_orientation, action)] = (cur_position,
-                                                                  cur_orientation,
-                                                                  cur_action)
-          # turning twice never gets prioritized  
           new_depth = cur_depth+1
-          # don't count depth for double turns 
+          came_from[(next_pos, next_orient, action)] = (cur_pos, cur_orient, cur_action)
+          # make 180 degree turns possible (otherwise wouldn't get prioritized)
           if (action == cur_action == 5) or (action == cur_action == 6):
             new_depth = new_depth-1
+
           queue.put(PrioritizedItem(priority=new_depth,
                                     tie_break=next_timestep.reward*(-1), # ascending
                                     item=(next_timestep, action))
@@ -329,7 +344,7 @@ class RuleObeyingPolicy(policy.Policy):
       if self.exceeds_map(observation['WORLD.RGB'], x, y):
         continue
 
-      if observation['SURROUNDINGS'][x][y] == -2:
+      if observation['SURROUNDINGS'][x][y] == -2: # non-dirt water
         continue
 
       observation = self.update_observation(observation, x, y)
