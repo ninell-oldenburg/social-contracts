@@ -79,7 +79,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.num_rules = len(self.potential_rules)
         self.rule_beliefs = np.array([(0.2)]*self.num_rules)
         self.nonself_active_obligations = np.array([set() for _ in range(self.num_total_agents)])
-        self.history = deque(maxlen=5)
+        self.others_history = deque(maxlen=5)
+        self.own_history = deque(maxlen=5)
         self.num_iterations = 0
         self.apple_count_list = [learnables["num_apples_around"]]
 
@@ -107,15 +108,15 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             "PAY_ACTION"
           ]
         
-    def update_beliefs(self, observations, other_agent_actions):
+    def update_beliefs(self, own_obs, other_players_obs, other_agent_actions):
         """Update the beliefs of the rules based on the 
         observations and actions."""
-        pos_list = self.get_position_list(observations)
+        pos_list = self.get_position_list(own_obs)
         for rule_index, rule in enumerate(self.potential_rules):
             # Compute the likelihood of the rule
             posterior = self.compute_posterior(rule_index,
                                                rule,
-                                               observations, 
+                                               other_players_obs, 
                                                other_agent_actions,
                                                pos_list)
             
@@ -124,7 +125,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
     def compute_posterior(self, 
                           rule_index,
                           rule, 
-                          observations, 
+                          other_players_obs, 
                           other_agent_actions,
                           pos_list):
         """Returns a posterior for a rule given an observation 
@@ -139,12 +140,12 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
                 if isinstance(rule, ProhibitionRule):
                     log_likelihood = self.comp_prohib_llh(action_name, rule, 
-                                                        pos_list, log_likelihood,
-                                                        player_idx, observations, has_learnable)
+                                                        pos_list, log_likelihood, player_idx, 
+                                                        other_players_obs[player_idx], has_learnable)
  
                 elif isinstance(rule, ObligationRule):
                     log_likelihood = self.comp_oblig_llh(player_idx, rule, 
-                                                         observations, log_likelihood)
+                                                         other_players_obs[player_idx], log_likelihood)
                     
             if has_learnable:
                 rule.precondition = og_precondition
@@ -173,7 +174,9 @@ class RuleLearningPolicy(RuleObeyingPolicy):
     
     def comp_oblig_llh(self, player_idx, rule, observations, log_likelihood) -> np.log:
         player_role = self.get_role(player_idx)
-        if rule.holds_in_history(self.history, player_role):
+        player_history = [all_players_timesteps[player_idx] for all_players_timesteps in self.others_history]
+
+        if rule.holds_in_history(player_history, player_role):
             if rule not in self.nonself_active_obligations[player_idx]:
                 # if we encounter an obligation precondition, save it
                 self.nonself_active_obligations[player_idx].add(rule)
@@ -239,12 +242,14 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         
     def step(self,
              timestep: dm_env.TimeStep,
+             other_players_observations,
              other_agent_actions):
         """Use the learned rules to determine the actions of the agent."""
 
         self.num_iterations += 1
-        self.history.append(timestep.observation)
-        self.update_beliefs(timestep.observation, other_agent_actions)
+        self.others_history.append(other_players_observations)
+        self.own_history.append(timestep.observation)
+        self.update_beliefs(timestep.observation, other_players_observations, other_agent_actions)
         self.sample_rules(threshold=0.5)
 
         # """
@@ -258,7 +263,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         # Check if any of the obligations are active
         self.current_obligation = None
         for obligation in self.obligations:
-            if obligation.holds_in_history(self.history, self.role):
+            if obligation.holds_in_history(self.own_history, self.role):
                 self.current_obligation = obligation
             break
 

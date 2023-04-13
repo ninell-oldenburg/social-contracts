@@ -111,19 +111,25 @@ def main():
             discount=timestep.discount,
             observation=timestep.observation[i])
       
-      if len(actions[i]) == 0: # when action pipeline empty
+      if len(actions[i]) == 0: # action pipeline empty
         if i < num_focal_bots:
           actions[i] = bot.step(timestep_bot)
         else:
           other_agents_actions = [action[0] for _, action in islice(
             actions.items(), num_focal_bots)]
-          actions[i] = bot.step(timestep_bot, other_agents_actions)
+          other_players_observations = [observation for observation in islice(
+            timestep.observation, num_focal_bots)]
+          actions[i] = bot.step(timestep_bot, 
+                                other_players_observations, 
+                                other_agents_actions)
 
-      else: # when actions are still planned
+      else: # action pipeline not empty
         if i >= num_focal_bots: # still update learners' beliefs
           other_agents_actions = [action[0] for _, action in islice(
             actions.items(), num_focal_bots)]
-          bot.update_beliefs(timestep_bot.observation, other_agents_actions)
+          bot.update_beliefs(timestep_bot.observation, 
+                             other_players_observations, 
+                             other_agents_actions)
             
     # print(actions)
     action_list = [int(item[0]) for item in actions.values()]
