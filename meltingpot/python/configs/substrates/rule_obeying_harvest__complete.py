@@ -1125,11 +1125,11 @@ def create_avatar_object(player_idx: int,
                           "variable": "paidBy",
                       },
                       {
-                          "name": "SINCE_RECEIVED_LAST_PAYMENT",
+                          "name": "TIME_TO_GET_PAYED",
                           "type": "Int32s",
                           "shape": [],
                           "component": "Paying",
-                          "variable": "gotPayed",
+                          "variable": "timeToGetPayed",
                       },
                       {
                           "name": "TOTAL_NUM_CLEANERS",
@@ -1363,7 +1363,7 @@ def get_config():
       "SINCE_AGENT_LAST_PAYED",
       "ALWAYS_PAYING_TO",
       "ALWAYS_PAYED_BY",
-      "SINCE_RECEIVED_LAST_PAYMENT",
+      "TIME_TO_GET_PAYED",
 
       # Global observations
       "STOLEN_RECORDS",
@@ -1391,10 +1391,10 @@ def get_config():
                                   "farmer",
                                   "learner",})
   # "bluie" as for one player
-  config.default_player_roles = ("cleaner",) * 0 \
-                                + ("farmer",) * 0 \
-                                + ('free',) * 1 \
-                                + ('learner',) * 1
+  config.default_player_roles = ("cleaner",) * 1 \
+                                + ("farmer",) * 1 \
+                                + ('free',) * 0 \
+                                + ('learner',) * 0
 
   return config
 

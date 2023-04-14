@@ -23,12 +23,12 @@ ROLE_SPRITE_DICT = {
 # PRECONDITIONS AND GOALS FOR OBLIGATIONS
 cleaning_precondition_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] < 1"
 cleaning_goal_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 1"
-payment_precondition_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 1"
-payment_goal_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] <= 1"
-cleaning_precondition_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 1"
-cleaning_goal_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] <= 1"
-payment_precondition_cleaner = "lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] > 1"
-payment_goal_cleaner = "lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] <= 1"
+payment_precondition_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 4"
+payment_goal_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] < 1"
+cleaning_precondition_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 4"
+cleaning_goal_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] < 1"
+payment_precondition_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 1"
+payment_goal_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 0"
 
 POTENTIAL_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
@@ -181,12 +181,12 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                 # if we encounter an obligation precondition, save it
                 self.nonself_active_obligations[player_idx].add(rule)
 
-        if rule.satisfied(observations, player_role):
+        elif rule.satisfied(observations, player_role):
             # if a previous precondition is fulfilled, likelihood increases
             if rule in self.nonself_active_obligations[player_idx]:
-                log_likelihood *= 0.9
-            else:
-                log_likelihood *= 0.1
+                log_likelihood += np.log(0.9)
+            elif len(self.own_history) > 4: # exclude first timesteps
+                log_likelihood += np.log(0.1)
 
         return log_likelihood
     
@@ -200,9 +200,9 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             cur_player_obs = super().update_observation(observations, x, y)
 
             if rule.holds_precondition(cur_player_obs):
-                log_likelihood *= 0.1  # rule is violated
+                log_likelihood += np.log(0.1)  # rule is violated
             else:
-                log_likelihood *= 0.9 # rule is obeyed
+                log_likelihood += np.log(0.9) # rule is obeyed
                 # also holds if current cell does not have an apple!
                 if has_learnable:
                     # TODO: specify over which learnable

@@ -36,12 +36,12 @@ from meltingpot.python.utils.policies import policy
 # PRECONDITIONS AND GOALS FOR OBLIGATIONS
 cleaning_precondition_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] < 1"
 cleaning_goal_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 1"
-payment_precondition_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 1"
-payment_goal_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] <= 1"
-cleaning_precondition_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 1"
-cleaning_goal_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] <= 1"
-payment_precondition_cleaner = "lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] > 1"
-payment_goal_cleaner = "lambda obs : obs['SINCE_RECEIVED_LAST_PAYMENT'] <= 1"
+payment_precondition_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 4"
+payment_goal_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] < 1"
+cleaning_precondition_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 4"
+cleaning_goal_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] < 1"
+payment_precondition_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 1"
+payment_goal_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 0"
 
 DEFAULT_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
@@ -90,7 +90,7 @@ class RuleObeyingPolicy(policy.Policy):
     """
     self._index = player_idx
     self.role = role
-    self._max_depth = 35
+    self._max_depth = 30
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
     self.obligations = obligations
@@ -167,7 +167,7 @@ class RuleObeyingPolicy(policy.Policy):
       if action <= 4: # MOVE ACTIONS
         if action == 0 and self.role == 'cleaner':
           # make the cleaner wait for it's paying farmer
-          observation['SINCE_RECEIVED_LAST_PAYMENT'] = 0
+          observation['TIME_TO_GET_PAYED'] = 0
         observation['POSITION'] = cur_pos + self.action_to_pos[orientation][action]
         cur_inventory += self.maybe_collect_apple(observation)
 
@@ -323,7 +323,7 @@ class RuleObeyingPolicy(policy.Policy):
                                     tie_break=next_timestep.reward*(-1), # ascending
                                     item=(next_timestep, action))
                                     )
-    return False
+    return [0] # return noop action if path finding unsuccessful
 
   def available_actions(self, timestep: dm_env.TimeStep) -> list[int]:
     """Return the available actions at a given timestep."""

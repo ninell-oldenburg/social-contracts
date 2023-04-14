@@ -92,7 +92,7 @@ def main():
   game_display = pygame.display.set_mode(
       (int(shape[1] * scale), int(shape[0] * scale)))
 
-  for k in range(100):
+  for k in range(200):
     obs = timestep.observation[0]["WORLD.RGB"]
     obs = np.transpose(obs, (1, 0, 2))
     surface = pygame.surfarray.make_surface(obs)
@@ -142,7 +142,7 @@ def main():
 
     """
     # Bash command
-    % ffmpeg -r 25 -f image2 -s 400x400 -i screen_%04d.png -vcodec libx264  window_video.mov
+    % ffmpeg -r 20 -f image2 -s 400x400 -i screen_%04d.png -vcodec libx264  window_video.mov
     """
 
 # delete first row of the array

@@ -317,7 +317,7 @@ function DirtCleaning:onHit(hittingGameObject, hitName)
     end
     if hittingGameObject:hasComponent('Cleaner') then
       hittingGameObject:getComponent('Cleaner'):setCumulant()
-      --hittingGameObject:getComponent('Cleaner'):setNumCleaners()
+      hittingGameObject:getComponent('Cleaner'):setNumCleaners()
     end
     local avatar = hittingGameObject:getComponent('Avatar')
     events:add('player_cleaned', 'dict',
@@ -680,6 +680,7 @@ function Cleaner:registerUpdaters(updaterRegistry)
   local waitState = self:getWaitState()
 
   local clean = function()
+    self.sinceLastCleaned = self.sinceLastCleaned + 1
     local playerVolatileVariables = (
         self.gameObject:getComponent('Avatar'):getVolatileData())
     local actions = playerVolatileVariables.actions
@@ -699,7 +700,6 @@ function Cleaner:registerUpdaters(updaterRegistry)
       end
     end
     self:setNumCleaners()
-    self.sinceLastCleaned = self.sinceLastCleaned + 1
   end
 
   function Cleaner:setNumCleaners()
@@ -949,9 +949,9 @@ function Paying:__init__(kwargs)
 end
 
 function Paying:start()
-  self.sinceLastPayed = 0
+  self.sinceLastPayed = 0 -- make obligations not active on first timestep
+  self.timeToGetPayed = 0 -- bool int
   self.paidBy = 0
-  self.gotPayed = 0
   local numPlayers = self.gameObject.simulation:getNumPlayers()
   self.payingTo = tensor.Int32Tensor(numPlayers):fill(0)
 end
@@ -977,6 +977,7 @@ function Paying:postStart()
       end
     end
   end
+  self.gameObject:getComponent('Surroundings'):setPayeeLocations()
 end
 
 function Paying:getPayingTo()
@@ -991,8 +992,15 @@ function Paying:resetSinceLastPayed()
   self.sinceLastPayed = 0
 end
 
-function Paying:resetGotPayed()
-  self.gotPayed = 0
+function Paying:setPayeesTimeToGetPayed(val)
+  local payingTo = self.gameObject:getComponent('Paying'):getPayingTo()
+  for i=1, payingTo:size() do
+    cur_idx = payingTo(i):val()
+    if cur_idx ~= 0 then
+      cur_payee = self.gameObject.simulation:getAvatarFromIndex(cur_idx)
+      cur_payee:getComponent('Paying').timeToGetPayed = val
+    end
+  end
 end
 
 function Paying:registerUpdaters(updaterRegistry)
@@ -1003,6 +1011,8 @@ function Paying:registerUpdaters(updaterRegistry)
     -- Execute the beam if applicable.
     if self.gameObject:getComponent('Avatar'):isAlive() then
         if actions['pay'] == 1 then
+          -- make payees stop whenever paying agent is attempting to pay
+          self:setPayeesTimeToGetPayed(1)
           self.gameObject:hitBeam(
                   'payHit', self._config.beamLength, self._config.beamRadius)
         end
@@ -1010,17 +1020,15 @@ function Paying:registerUpdaters(updaterRegistry)
     if self.payingTo:sum() > 0 then
       self.sinceLastPayed = self.sinceLastPayed + 1
     end
-    if self.paidBy ~= 0 then
-      self.gotPayed = self.gotPayed + 1
-    end
   end
 
   updaterRegistry:registerUpdater{
       updateFn = pay,
       priority = 250,
   }
+end
 
-  function Paying:getPayed(payer)
+function Paying:getPayed(payer)
   if payer ~= nil then
     --transfer apples from one inventory to the other
     local myInventory = self.gameObject:getComponent('Inventory')
@@ -1032,8 +1040,8 @@ function Paying:registerUpdaters(updaterRegistry)
       theirInventory:add(-(self._config.amount))
       myInventory:add(self._config.amount)
 
-      self:resetGotPayed(1)
       theirPaying:resetSinceLastPayed()
+      theirPaying:setPayeesTimeToGetPayed(0)
 
       events:add('paying', 'dict',
               'amount', self._config.amount,
@@ -1050,16 +1058,6 @@ function Paying:onHit(hitterGameObject, hitName)
   if hitName == 'payHit' then
     self:getPayed(hitterGameObject)
   end
-end
-
-  local function resetCumulants()
-    self.gotPayed = 0
-  end
-
-  updaterRegistry:registerUpdater{
-      updateFn = resetCumulants,
-      priority = 2,
-  }
 end
 
 function Paying:hasEnough()
@@ -1265,7 +1263,7 @@ function Surroundings:update()
   end
   self:setDirtLocations()
   self:setPayeeLocations()
-  self:setOwnLocation()
+  -- self:setOwnLocation()
   if self._config.agentRole == "learner" then 
     self:setOtherPlayersLocation()
   end
