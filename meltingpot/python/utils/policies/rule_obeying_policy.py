@@ -303,7 +303,7 @@ class RuleObeyingPolicy(policy.Policy):
         return self.reconstruct_path(came_from, (cur_pos, cur_orient, cur_action))
 
       # Get the list of actions that are possible and satisfy the rules
-      available_actions = self.available_actions(cur_timestep)
+      available_actions, _ = self.available_actions(timestep.observation)
 
       for action in available_actions:
         # simulate environment for that action
@@ -325,10 +325,10 @@ class RuleObeyingPolicy(policy.Policy):
                                     )
     return [0] # return noop action if path finding unsuccessful
 
-  def available_actions(self, timestep: dm_env.TimeStep) -> list[int]:
+  def available_actions(self, obs) -> list[int]:
     """Return the available actions at a given timestep."""
     actions = []
-    observation = self.deepcopy(timestep.observation)
+    observation = self.deepcopy(obs)
     cur_pos = deepcopy(observation['POSITION'])
     x, y = cur_pos[0], cur_pos[1]
 
@@ -344,12 +344,12 @@ class RuleObeyingPolicy(policy.Policy):
       if observation['SURROUNDINGS'][x][y] == -2: # non-dirt water
         continue
 
-      observation = self.update_observation(observation, x, y)
+      new_obs = self.update_observation(observation, x, y)
       action_name = self.get_action_name(action)
-      if self.check_all(observation, action_name):
+      if self.check_all(new_obs, action_name):
         actions.append(action)
 
-    return actions
+    return actions, new_obs
   
   def check_all(self, observation, action):
     for prohibition in self.prohibitions:

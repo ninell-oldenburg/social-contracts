@@ -127,8 +127,7 @@ def main():
         if i >= num_focal_bots: # still update learners' beliefs
           other_agents_actions = [action[0] for _, action in islice(
             actions.items(), num_focal_bots)]
-          bot.update_beliefs(timestep_bot.observation, 
-                             other_players_observations, 
+          bot.update_beliefs(other_players_observations, 
                              other_agents_actions)
             
     # print(actions)

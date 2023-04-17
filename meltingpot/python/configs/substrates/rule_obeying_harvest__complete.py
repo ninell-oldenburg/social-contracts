@@ -1394,7 +1394,7 @@ def get_config():
   config.default_player_roles = ("cleaner",) * 1 \
                                 + ("farmer",) * 1 \
                                 + ('free',) * 0 \
-                                + ('learner',) * 0
+                                + ('learner',) * 1
 
   return config
 
