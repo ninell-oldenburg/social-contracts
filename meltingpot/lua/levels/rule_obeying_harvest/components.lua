@@ -1263,6 +1263,7 @@ function Surroundings:update()
   end
   self:setDirtLocations()
   self:setPayeeLocations()
+  self:setOwnLocation()
   -- self:setOwnLocation()
   if self._config.agentRole == "learner" then 
     self:setOtherPlayersLocation()

@@ -89,8 +89,8 @@ WAA____AAA____Q_____AAA____AW
 WA____AAAAA________AAAAA____W
 W______AAA__________AAA_____W
 W_______A____________A______W
-W__A___Q______A__________A__W
-W_AAA________AAA___Q____AAA_W
+W__A___Q______A______Q___A__W
+W_AAA________AAA________AAA_W
 WAAAAA______AAAAA______AAAAAW
 W_AAA________AAA________AAA_W
 W__A__________A__________A__W
@@ -1391,10 +1391,10 @@ def get_config():
                                   "farmer",
                                   "learner",})
   # "bluie" as for one player
-  config.default_player_roles = ("cleaner",) * 1 \
-                                + ("farmer",) * 1 \
-                                + ('free',) * 0 \
-                                + ('learner',) * 1
+  config.default_player_roles = ("cleaner",) * 0 \
+                                + ("farmer",) * 0 \
+                                + ('free',) * 2 \
+                                + ('learner',) * 0
 
   return config
 

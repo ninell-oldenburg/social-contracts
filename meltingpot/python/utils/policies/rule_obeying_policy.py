@@ -55,11 +55,10 @@ DEFAULT_OBLIGATIONS = [
 ]
 
 # PRECONDITIONS FOR PROHIBTIONS
-harvest_apple_precondition = "lambda obs : obs['NUM_APPLES_AROUND'] < 2 \
-                                    and obs['CUR_CELL_HAS_APPLE']"
+harvest_apple_precondition = "lambda obs : obs['NUM_APPLES_AROUND'] < 3 and obs['CUR_CELL_HAS_APPLE']"
 steal_from_forgein_cell_precondition = "lambda obs : obs['CUR_CELL_HAS_APPLE'] \
                                    and not obs['AGENT_HAS_STOLEN']"
-  
+
 DEFAULT_PROHIBITIONS = [
   # don't go if <2 apples around
   ProhibitionRule(harvest_apple_precondition, 'MOVE_ACTION'),
@@ -75,7 +74,7 @@ class PrioritizedItem:
     
 
 class RuleObeyingPolicy(policy.Policy):
-  """A puppet policy controlled by a certain environment rules."""
+  """A puppet policy controlled by ertain environment rules."""
 
   def __init__(self, 
                env: dm_env.Environment, 
@@ -303,7 +302,7 @@ class RuleObeyingPolicy(policy.Policy):
         return self.reconstruct_path(came_from, (cur_pos, cur_orient, cur_action))
 
       # Get the list of actions that are possible and satisfy the rules
-      available_actions, _ = self.available_actions(timestep.observation)
+      available_actions, _ = self.available_actions(cur_timestep.observation)
 
       for action in available_actions:
         # simulate environment for that action
@@ -330,9 +329,9 @@ class RuleObeyingPolicy(policy.Policy):
     actions = []
     observation = self.deepcopy(obs)
     cur_pos = deepcopy(observation['POSITION'])
-    x, y = cur_pos[0], cur_pos[1]
 
     for action in range(self.action_spec.num_values):
+      x, y = cur_pos[0], cur_pos[1]
       orientation = observation['ORIENTATION'].item()
       if action <= 4: # move actions
         new_pos = cur_pos + self.action_to_pos[orientation][action]
@@ -358,15 +357,13 @@ class RuleObeyingPolicy(policy.Policy):
         
     return True
 
-  def update_observation(self, observation, x, y):
+  def update_observation(self, obs, x, y):
     """Updates the observation with requested information."""
-    
-    observation['NUM_APPLES_AROUND'] = self.get_apples(observation, x, y)
-    observation['CUR_CELL_HAS_APPLE'] = True if \
-      observation['SURROUNDINGS'][x][y] == -3 else False
-    self.make_territory_observation(observation, x, y)
+    obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
+    obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -3 else False
+    self.make_territory_observation(obs, x, y)
 
-    return observation
+    return obs
   
   def get_action_name(self, action):
     """Add bool values for taken action to the observation dict."""
@@ -385,7 +382,7 @@ class RuleObeyingPolicy(policy.Policy):
     for i in range(x-1, x+2):
       for j in range(y-1, y+2):
         if not self.exceeds_map(observation['WORLD.RGB'], i, j):
-          if i != x and  j != y: # don't count target apple
+          if not (i == x and j == y): # don't count target apple
             if observation['SURROUNDINGS'][i][j] == -3:
               sum += 1
     
