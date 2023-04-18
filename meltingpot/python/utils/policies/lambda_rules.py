@@ -1,6 +1,7 @@
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 
-# PRECONDITIONS AND GOALS FOR OBLIGATIONS
+"""OBLIGATIONS"""
+# DEFAULT
 cleaning_precondition_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] < 1"
 cleaning_goal_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 1"
 payment_precondition_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 4"
@@ -9,6 +10,19 @@ cleaning_precondition_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 
 cleaning_goal_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] < 1"
 payment_precondition_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 1"
 payment_goal_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 0"
+
+DEFAULT_OBLIGATIONS = [
+  # clean the water if less than 1 agent is cleaning
+  ObligationRule(cleaning_precondition_free, cleaning_goal_free),
+  # If you're in the farmer role, pay cleaner with apples
+  ObligationRule(payment_precondition_farmer, payment_goal_farmer, "farmer"),
+  # if you're a cleaner, wait until you've received a payment
+  ObligationRule(payment_precondition_cleaner, payment_goal_cleaner, "cleaner"),
+  # If you're in the cleaner role, clean in a certain rhythm
+  ObligationRule(cleaning_precondition_cleaner, cleaning_goal_cleaner, "cleaner"),
+]
+
+# POTENTIAL
 
 POTENTIAL_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
@@ -21,7 +35,19 @@ POTENTIAL_OBLIGATIONS = [
   ObligationRule(payment_precondition_cleaner, payment_goal_cleaner, "cleaner")
 ]
 
-# PRECONDITIONS FOR PROHIBITIONS
+"""PROHIBITIONS"""
+# DEFAULT
+harvest_apple_precondition_standard = "lambda obs : obs['NUM_APPLES_AROUND'] < 3 and obs['CUR_CELL_HAS_APPLE']"
+steal_from_forgein_cell_precondition = "lambda obs : obs['CUR_CELL_HAS_APPLE'] and not obs['AGENT_HAS_STOLEN']"
+
+DEFAULT_PROHIBITIONS = [
+  # don't go if <2 apples around
+  ProhibitionRule(harvest_apple_precondition_standard, 'MOVE_ACTION'),
+  # don't go if it is foreign property and cell has apples 
+  ProhibitionRule(steal_from_forgein_cell_precondition, 'MOVE_ACTION'),
+]
+
+# POTENTIAL
 harvest_apple_precondition_1 = "lambda obs : obs['NUM_APPLES_AROUND'] < 1 and obs['CUR_CELL_HAS_APPLE']"
 harvest_apple_precondition_2 = "lambda obs : obs['NUM_APPLES_AROUND'] < 2 and obs['CUR_CELL_HAS_APPLE']"
 harvest_apple_precondition_3 = "lambda obs : obs['NUM_APPLES_AROUND'] < 3 and obs['CUR_CELL_HAS_APPLE']"
@@ -30,7 +56,6 @@ harvest_apple_precondition_5 = "lambda obs : obs['NUM_APPLES_AROUND'] < 5 and ob
 harvest_apple_precondition_6 = "lambda obs : obs['NUM_APPLES_AROUND'] < 6 and obs['CUR_CELL_HAS_APPLE']"
 harvest_apple_precondition_7 = "lambda obs : obs['NUM_APPLES_AROUND'] < 7 and obs['CUR_CELL_HAS_APPLE']"
 harvest_apple_precondition_8 = "lambda obs : obs['NUM_APPLES_AROUND'] < 8 and obs['CUR_CELL_HAS_APPLE']"
-steal_from_forgein_cell_precondition = "lambda obs : obs['CUR_CELL_HAS_APPLE'] and not obs['AGENT_HAS_STOLEN']"
   
 POTENTIAL_PROHIBITIONS = [
   # don't go if <x apples around

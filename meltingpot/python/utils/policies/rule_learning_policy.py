@@ -46,7 +46,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.rule_beliefs = np.array([(0.2)]*self.num_rules)
         self.nonself_active_obligations = np.array([dict() for _ in range(self.num_total_agents)])
         self.others_history = deque(maxlen=5)
-        self.own_history = deque(maxlen=5)
+        self.history = deque(maxlen=5)
 
         # move actions
         self.action_to_pos = [
@@ -189,7 +189,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         observation = deepcopy(timestep.observation)
         self.others_history.append(other_players_observations)
-        self.own_history.append(observation)
+        self.history.append(observation)
         self.update_beliefs(observation, other_players_observations, other_agent_actions)
         self.sample_rules(threshold=0.5)
 
@@ -206,17 +206,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         print('='*50)
         # """
 
-        # Check if any of the obligations are active
-        self.current_obligation = None
-        for obligation in self.obligations:
-            if obligation.holds_in_history(self.own_history, self.role):
-                self.current_obligation = obligation
-            break
-
-        print(f"player: {self._index} current_obligation active?: {self.current_obligation != None}")
-
         # use parent class to compute best step
-        return super().a_star(timestep)
+        return super().step(timestep)
     
     def get_position_list(self, observation) -> list:
         position_list = [None]*self.num_total_agents

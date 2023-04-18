@@ -24,47 +24,12 @@ from queue import PriorityQueue
 
 from collections import deque
 
-from ast import parse
-
-from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
-
 import numpy as np
 from copy import deepcopy
 
 from meltingpot.python.utils.policies import policy
 
-# PRECONDITIONS AND GOALS FOR OBLIGATIONS
-cleaning_precondition_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] < 1"
-cleaning_goal_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 1"
-payment_precondition_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 4"
-payment_goal_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] < 1"
-cleaning_precondition_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 4"
-cleaning_goal_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] < 1"
-payment_precondition_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 1"
-payment_goal_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 0"
-
-DEFAULT_OBLIGATIONS = [
-  # clean the water if less than 1 agent is cleaning
-  ObligationRule(cleaning_precondition_free, cleaning_goal_free),
-  # If you're in the farmer role, pay cleaner with apples
-  ObligationRule(payment_precondition_farmer, payment_goal_farmer, "farmer"),
-  # if you're a cleaner, wait until you've received a payment
-  ObligationRule(payment_precondition_cleaner, payment_goal_cleaner, "cleaner"),
-  # If you're in the cleaner role, clean in a certain rhythm
-  ObligationRule(cleaning_precondition_cleaner, cleaning_goal_cleaner, "cleaner"),
-]
-
-# PRECONDITIONS FOR PROHIBTIONS
-harvest_apple_precondition = "lambda obs : obs['NUM_APPLES_AROUND'] < 3 and obs['CUR_CELL_HAS_APPLE']"
-steal_from_forgein_cell_precondition = "lambda obs : obs['CUR_CELL_HAS_APPLE'] \
-                                   and not obs['AGENT_HAS_STOLEN']"
-
-DEFAULT_PROHIBITIONS = [
-  # don't go if <2 apples around
-  ProhibitionRule(harvest_apple_precondition, 'MOVE_ACTION'),
-  # don't go if it is foreign property and cell has apples 
-  ProhibitionRule(steal_from_forgein_cell_precondition, 'MOVE_ACTION'),
-]
+from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
 
 @dataclass(order=True)
 class PrioritizedItem:
@@ -125,7 +90,7 @@ class RuleObeyingPolicy(policy.Policy):
         
   def step(self, 
            timestep: dm_env.TimeStep
-           ) -> Tuple[int, policy.State]:
+           ) -> list:
       """
       See base class.
       End of episode defined in dm_env.TimeStep.
