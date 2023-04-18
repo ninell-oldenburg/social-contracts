@@ -6,6 +6,8 @@ import numpy as np
 
 from copy import deepcopy
 
+import random
+
 from meltingpot.python.utils.substrates import shapes
 
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
@@ -166,8 +168,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                 return role
         return "free"
     
-    def sample_rules(self, threshold) -> None:
-        """Updates the rules given certain threshold."""
+    def threshold_rules(self, threshold):
+        """Returns rules with probability over a certain threshold."""
         obligations = []
         prohibitions = []
         for i, belief in enumerate(self.rule_beliefs):
@@ -178,8 +180,22 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                 elif isinstance(rule, ProhibitionRule):
                     prohibitions.append(rule)
 
-        self.obligations = obligations
-        self.prohibitions = prohibitions
+        return obligations, prohibitions
+    
+    def sample_rules(self) -> None:
+        """Thompson samples rules."""
+        obligations = []
+        prohibitions = []
+        prob = random.uniform(0, 1)
+        for i, belief in enumerate(self.rule_beliefs):
+            if belief > prob:
+                rule = deepcopy(self.potential_rules[i])
+                if isinstance(rule, ObligationRule):
+                    obligations.append(rule)
+                elif isinstance(rule, ProhibitionRule):
+                    prohibitions.append(rule)
+
+        return obligations, prohibitions
         
     def step(self,
              timestep: dm_env.TimeStep,
@@ -191,7 +207,12 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.others_history.append(other_players_observations)
         self.history.append(observation)
         self.update_beliefs(observation, other_players_observations, other_agent_actions)
-        self.sample_rules(threshold=0.5)
+        th_obligations, th_prohibitions = self.threshold_rules(threshold=0.5)
+        sampl_obligations, sampl_prohibitions = self.sample_rules()
+
+        # choose whether to use thresholded or sampled rules
+        self.obligations = sampl_obligations
+        self.prohibitions = sampl_prohibitions
 
         # """
         print('='*50)
