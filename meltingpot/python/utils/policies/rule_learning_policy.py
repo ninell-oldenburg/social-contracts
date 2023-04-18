@@ -83,21 +83,25 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             "PAY_ACTION": [11]
         }
         
-    def update_beliefs(self, other_players_obs, other_agent_actions):
+    def update_beliefs(self, own_obs, other_players_obs, other_agent_actions):
         """Update the beliefs of the rules based on the 
         observations and actions."""
         for player_idx, action in enumerate(other_agent_actions):
         # check if the action violates the rule
             action_name = super().get_action_name(action)
             player_obs = other_players_obs[player_idx]
-            available_actions, player_obs = super().available_actions(player_obs)
+            pos_list = self.get_position_list(own_obs)
+            available_actions = super().available_actions(player_obs)
+            pos = pos_list[player_idx]
+            x, y = pos[0], pos[1]
+            player_obs = super().update_observation(other_players_obs[player_idx], x, y)
         
             # Compute the posterior of each rule
-            self.compute_posterior(player_idx, action_name, available_actions, player_obs)
+            self.compute_posterior(player_idx, action, action_name, available_actions, player_obs)
 
-        print(self.rule_beliefs)
+        # print(self.rule_beliefs)
 
-    def compute_posterior(self, player_idx,
+    def compute_posterior(self, player_idx, action,
                           action_name, available_actions, player_obs) -> None:
         """Writes the posterior for a rule given an observation 
         and other agents' actions."""
@@ -105,7 +109,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         for rule_index, rule in enumerate(self.potential_rules):
 
             if isinstance(rule, ProhibitionRule):
-                log_llh = self.comp_prohib_llh(action_name, rule, 
+                log_llh = self.comp_prohib_llh(action, action_name, rule, 
                                                 player_obs, available_actions)
     
             elif isinstance(rule, ObligationRule):
@@ -143,13 +147,13 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         
         return np.log(1/(len(available_actions)))
     
-    def comp_prohib_llh(self, action_name, rule, 
+    def comp_prohib_llh(self, action, action_name, rule, 
                         observations, available_actions) -> np.log:
         cur_prohib_actions = self.action_dict[action_name]
         cur_available_actions = set(available_actions) - set(cur_prohib_actions)
 
         if rule.holds_precondition(observations):
-            if action_name == rule.prohibited_action: # violation
+            if action_name == rule.prohibited_action and action not in available_actions: # violation
                 return np.log(0.01)
             else: # obedience
                 return np.log(1/len(cur_available_actions))
@@ -183,9 +187,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
              other_agent_actions):
         """Use the learned rules to determine the actions of the agent."""
 
+        observation = deepcopy(timestep.observation)
         self.others_history.append(other_players_observations)
-        self.own_history.append(timestep.observation)
-        self.update_beliefs(other_players_observations, other_agent_actions)
+        self.own_history.append(observation)
+        self.update_beliefs(observation, other_players_observations, other_agent_actions)
         self.sample_rules(threshold=0.5)
 
         # """
@@ -212,3 +217,13 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         # use parent class to compute best step
         return super().a_star(timestep)
+    
+    def get_position_list(self, observation) -> list:
+        position_list = [None]*self.num_total_agents
+        for i in range(observation['SURROUNDINGS'].shape[0]):
+            for j in range(observation['SURROUNDINGS'].shape[1]):
+                if observation['SURROUNDINGS'][i][j] > 0: # agent encountered
+                    agent_idx = observation['SURROUNDINGS'][i][j] 
+                    position_list[agent_idx-1] = (i, j)
+
+        return position_list

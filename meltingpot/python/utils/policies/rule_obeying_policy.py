@@ -302,7 +302,7 @@ class RuleObeyingPolicy(policy.Policy):
         return self.reconstruct_path(came_from, (cur_pos, cur_orient, cur_action))
 
       # Get the list of actions that are possible and satisfy the rules
-      available_actions, _ = self.available_actions(cur_timestep.observation)
+      available_actions = self.available_actions(cur_timestep.observation)
 
       for action in available_actions:
         # simulate environment for that action
@@ -348,7 +348,7 @@ class RuleObeyingPolicy(policy.Policy):
       if self.check_all(new_obs, action_name):
         actions.append(action)
 
-    return actions, new_obs
+    return actions
   
   def check_all(self, observation, action):
     for prohibition in self.prohibitions:
