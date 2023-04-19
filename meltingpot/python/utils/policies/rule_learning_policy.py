@@ -26,7 +26,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                  env: dm_env.Environment,
                  player_idx: int,
                  player_looks: list,
-                 role: str = "free",
+                 role: str = "learner",
                  potential_obligations: list = POTENTIAL_OBLIGATIONS,
                  potential_prohibitions: list = POTENTIAL_PROHIBITIONS
                  ) -> None:
@@ -211,8 +211,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         sampl_obligations, sampl_prohibitions = self.sample_rules()
 
         # choose whether to use thresholded or sampled rules
-        self.obligations = sampl_obligations
-        self.prohibitions = sampl_prohibitions
+        self.obligations = th_obligations
+        self.prohibitions = th_prohibitions
 
         # """
         print('='*50)

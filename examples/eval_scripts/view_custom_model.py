@@ -83,9 +83,9 @@ def main(roles, episodes, num_iteration, create_video=True):
     role_str += '_'
 
   timestep = env.reset()
+  cum_reward = [0] * num_bots
 
   actions = {key: [] for key in range(len(bots))}
-  results = {}
 
   # Configure the pygame display
   scale = 4
@@ -118,6 +118,8 @@ def main(roles, episodes, num_iteration, create_video=True):
             discount=timestep.discount,
             observation=timestep.observation[i])
       
+      cum_reward[i] += timestep_bot.reward
+      
       if len(actions[i]) == 0: # action pipeline empty
         if i < num_focal_bots:
           actions[i] = bot.step(timestep_bot)
@@ -147,31 +149,64 @@ def main(roles, episodes, num_iteration, create_video=True):
     filename = '../videos/screen_%04d.png' % (k)
     pygame.image.save(game_display, filename)
 
-    if timestep.last():
-      results['reward'] = timestep.reward
-      if 'learner' in roles:
-        results['learned_rules'] = []
-        for i, agent in enumerate(bots):
-          if isinstance(agent, RuleLearningPolicy):
-            results['learned_rules'][i] = agent.obligations
-            results['learned_rules'][i] += agent.prohibitions
-
-
   name = f'vers{num_iteration}_{role_str}'[:-1]
   filename = 'videos/evals/' + name + '.mov'
 
   if create_video:
+    make_video(filename)
+
+  results = make_result_dict(cum_reward=cum_reward, 
+                             bots=bots, 
+                             episodes=episodes)
+
+  return results
+
+  """ Profiler Run:
+  ~ python3 -m cProfile -o run1.prof -s cumtime  examples/evals/evals.py """
+
+def make_result_dict(cum_reward, bots, episodes):
+  results = {'num_episodes': episodes,
+            'free': 0,
+            'cleaner': 0,
+            'farmer': 0,
+            'learner': 0,
+            'player_rewards': cum_reward,
+            'cum_reward': sum(cum_reward),
+            'cum_reward_focal': 0,
+            'cum_reward_learners': 0,
+            'active_obligations': set(),
+            'active_prohibitions': set(),
+            'learned_obligations': set(),
+            'learned_prohibitions': set(),
+            }
+  
+  for i, agent in enumerate(bots):
+    results[agent.role] += 1
+    if isinstance(agent, RuleLearningPolicy):
+      results['cum_reward_learners'] += cum_reward[i]
+      for rule in agent.obligations + agent.prohibitions:
+        results['learned_obligations'].update([rule.make_str_repr()])
+        results['learned_prohibitions'].update([rule.make_str_repr()])
+
+    elif isinstance(agent, RuleObeyingPolicy):
+      results['cum_reward_focal'] += cum_reward[i]
+      for rule in agent.obligations + agent.prohibitions:
+        if hasattr(rule, 'role') and rule.role == agent.role:
+          results['active_obligations'].update([rule.make_str_repr()])
+        results['active_prohibitions'].update([rule.make_str_repr()])
+
+  for key in results.keys():
+    results[key] = [str(results[key])]
+
+  return results
+
+def make_video(filename):
     print('\nCreating video.\n')
     os.system('ffmpeg -r 20 -f image2'
               + ' -s 400x400'
               + ' -i ../videos/screen_%04d.png'
               + ' -vcodec libx264 ' 
               + filename)
-
-  return results
-
-  """ Profiler Run:
-  ~ python3 -m cProfile -o run1.prof -s cumtime  examples/evals/evals.py """
 
 # delete first row of the array
 def update(actions):

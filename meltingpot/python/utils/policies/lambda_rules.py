@@ -13,7 +13,7 @@ payment_goal_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 0"
 
 DEFAULT_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
-  ObligationRule(cleaning_precondition_free, cleaning_goal_free),
+  ObligationRule(cleaning_precondition_free, cleaning_goal_free, "free"),
   # If you're in the farmer role, pay cleaner with apples
   ObligationRule(payment_precondition_farmer, payment_goal_farmer, "farmer"),
   # if you're a cleaner, wait until you've received a payment
@@ -59,7 +59,7 @@ payment_goal_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 0"
 
 POTENTIAL_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
-  ObligationRule(cleaning_precondition_free, cleaning_goal_free),
+  ObligationRule(cleaning_precondition_free, cleaning_goal_free, "free"),
   # If you're in the farmer role, pay cleaner with apples
   ObligationRule(payment_precondition_farmer, payment_goal_farmer, "farmer"),
   # If you're in the cleaner role, clean in a certain rhythm
