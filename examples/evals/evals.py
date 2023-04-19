@@ -1,6 +1,6 @@
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
-from examples.rllib.view_custom_model import main
+from examples.view_custom_model import main
 
 # 1 get baseline
 BASELINE_SCENARIOS = [
@@ -23,5 +23,5 @@ TEST_SCENARIOS = [
 results = []
 for i in range(len(BASELINE_SCENARIOS)):
     roles = BASELINE_SCENARIOS[i]
-    cur_result = main(roles=roles, episodes=200, num_iteration=i)
+    cur_result = main(roles=roles, episodes=50, num_iteration=i, create_video=True)
     results.append(cur_result)

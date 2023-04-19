@@ -23,7 +23,7 @@ from dmlab2d.ui_renderer import pygame
 import numpy as np
 from itertools import islice
 
-import ffmpeg
+import os
 
 from meltingpot.python import substrate
 
@@ -39,7 +39,7 @@ ROLE_SPRITE_DICT = {
    'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
    }
 
-def main(roles, episodes, num_iteration):
+def main(roles, episodes, num_iteration, create_video=True):
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
       "--substrate_name",
@@ -157,20 +157,18 @@ def main(roles, episodes, num_iteration):
             results['learned_rules'][i] += agent.prohibitions
 
 
-  name = f'vers{num_iteration}_{role_str}'
-  (
-  ffmpeg
-  .input('/../videos/screen_%04d.png', pattern_type='glob', framerate=20, scale=400)
-  .output(name)
-  .run()
-  )
+  name = f'vers{num_iteration}_{role_str}'[:-1]
+  filename = 'videos/evals/' + name + '.mov'
+
+  if create_video:
+    print('\nCreating video.\n')
+    os.system('ffmpeg -r 20 -f image2'
+              + ' -s 400x400'
+              + ' -i ../videos/screen_%04d.png'
+              + ' -vcodec libx264 ' 
+              + filename)
 
   return results
-
-  """
-  # Bash command
-  % ffmpeg -r 20 -f image2 -s 400x400 -i screen_%04d.png -vcodec libx264  window_video.mov
-  """
 
 # delete first row of the array
 def update(actions):
@@ -182,4 +180,4 @@ if __name__ == "__main__":
   roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
   episodes = 200
   num_iteration = 1
-  main(roles=roles, episodes=episodes, num_iteration=num_iteration)
+  main(roles=roles, episodes=episodes, num_iteration=num_iteration, create_video=True)
