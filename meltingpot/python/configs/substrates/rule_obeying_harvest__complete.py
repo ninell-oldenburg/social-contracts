@@ -1342,7 +1342,6 @@ def create_avatar_and_associated_objects(roles: list):
 
   return avatar_objects + additional_objects
 
-
 def get_config():
   """Default configuration for training on the rule_obeying_harvest level."""
   config = config_dict.ConfigDict()

@@ -120,8 +120,8 @@ class RuleObeyingPolicy(policy.Policy):
 
   def env_step(self, timestep: dm_env.TimeStep, action) -> dm_env.TimeStep:
       # 1. Unpack observations from timestep
-      observation = self.deepcopy(timestep.observation)
-      orientation = observation['ORIENTATION'].item()
+      observation = self.deepcopy_dict(timestep.observation)
+      orientation = observation['ORIENTATION']
       cur_inventory = observation['INVENTORY']
       cur_pos = observation['POSITION']
       reward = timestep.reward
@@ -136,8 +136,7 @@ class RuleObeyingPolicy(policy.Policy):
         cur_inventory += self.maybe_collect_apple(observation)
 
       elif action <= 6: # TURN ACTIONS
-        observation['ORIENTATION'] = np.array(self.action_to_orientation
-                                             [orientation][action-5])
+        observation['ORIENTATION'] = self.action_to_orientation[orientation][action-5]
         
       else: # BEAMS, EAT, & PAY ACTIONS
         cur_pos = tuple(cur_pos)
@@ -193,10 +192,18 @@ class RuleObeyingPolicy(policy.Policy):
 
     return reward, cur_inventory, payed_time
   
-  def deepcopy(self, old_obs):
+  def deepcopy_dict(self, old_obs):
     new_obs = {}
     for key in old_obs:
-      new_obs[key] = deepcopy(old_obs[key])
+      if isinstance(old_obs[key], np.ndarray):
+        if old_obs[key].shape == ():
+          new_obs[key] = old_obs[key].item()
+        elif old_obs[key].shape == (1,):
+          new_obs[key] = old_obs[key][0] # unpack numpy array
+        else:
+          new_obs[key] = np.copy(old_obs[key])
+      else:
+        new_obs[key] = old_obs[key]
 
     return new_obs
 
@@ -221,7 +228,7 @@ class RuleObeyingPolicy(policy.Policy):
     return False
   
   def is_facing_agent(self, observation, payee_pos):
-    orientation = observation['ORIENTATION'].item()
+    orientation = observation['ORIENTATION']
     own_pos = observation['POSITION']
 
     if payee_pos[0] > own_pos[0] and orientation == 1:
@@ -249,18 +256,18 @@ class RuleObeyingPolicy(policy.Policy):
   def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
     """Perform a A* search to generate plan."""
     queue, action, came_from = PriorityQueue(), 0, {}
-    observation = timestep.observation
     timestep = timestep._replace(reward=0.0)
-    queue.put(PrioritizedItem(0, 0, (timestep, action))) # ordered by reward
-
+    observation = timestep.observation
     observation['POSITION'] = np.array([observation['POSITION'][0]-1, 
                               observation['POSITION'][1]-1]) # lua is 1-indexed
+    observation['ORIENTATION'] = observation['ORIENTATION'].item()
+    queue.put(PrioritizedItem(0, 0, (timestep, action))) # ordered by reward
 
     while not queue.empty():
       priority_item = queue.get()
       cur_timestep, cur_action = priority_item.item
       cur_pos = tuple(cur_timestep.observation['POSITION'])
-      cur_orient = cur_timestep.observation['ORIENTATION'].item()
+      cur_orient = cur_timestep.observation['ORIENTATION']
       cur_depth = priority_item.priority
 
       if self.is_done(cur_timestep, cur_depth):
@@ -273,7 +280,7 @@ class RuleObeyingPolicy(policy.Policy):
         # simulate environment for that action
         next_timestep = self.env_step(cur_timestep, action)
         next_pos = tuple(next_timestep.observation['POSITION'])
-        next_orient = next_timestep.observation['ORIENTATION'].item()
+        next_orient = next_timestep.observation['ORIENTATION']
         # record path if it's new or has higer reward
         if not (next_pos, next_orient, action) in came_from.keys() \
           or next_timestep.reward > cur_timestep.reward:
@@ -292,12 +299,12 @@ class RuleObeyingPolicy(policy.Policy):
   def available_actions(self, obs) -> list[int]:
     """Return the available actions at a given timestep."""
     actions = []
-    observation = self.deepcopy(obs)
-    cur_pos = deepcopy(observation['POSITION'])
+    observation = self.deepcopy_dict(obs)
+    cur_pos = np.copy(observation['POSITION'])
 
     for action in range(self.action_spec.num_values):
       x, y = cur_pos[0], cur_pos[1]
-      orientation = observation['ORIENTATION'].item()
+      orientation = observation['ORIENTATION']
       if action <= 4: # move actions
         new_pos = cur_pos + self.action_to_pos[orientation][action]
         x, y = new_pos[0], new_pos[1]

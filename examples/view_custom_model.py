@@ -138,7 +138,7 @@ def main(roles, episodes, num_iteration, create_video=True):
                              other_players_observations, 
                              other_agents_actions)
             
-    # print(actions)
+    print(actions)
     action_list = [int(item[0]) for item in actions.values()]
     timestep = env.step(action_list)
     actions = update(actions)
@@ -169,6 +169,9 @@ def main(roles, episodes, num_iteration, create_video=True):
               + filename)
 
   return results
+
+  """ Profiler Run:
+  ~ python3 -m cProfile -o run1.prof -s cumtime  examples/evals/evals.py """
 
 # delete first row of the array
 def update(actions):

@@ -23,5 +23,5 @@ TEST_SCENARIOS = [
 results = []
 for i in range(len(BASELINE_SCENARIOS)):
     roles = BASELINE_SCENARIOS[i]
-    cur_result = main(roles=roles, episodes=50, num_iteration=i, create_video=True)
+    cur_result = main(roles=roles, episodes=50, num_iteration=i, create_video=False)
     results.append(cur_result)
