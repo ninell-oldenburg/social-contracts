@@ -23,6 +23,27 @@ DEFAULT_OBLIGATIONS = [
 ]
 
 # POTENTIAL
+cleaning_precondition_free_2 = "lambda obs : obs['TOTAL_NUM_CLEANERS'] < 2"
+cleaning_goal_free_2 = "lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 2"
+cleaning_precondition_free_3 = "lambda obs : obs['TOTAL_NUM_CLEANERS'] < 3"
+cleaning_goal_free_3 = "lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 3"
+cleaning_precondition_free_4 = "lambda obs : obs['TOTAL_NUM_CLEANERS'] < 4"
+cleaning_goal_free_4 = "lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 4"
+cleaning_precondition_free_5 = "lambda obs : obs['TOTAL_NUM_CLEANERS'] < 5"
+cleaning_goal_free_5 = "lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 5"
+
+payment_precondition_farmer_5 = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 5"
+payment_goal_farmer_5 = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] < 5"
+payment_precondition_farmer_6 = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 6"
+payment_goal_farmer_6 = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] < 6"
+payment_precondition_farmer_7 = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 7"
+payment_goal_farmer_7 = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] < 7"
+
+cleaning_precondition_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 4"
+cleaning_goal_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] < 1"
+payment_precondition_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 1"
+payment_goal_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 0"
+# TBD
 
 POTENTIAL_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
@@ -56,7 +77,9 @@ harvest_apple_precondition_5 = "lambda obs : obs['NUM_APPLES_AROUND'] < 5 and ob
 harvest_apple_precondition_6 = "lambda obs : obs['NUM_APPLES_AROUND'] < 6 and obs['CUR_CELL_HAS_APPLE']"
 harvest_apple_precondition_7 = "lambda obs : obs['NUM_APPLES_AROUND'] < 7 and obs['CUR_CELL_HAS_APPLE']"
 harvest_apple_precondition_8 = "lambda obs : obs['NUM_APPLES_AROUND'] < 8 and obs['CUR_CELL_HAS_APPLE']"
-  
+not_go_to_cell_precondition = "lambda obs : obs['CUR_CELL_HAS_APPLE']"
+
+
 POTENTIAL_PROHIBITIONS = [
   # don't go if <x apples around
   ProhibitionRule(harvest_apple_precondition_1, 'MOVE_ACTION'),

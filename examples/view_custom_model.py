@@ -23,6 +23,8 @@ from dmlab2d.ui_renderer import pygame
 import numpy as np
 from itertools import islice
 
+import ffmpeg
+
 from meltingpot.python import substrate
 
 from meltingpot.python.utils.substrates import shapes
@@ -37,7 +39,7 @@ ROLE_SPRITE_DICT = {
    'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
    }
 
-def main():
+def main(roles, episodes, num_iteration):
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
       "--substrate_name",
@@ -52,10 +54,8 @@ def main():
 
   level_name = args.substrate_name
   substrate_name = f'rule_obeying_harvest__{level_name}'
-  num_bots = substrate.get_config(substrate_name).default_player_roles
-  roles = list(num_bots)
-  num_focal_bots = len(roles) - roles.count("learner")
-  # focal_roles = roles[:num_focal_bots]
+  num_bots = len(roles)
+  num_focal_bots = num_bots - roles.count("learner")
 
   config = {'substrate': substrate_name,
             'roles': roles}
@@ -65,6 +65,7 @@ def main():
   player_looks = [ROLE_SPRITE_DICT[role] for role in config['roles']]
 
   bots = []
+  role_str = ''
   for i in range(len(roles)):
     if i < num_focal_bots:
       bots.append(RuleObeyingPolicy(env=env, 
@@ -75,10 +76,16 @@ def main():
                                     role=config['roles'][i], 
                                     player_idx=i,
                                     player_looks=player_looks))
+      
+  for role in set(roles):
+    role_str += role # video name
+    role_str += str(roles.count(role))
+    role_str += '_'
 
   timestep = env.reset()
 
   actions = {key: [] for key in range(len(bots))}
+  results = {}
 
   # Configure the pygame display
   scale = 4
@@ -92,7 +99,7 @@ def main():
   game_display = pygame.display.set_mode(
       (int(shape[1] * scale), int(shape[0] * scale)))
 
-  for k in range(200):
+  for k in range(episodes):
     obs = timestep.observation[0]["WORLD.RGB"]
     obs = np.transpose(obs, (1, 0, 2))
     surface = pygame.surfarray.make_surface(obs)
@@ -140,10 +147,30 @@ def main():
     filename = '../videos/screen_%04d.png' % (k)
     pygame.image.save(game_display, filename)
 
-    """
-    # Bash command
-    % ffmpeg -r 20 -f image2 -s 400x400 -i screen_%04d.png -vcodec libx264  window_video.mov
-    """
+    if timestep.last():
+      results['reward'] = timestep.reward
+      if 'learner' in roles:
+        results['learned_rules'] = []
+        for i, agent in enumerate(bots):
+          if isinstance(agent, RuleLearningPolicy):
+            results['learned_rules'][i] = agent.obligations
+            results['learned_rules'][i] += agent.prohibitions
+
+
+  name = f'vers{num_iteration}_{role_str}'
+  (
+  ffmpeg
+  .input('/../videos/screen_%04d.png', pattern_type='glob', framerate=20, scale=400)
+  .output(name)
+  .run()
+  )
+
+  return results
+
+  """
+  # Bash command
+  % ffmpeg -r 20 -f image2 -s 400x400 -i screen_%04d.png -vcodec libx264  window_video.mov
+  """
 
 # delete first row of the array
 def update(actions):
@@ -152,4 +179,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  main()
+  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
+  episodes = 200
+  num_iteration = 1
+  main(roles=roles, episodes=episodes, num_iteration=num_iteration)

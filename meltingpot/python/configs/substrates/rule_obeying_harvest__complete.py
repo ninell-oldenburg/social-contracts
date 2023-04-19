@@ -1391,9 +1391,9 @@ def get_config():
                                   "farmer",
                                   "learner",})
   # "bluie" as for one player
-  config.default_player_roles = ("cleaner",) * 0 \
-                                + ("farmer",) * 0 \
-                                + ('free',) * 2 \
+  config.default_player_roles = ("cleaner",) * 1 \
+                                + ("farmer",) * 1 \
+                                + ('free',) * 1 \
                                 + ('learner',) * 1
 
   return config
