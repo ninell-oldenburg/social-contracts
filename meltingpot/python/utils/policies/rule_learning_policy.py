@@ -160,9 +160,12 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         if rule.holds(new_obs, action_name):
             return np.log(0.01) # violation
         else: # obedience
-            if action_name == rule.prohibited_action: # precondition doesn't hold, rule can still be true
-                return np.log(1/len(past_available_actions)-1)
+            if action_name == rule.prohibited_action:
+                # assumption: every non-violation given a 
+                # prohibited action is an obedience
+                return np.log(1/(len(past_available_actions)-1))
             else: 
+                # random action
                 return np.log(1/len(past_available_actions))
                 
     def get_role(self, player_idx) -> str:
