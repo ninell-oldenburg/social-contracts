@@ -136,8 +136,8 @@ def main(roles, episodes, num_iteration, create_video=True):
         if i >= num_focal_bots: # still update learners' beliefs
           other_agents_actions = [action[0] for _, action in islice(
             actions.items(), num_focal_bots)]
-          bot.update_beliefs(timestep_bot.observation,
-                             other_players_observations, 
+          if len(bot.others_history) >= 2:
+            bot.update_beliefs(timestep_bot.observation,
                              other_agents_actions)
             
     print(actions)
@@ -155,7 +155,7 @@ def main(roles, episodes, num_iteration, create_video=True):
   if create_video:
     make_video(filename)
 
-  results = make_result_dict(cum_reward=cum_reward, 
+  results = create_result_dict(cum_reward=cum_reward, 
                              bots=bots, 
                              episodes=episodes)
 
@@ -164,7 +164,7 @@ def main(roles, episodes, num_iteration, create_video=True):
   """ Profiler Run:
   ~ python3 -m cProfile -o run1.prof -s cumtime  examples/evals/evals.py """
 
-def make_result_dict(cum_reward, bots, episodes):
+def create_result_dict(cum_reward, bots, episodes):
   results = {'num_episodes': episodes,
             'free': 0,
             'cleaner': 0,
@@ -215,7 +215,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 1
   episodes = 200
   num_iteration = 1
   main(roles=roles, episodes=episodes, num_iteration=num_iteration, create_video=True)

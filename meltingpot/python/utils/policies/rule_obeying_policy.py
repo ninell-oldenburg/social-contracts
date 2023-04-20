@@ -303,11 +303,9 @@ class RuleObeyingPolicy(policy.Policy):
     cur_pos = np.copy(observation['POSITION'])
 
     for action in range(self.action_spec.num_values):
-      x, y = cur_pos[0], cur_pos[1]
-      orientation = observation['ORIENTATION']
-      if action <= 4: # move actions
-        new_pos = cur_pos + self.action_to_pos[orientation][action]
-        x, y = new_pos[0], new_pos[1]
+      x, y = self.update_coordinates_based_on_action(action, 
+                                                     cur_pos,
+                                                     observation)
 
       if self.exceeds_map(observation['WORLD.RGB'], x, y):
         continue
@@ -321,6 +319,15 @@ class RuleObeyingPolicy(policy.Policy):
         actions.append(action)
 
     return actions
+  
+  def update_coordinates_based_on_action(self, action, cur_pos, observation):
+    x, y = cur_pos[0], cur_pos[1]
+    orientation = observation['ORIENTATION']
+    if action <= 4: # move actions
+      new_pos = cur_pos + self.action_to_pos[orientation][action]
+      x, y = new_pos[0], new_pos[1]
+
+    return x, y
   
   def check_all(self, observation, action):
     for prohibition in self.prohibitions:
