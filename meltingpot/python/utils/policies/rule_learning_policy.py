@@ -28,12 +28,14 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                  player_looks: list,
                  role: str = "learner",
                  potential_obligations: list = POTENTIAL_OBLIGATIONS,
-                 potential_prohibitions: list = POTENTIAL_PROHIBITIONS
+                 potential_prohibitions: list = POTENTIAL_PROHIBITIONS,
+                 selection_mode: str = "threshold",
                  ) -> None:
         
         self._index = player_idx
         self.role = role
         self._max_depth = 35
+        self.selection_mode = selection_mode
         self.action_spec = env.action_spec()[0]
         self.num_actions = self.action_spec.num_values
         self.potential_obligations = potential_obligations
@@ -214,12 +216,16 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.history.append(observation)
         if len(self.others_history) >= 2:
             self.update_beliefs(observation, other_agent_actions)
-        th_obligations, th_prohibitions = self.threshold_rules(threshold=0.5)
-        sampl_obligations, sampl_prohibitions = self.sample_rules()
+        self.th_obligations, self.th_prohibitions = self.threshold_rules(threshold=0.5)
+        self.sampl_obligations, self.sampl_prohibitions = self.sample_rules()
 
         # choose whether to use thresholded or sampled rules
-        self.obligations = th_obligations
-        self.prohibitions = th_prohibitions
+        if self.selection_mode == 'threshold':
+            self.obligations = self.th_obligations
+            self.prohibitions = self.th_prohibitions
+        else:
+            self.obligations = self.sampl_obligations
+            self.prohibitions = self.sampl_prohibitions
 
         # """
         print('='*50)

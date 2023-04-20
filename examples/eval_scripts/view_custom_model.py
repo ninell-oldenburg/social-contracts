@@ -75,7 +75,8 @@ def main(roles, episodes, num_iteration, create_video=True):
       bots.append(RuleLearningPolicy(env=env, 
                                     role=config['roles'][i], 
                                     player_idx=i,
-                                    player_looks=player_looks))
+                                    player_looks=player_looks,
+                                    selection_mode="threshold"))
       
   for role in set(roles):
     role_str += role # video name
