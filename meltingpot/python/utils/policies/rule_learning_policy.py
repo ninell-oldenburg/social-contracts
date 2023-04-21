@@ -137,7 +137,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         x, y = pos[0], pos[1]
         past_obs = self.others_history[-2][player_idx]
         if self.exceeds_map(past_obs['WORLD.RGB'], x, y):
-            return len(past_available_actions) # TODO is this assumption true?
+            return len(past_available_actions)
         past_updated_obs = super().update_observation(past_obs, x, y)
 
         if rule.satisfied(past_updated_obs, player_role):

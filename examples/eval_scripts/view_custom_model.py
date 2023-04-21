@@ -191,7 +191,8 @@ def create_result_dict(cum_reward, bots, episodes):
     if isinstance(agent, RuleLearningPolicy):
       results['cum_reward_learners'] += cum_reward[i]
       for rule in agent.obligations + agent.prohibitions:
-        results['learned_obligations'].update([rule.make_str_repr()])
+        if hasattr(rule, 'role') and rule.role == agent.role:
+          results['learned_obligations'].update([rule.make_str_repr()])
         results['learned_prohibitions'].update([rule.make_str_repr()])
 
     elif isinstance(agent, RuleObeyingPolicy):
