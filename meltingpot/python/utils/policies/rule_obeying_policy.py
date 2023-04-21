@@ -43,7 +43,8 @@ class RuleObeyingPolicy(policy.Policy):
 
   def __init__(self, 
                env: dm_env.Environment, 
-               player_idx: int, 
+               player_idx: int,
+               log_output: bool,
                role: str = "free",
                prohibitions: list = DEFAULT_PROHIBITIONS, 
                obligations: list = DEFAULT_OBLIGATIONS) -> None:
@@ -55,6 +56,7 @@ class RuleObeyingPolicy(policy.Policy):
     self._index = player_idx
     self.role = role
     self._max_depth = 30
+    self.log_output = log_output
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
     self.obligations = obligations
@@ -104,7 +106,8 @@ class RuleObeyingPolicy(policy.Policy):
            self.current_obligation = obligation
            break
          
-      print(f"player: {self._index} current_obligation active?: {self.current_obligation != None}")
+      if self.log_output:
+        print(f"player: {self._index} current_obligation active?: {self.current_obligation != None}")
 
       # Select an action based on the first satisfying rule
       return self.a_star(timestep)
@@ -209,9 +212,12 @@ class RuleObeyingPolicy(policy.Policy):
 
   def get_payees(self, observation):
     payees = []
-    for i in range(len(observation['ALWAYS_PAYING_TO'])):
-      if observation['ALWAYS_PAYING_TO'][i] != 0:
-        payees.append(observation['ALWAYS_PAYING_TO'][i])
+    if isinstance(observation['ALWAYS_PAYING_TO'], np.int32):
+      payees.append(observation['ALWAYS_PAYING_TO'])
+    else:
+      for i in range(len(observation['ALWAYS_PAYING_TO'])):
+        if observation['ALWAYS_PAYING_TO'][i] != 0:
+          payees.append(observation['ALWAYS_PAYING_TO'][i])
     return payees
   
   def is_close_to_agent(self, observation, payee):

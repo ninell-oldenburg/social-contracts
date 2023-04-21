@@ -26,6 +26,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                  env: dm_env.Environment,
                  player_idx: int,
                  player_looks: list,
+                 log_output: bool,
                  role: str = "learner",
                  potential_obligations: list = POTENTIAL_OBLIGATIONS,
                  potential_prohibitions: list = POTENTIAL_PROHIBITIONS,
@@ -35,6 +36,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self._index = player_idx
         self.role = role
         self._max_depth = 35
+        self.log_output = log_output
         self.selection_mode = selection_mode
         self.action_spec = env.action_spec()[0]
         self.num_actions = self.action_spec.num_values
@@ -133,15 +135,20 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         pos = pos_list[player_idx]
         x, y = pos[0], pos[1]
-        past_player_obs = super().update_observation(self.others_history[-2][player_idx], x, y)
+        past_obs = self.others_history[-2][player_idx]
+        if self.exceeds_map(past_obs['WORLD.RGB'], x, y):
+            return len(past_available_actions) # TODO is this assumption true?
+        past_updated_obs = super().update_observation(past_obs, x, y)
 
-        if rule.satisfied(past_player_obs, player_role):
+        if rule.satisfied(past_updated_obs, player_role):
             if rule in self.nonself_active_obligations[player_idx].keys():
                 if self.nonself_active_obligations[player_idx][rule] <= self._max_depth:
                     # obligation satisfied
                     return np.log(0.9) # instead of 1
                 else:
-                    return np.log(1/len(past_available_actions)-1) # probably random action
+                    if len(past_available_actions) > 1:
+                        return np.log(1/len(past_available_actions)-1) # probably random action
+                    return np.log(1)
 
         elif rule.holds_in_history(player_history, player_role):
             if rule in self.nonself_active_obligations[player_idx].keys():
@@ -157,6 +164,9 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         past_observation = self.others_history[-2][player_idx]
         past_pos = np.copy(past_observation['POSITION'])
         x, y, = super().update_coordinates_based_on_action(action, past_pos, past_observation)
+        
+        if self.exceeds_map(past_observation['WORLD.RGB'], x, y):
+            return len(past_available_actions) # TODO is this assumption true?
         new_obs = super().update_observation(past_observation, x, y)
 
         if rule.holds(new_obs, action_name):
@@ -165,7 +175,9 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             if action_name == rule.prohibited_action:
                 # assumption: every non-violation given a 
                 # prohibited action is an obedience
-                return np.log(1/(len(past_available_actions)-1))
+                if len(past_available_actions) > 1:
+                    return np.log(1/len(past_available_actions)-1) # probably random action
+                return np.log(1)
             else: 
                 # random action
                 return np.log(1/len(past_available_actions))
@@ -228,16 +240,17 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             self.prohibitions = self.sampl_prohibitions
 
         # """
-        print('='*50)
-        print('CURRENT RULES')
-        print('Obligations:')
-        for rule in self.obligations:
-            print(rule.make_str_repr())
-        print()
-        print('Prohibitions:')
-        for rule in self.prohibitions:
-            print(rule.make_str_repr())
-        print('='*50)
+        if self.log_output:
+            print('='*50)
+            print('CURRENT RULES')
+            print('Obligations:')
+            for rule in self.obligations:
+                print(rule.make_str_repr())
+            print()
+            print('Prohibitions:')
+            for rule in self.prohibitions:
+                print(rule.make_str_repr())
+            print('='*50)
         # """
 
         # use parent class to compute best step

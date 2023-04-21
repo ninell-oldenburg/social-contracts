@@ -39,7 +39,7 @@ ROLE_SPRITE_DICT = {
    'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
    }
 
-def main(roles, episodes, num_iteration, create_video=True):
+def main(roles, episodes, num_iteration, create_video=True, log_output=True):
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
       "--substrate_name",
@@ -70,13 +70,17 @@ def main(roles, episodes, num_iteration, create_video=True):
     if i < num_focal_bots:
       bots.append(RuleObeyingPolicy(env=env, 
                                     role=config['roles'][i], 
-                                    player_idx=i))
+                                    log_output=log_output,
+                                    player_idx=i
+                                    ))
     else:
       bots.append(RuleLearningPolicy(env=env, 
                                     role=config['roles'][i], 
                                     player_idx=i,
                                     player_looks=player_looks,
-                                    selection_mode="threshold"))
+                                    log_output=log_output,
+                                    selection_mode="threshold"
+                                    ))
       
   for role in set(roles):
     role_str += role # video name
@@ -141,7 +145,8 @@ def main(roles, episodes, num_iteration, create_video=True):
             bot.update_beliefs(timestep_bot.observation,
                              other_agents_actions)
             
-    print(actions)
+    if log_output:
+      print(actions)
     action_list = [int(item[0]) for item in actions.values()]
     timestep = env.step(action_list)
     actions = update(actions)
@@ -207,6 +212,7 @@ def make_video(filename):
               + ' -s 400x400'
               + ' -i ../videos/screen_%04d.png'
               + ' -vcodec libx264 ' 
+              + ' -y '
               + filename)
 
 # delete first row of the array
@@ -216,7 +222,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 0 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 1
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 0
   episodes = 200
   num_iteration = 1
   main(roles=roles, episodes=episodes, num_iteration=num_iteration, create_video=True)

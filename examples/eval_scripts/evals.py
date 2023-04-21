@@ -67,21 +67,44 @@ TEST_SCENARIOS = [
 ]
 
 # Make the dataframe and save it as a csv
+import time
+start_time = time.time()
+
 frames = []
 baseline_results = []
+path = "examples/results/run1.csv"
+
+print()
+print('*'*50)
+print('STARTING BASELINE SCENARIOS')
+print('*'*50)
+print()
+
 for i in range(len(BASELINE_SCENARIOS)):
     roles = BASELINE_SCENARIOS[i]
-    cur_result = main(roles=roles, episodes=20, num_iteration=i, create_video=False)
+    cur_result = main(roles=roles, episodes=200, num_iteration=i, create_video=True, log_output=False)
     cur_df = pd.DataFrame.from_dict(cur_result)
     frames.append(cur_df)
+    result = pd.concat(frames)
+    result.to_csv(path_or_buf=path)
+    print('='*50)
+    print(f'BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
+
+print()
+print('*'*50)
+print('STARTING TEST SCENARIOS')
+print('*'*50)
+print()
 
 test_results = []
 for i in range(len(TEST_SCENARIOS)):
     roles = TEST_SCENARIOS[i]
-    cur_result = main(roles=roles, episodes=20, num_iteration=i, create_video=False)
+    cur_result = main(roles=roles, episodes=200, num_iteration=i, create_video=True, log_output=False)
     cur_df = pd.DataFrame.from_dict(cur_result)
     frames.append(cur_df)
+    result = pd.concat(frames)
+    result.to_csv(path_or_buf=path)
+    print('='*50)
+    print(f'TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
 
-path = "examples/results/run1.csv"
-result = pd.concat(frames)
-result.to_csv(path_or_buf=path)
+print("--- %s seconds ---" % (time.time() - start_time))
