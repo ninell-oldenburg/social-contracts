@@ -39,7 +39,7 @@ DEFAULT_PROHIBITIONS = [
   # don't go if <2 apples around
   ProhibitionRule(harvest_apple_precon_standard, 'MOVE_ACTION'),
   # don't go if it is foreign property and cell has apples 
-  ProhibitionRule(steal_from_forgein_cell_precon, 'MOVE_ACTION'),
+  # ProhibitionRule(steal_from_forgein_cell_precon, 'MOVE_ACTION'),
 ]
 
 """ POTENTIAL RULES (TEST RULES) """

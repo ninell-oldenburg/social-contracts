@@ -747,7 +747,7 @@ def get_water():
                   "states": ["water_1", "water_2", "water_3", "water_4"],
                   "gameFramesPerAnimationFrame": 2,
                   "loop": True,
-                  "randomStartFrame": True,
+                  "randomStartFrame": False,
                   "group": "water",
               }
           },

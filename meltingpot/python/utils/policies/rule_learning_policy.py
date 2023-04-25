@@ -82,17 +82,6 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             "PAY_ACTION"
           ]
         
-        self.action_dict = {
-            "NOOP_ACTION": [0],
-            "MOVE_ACTION": [1, 2, 3, 4],
-            "TURN_ACTION": [5, 6],
-            "ZAP_ACTION": [7],
-            "CLEAN_ACTION": [8],
-            "CLAIM_ACTION": [9],
-            "EAT_ACTION": [10],
-            "PAY_ACTION": [11]
-        }
-        
     def update_beliefs(self, own_obs, other_agent_actions):
         """Update the beliefs of the rules based on the 
         observations and actions."""
@@ -116,7 +105,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             elif isinstance(rule, ObligationRule):
                     log_llh = self.comp_oblig_llh(player_idx, rule, pos_list)
                         
-            # do bayesian updating
+            # BAYESIAN UPDATING
             prior = self.rule_beliefs[rule_index]
             log_prior = np.log(prior)
             log_marginal = np.log(1/self.num_actions) # num actions
@@ -146,7 +135,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                         obedient = bernoulli(self.p_obey)
                         if obedient:
                             # for our cases, len(obligated_actions) == 1
-                            return np.log(1) # action ~ uniform(obligated_actions(cur_state, rule))
+                            # TODO: however, make proper function obligated_actions(cur_state, rule)
+                            return np.log(1)
                         else:
                             return np.log(1/(self.num_actions-1))
 
@@ -246,10 +236,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             print('Obligations:')
             for rule in self.obligations:
                 print(rule.make_str_repr())
-            #print()
-            #print('Prohibitions:')
-            #for rule in self.prohibitions:
-                #print(rule.make_str_repr())
+            print()
+            print('Prohibitions:')
+            for rule in self.prohibitions:
+                print(rule.make_str_repr())
             print('='*50)
         # """
 

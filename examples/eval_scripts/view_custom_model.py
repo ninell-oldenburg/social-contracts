@@ -29,6 +29,10 @@ from meltingpot.python import substrate
 
 from meltingpot.python.utils.substrates import shapes
 
+from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
+from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
+from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
+
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
 
@@ -39,7 +43,7 @@ ROLE_SPRITE_DICT = {
    'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
    }
 
-def main(roles, episodes, num_iteration, create_video=True, log_output=True):
+def main(roles, episodes, num_iteration, rules, create_video=True, log_output=True):
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
       "--substrate_name",
@@ -63,6 +67,7 @@ def main(roles, episodes, num_iteration, create_video=True, log_output=True):
   env = substrate.build(config['substrate'], roles=config['roles'])
 
   other_player_looks = [ROLE_SPRITE_DICT[role] for role in config['roles']]
+  obeyed_prohibitions, obeyed_obligations = split_rules(rules)
 
   bots = []
   role_str = ''
@@ -73,7 +78,9 @@ def main(roles, episodes, num_iteration, create_video=True, log_output=True):
                                     look=ROLE_SPRITE_DICT[role],
                                     role=role, 
                                     log_output=log_output,
-                                    player_idx=i
+                                    player_idx=i,
+                                    prohibitions=obeyed_prohibitions,
+                                    obligations=obeyed_obligations,
                                     ))
     else:
       bots.append(RuleLearningPolicy(env=env, 
@@ -94,6 +101,12 @@ def main(roles, episodes, num_iteration, create_video=True, log_output=True):
   cum_reward = [0] * num_bots
 
   actions = {key: [] for key in range(len(bots))}
+  # make headline of output dict
+  data_dict = {
+    (key.make_str_repr() if hasattr(key, 'make_str_repr') else key): [] 
+    for key in list(ROLE_SPRITE_DICT.keys()) + POTENTIAL_PROHIBITIONS + POTENTIAL_OBLIGATIONS
+  }
+  cur_beliefs = [] * len(POTENTIAL_PROHIBITIONS + POTENTIAL_OBLIGATIONS)
 
   # Configure the pygame display
   scale = 4
@@ -147,12 +160,16 @@ def main(roles, episodes, num_iteration, create_video=True, log_output=True):
           if len(bot.others_history) >= 2:
             bot.update_beliefs(timestep_bot.observation,
                              other_agents_actions)
+            cur_beliefs = bot.rule_beliefs
             
     if log_output:
       print(actions)
+
     action_list = [int(item[0]) for item in actions.values()]
     timestep = env.step(action_list)
     actions = update(actions)
+
+    data_dict = append_to_dict(data_dict, timestep.reward, cur_beliefs, roles)
 
     # Saving files in superdircetory
     filename = '../videos/screen_%04d.png' % (k)
@@ -164,51 +181,55 @@ def main(roles, episodes, num_iteration, create_video=True, log_output=True):
   if create_video:
     make_video(filename)
 
-  results = create_result_dict(cum_reward=cum_reward, 
-                             bots=bots, 
-                             episodes=episodes)
+  settings = get_settings(bots=bots, rules=rules)
 
-  return results
+  return settings, data_dict
 
   """ Profiler Run:
   ~ python3 -m cProfile -o run1.prof -s cumtime  examples/evals/evals.py """
 
-def create_result_dict(cum_reward, bots, episodes):
-  results = {'num_episodes': episodes,
-            'free': 0,
-            'cleaner': 0,
-            'farmer': 0,
-            'learner': 0,
-            'player_rewards': cum_reward,
-            'cum_reward': sum(cum_reward),
-            'cum_reward_focal': 0,
-            'cum_reward_learners': 0,
-            'active_obligations': set(),
-            'active_prohibitions': set(),
-            'learned_obligations': set(),
-            'learned_prohibitions': set(),
-            }
-  
-  for i, agent in enumerate(bots):
-    results[agent.role] += 1
-    if isinstance(agent, RuleLearningPolicy):
-      results['cum_reward_learners'] += cum_reward[i]
-      for rule in agent.obligations + agent.prohibitions:
-        if hasattr(rule, 'role') and rule.role == agent.role:
-          results['learned_obligations'].update([rule.make_str_repr()])
-        results['learned_prohibitions'].update([rule.make_str_repr()])
+def append_to_dict(data_dict, reward_arr, beliefs, all_roles):
+  for i, key in enumerate(data_dict):
+    if i < 4: # player rewards
+      if key in all_roles:
+        j = get_index(key, all_roles)
+        data_dict[key].append(reward_arr[j].item())
+      else: data_dict[key].append(0)
 
-    elif isinstance(agent, RuleObeyingPolicy):
-      results['cum_reward_focal'] += cum_reward[i]
-      for rule in agent.obligations + agent.prohibitions:
-        if hasattr(rule, 'role') and rule.role == agent.role:
-          results['active_obligations'].update([rule.make_str_repr()])
-        results['active_prohibitions'].update([rule.make_str_repr()])
+    else:
+      if len(beliefs) > i-4: # without first four columns
+        data_dict[key].append(beliefs[i-4])
+      else: data_dict[key].append(0)
 
-  for key in results.keys():
-    results[key] = [str(results[key])]
+  return data_dict
 
-  return results
+def get_index(role, all_roles):
+  for i, name in enumerate(all_roles):
+    if name == role:
+      return i
+
+def split_rules(rules):
+  obeyed_prohibitions = []
+  obeyed_obligations = []
+  for rule in rules:
+    if isinstance(rule, ProhibitionRule):
+      obeyed_prohibitions += rule
+
+    elif isinstance(rule, ObligationRule):
+      obeyed_obligations += rule
+
+  return obeyed_prohibitions, obeyed_obligations
+
+def get_settings(bots, rules):
+  settings = []
+  for role in ROLE_SPRITE_DICT:
+    for agent in bots:
+      settings.append(1) if agent.role == role else settings.append(0)
+
+  for rule in DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS:
+    settings.append(1) if rule in rules else settings.append(0)
+
+  return settings
 
 def make_video(filename):
     print('\nCreating video.\n')
