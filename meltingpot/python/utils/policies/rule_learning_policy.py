@@ -7,6 +7,7 @@ import numpy as np
 from copy import deepcopy
 
 import random
+from scipy.stats import bernoulli
 
 from meltingpot.python.utils.substrates import shapes
 
@@ -37,7 +38,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self._index = player_idx
         self.role = role
         self.look = look
-        self._max_depth = 35
+        self.max_depth = 35
+        self.p_obey = 0.9
         self.log_output = log_output
         self.selection_mode = selection_mode
         self.action_spec = env.action_spec()[0]
@@ -132,63 +134,67 @@ class RuleLearningPolicy(RuleObeyingPolicy):
     
     def comp_oblig_llh(self, player_idx, rule, pos_list,
                        past_available_actions) -> np.log:
-        player_role = self.get_role(player_idx)
         player_history = [all_players_timesteps[player_idx] for all_players_timesteps in self.others_history]
 
         pos = pos_list[player_idx]
         x, y = pos[0], pos[1]
-        past_obs = self.others_history[-2][player_idx]
-        if self.exceeds_map(past_obs['WORLD.RGB'], x, y):
+        cur_obs = self.others_history[-2][player_idx]
+        if self.exceeds_map(cur_obs['WORLD.RGB'], x, y):
             return len(past_available_actions)
-        past_updated_obs = super().update_observation(past_obs, x, y)
+        new_obs = super().update_observation(cur_obs, x, y)
 
-        if rule.satisfied(past_updated_obs, self.look):
-            if rule in self.nonself_active_obligations[player_idx].keys():
-                if self.nonself_active_obligations[player_idx][rule] <= self._max_depth:
-                    # obligation satisfied
-                    return np.log(0.9) # instead of 1
-                else:
-                    if len(past_available_actions) > 1:
-                        return np.log(1/len(past_available_actions)-1) # probably random action
-                    return np.log(1)
+        if self.exists(rule):
+            if rule.holds_in_history(player_history, self.look):
+                if rule in self.nonself_active_obligations[player_idx].keys():
+                    self.nonself_active_obligations[player_idx][rule] += 1
+                    if rule.satisfied(new_obs, self.look):
+                        if self.nonself_active_obligations[player_idx][rule] <= self.max_depth:
+                            obedient = bernoulli(self.p_obey)
+                            if obedient:
+                                return np.log(1) # action ~ uniform(obligated_actions(cur_state, rule))
+                            else:
+                                if len(past_available_actions) > 1:
+                                    return np.log(1/len(past_available_actions)-1) # probably random action
+                                return np.log(1)
 
-        elif rule.holds_in_history(player_history, self.look):
-            if rule in self.nonself_active_obligations[player_idx].keys():
-                self.nonself_active_obligations[player_idx][rule] += 1
-            else:
-                self.nonself_active_obligations[player_idx][rule] = 0
+                        else: # if time_step > self.max_depth
+                            self.nonself_active_obligations[player_idx][rule] = 0
+
+                else: # rule not in self.nonself_active_obligations[player_idx].keys()
+                    self.nonself_active_obligations[player_idx][rule] = 0
+
+        else: # self.exists(rule) == False
+            return np.log(1/len(past_available_actions))
         
-        return np.log(1/(len(past_available_actions)))
+        return np.log(1/len(past_available_actions))
+                    
     
     def comp_prohib_llh(self, action, action_name, rule, 
                         player_idx, past_available_actions) -> np.log:
     
-        past_observation = self.others_history[-2][player_idx]
-        past_pos = np.copy(past_observation['POSITION'])
-        x, y, = super().update_coordinates_based_on_action(action, past_pos, past_observation)
+        cur_obs = self.others_history[-2][player_idx]
+        cur_pos = np.copy(cur_obs['POSITION'])
+        x, y, = super().update_coordinates_based_on_action(action, cur_pos, cur_obs)
+        n_actions = len(past_available_actions)
         
-        if self.exceeds_map(past_observation['WORLD.RGB'], x, y):
+        if self.exceeds_map(cur_obs['WORLD.RGB'], x, y):
             return len(past_available_actions) # TODO is this assumption true?
-        new_obs = super().update_observation(past_observation, x, y)
+        new_obs = super().update_observation(cur_obs, x, y)
 
-        if rule.holds(new_obs, action_name):
-            return np.log(0.01) # violation
-        else: # obedience
-            if action_name == rule.prohibited_action:
-                # assumption: every non-violation given a 
-                # prohibited action is an obedience
-                if len(past_available_actions) > 1:
-                    return np.log(1/len(past_available_actions)-1) # probably random action
-                return np.log(1)
-            else: 
-                # random action
-                return np.log(1/len(past_available_actions))
-                
-    def get_role(self, player_idx) -> str:
-        for role in ROLE_SPRITE_DICT.keys():
-            if self.player_looks[player_idx] == ROLE_SPRITE_DICT[role]:
-                return role
-        return "free"
+        if self.exists(rule): # P(a | s, r=true)
+            if rule.holds_precondition(new_obs):
+                p_prohibited = self.p_obey / n_actions
+                p_allowed = self.p_obey * (1 / (n_actions - 1)) + p_prohibited
+                p_action = random.choice([p_prohibited]+[p_allowed]*(n_actions - 1))
+                return np.log(p_action)
+            else:
+                return np.log(1 / n_actions)
+            
+        else: # P(a | s, r=false)
+            return np.log(1 / n_actions)
+            
+    def exists(self, rule):
+        return rule in self.potential_rules
     
     def threshold_rules(self, threshold):
         """Returns rules with probability over a certain threshold."""
@@ -230,7 +236,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.history.append(observation)
         if len(self.others_history) >= 2:
             self.update_beliefs(observation, other_agent_actions)
-        self.th_obligations, self.th_prohibitions = self.threshold_rules(threshold=0.5)
+        self.th_obligations, self.th_prohibitions = self.threshold_rules(threshold=0.8)
         self.sampl_obligations, self.sampl_prohibitions = self.sample_rules()
 
         # choose whether to use thresholded or sampled rules

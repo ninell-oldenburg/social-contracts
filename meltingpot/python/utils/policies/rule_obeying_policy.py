@@ -63,7 +63,7 @@ class RuleObeyingPolicy(policy.Policy):
     self._index = player_idx
     self.role = role
     self.look = look
-    self._max_depth = 30
+    self.max_depth = 30
     self.log_output = log_output
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
@@ -415,7 +415,7 @@ class RuleObeyingPolicy(policy.Policy):
     """Check whether any of the break criteria are met."""
     if timestep.last():
       return True
-    elif plan_length > self._max_depth:
+    elif plan_length > self.max_depth:
       return True
     elif self.current_obligation != None:
       return self.current_obligation.satisfied(

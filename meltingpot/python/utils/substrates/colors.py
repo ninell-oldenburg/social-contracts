@@ -122,7 +122,7 @@ light_desaturated_avatar_palette = (
 greys_avatar_palette = (
     (128, 128, 128),
     (119, 136, 153),
-    (47, 79, 79),
+    (95, 95, 95),
     (112, 128, 144),
     (105, 105, 105),
 )

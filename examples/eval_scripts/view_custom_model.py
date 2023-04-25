@@ -226,7 +226,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 0
+  roles = ("cleaner",) * 0 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 1
   episodes = 200
   num_iteration = 1
   main(roles=roles, episodes=episodes, num_iteration=num_iteration, create_video=True)
