@@ -73,24 +73,28 @@ payment_precon_cleaner_0 = "lambda obs : obs['TIME_TO_GET_PAYED'] == 0"
 payment_goal_cleaner_1 = "lambda obs : obs['TIME_TO_GET_PAYED'] == 1"
 
 POTENTIAL_OBLIGATIONS = [
+  ObligationRule(cleaning_precon_free, cleaning_goal_free, ROLE_SPRITE_DICT["free"]),
+  ObligationRule(payment_precon_farmer, payment_goal_farmer, ROLE_SPRITE_DICT["farmer"]),
+  ObligationRule(payment_precon_cleaner, payment_goal_cleaner, ROLE_SPRITE_DICT["cleaner"]),
+  ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, ROLE_SPRITE_DICT["cleaner"]),
   # clean the water if less than 1 agent is cleaning
-  ObligationRule(cleaning_precon_free, cleaning_goal_free, "free"),
-  ObligationRule(cleaning_precon_free_2, cleaning_goal_free_2, "free"),
-  ObligationRule(cleaning_precon_free_3, cleaning_goal_free_3, "free"),
-  ObligationRule(cleaning_precon_free_4, cleaning_goal_free_4, "free"),
-  ObligationRule(cleaning_precon_free_5, cleaning_goal_free_5, "free"),
+ #  ObligationRule(cleaning_precon_free, cleaning_goal_free, ROLE_SPRITE_DICT["free"]),
+  ObligationRule(cleaning_precon_free_2, cleaning_goal_free_2, ROLE_SPRITE_DICT["free"]),
+  ObligationRule(cleaning_precon_free_3, cleaning_goal_free_3, ROLE_SPRITE_DICT["free"]),
+  ObligationRule(cleaning_precon_free_4, cleaning_goal_free_4, ROLE_SPRITE_DICT["free"]),
+  ObligationRule(cleaning_precon_free_5, cleaning_goal_free_5, ROLE_SPRITE_DICT["free"]),
   # If you're in the farmer role, pay cleaner with apples
-  ObligationRule(payment_precon_farmer, payment_goal_farmer, "farmer"),
-  ObligationRule(payment_precon_farmer_5, payment_goal_farmer_5, "farmer"),
-  ObligationRule(payment_precon_farmer_6, payment_goal_farmer_6, "farmer"),
-  ObligationRule(payment_precon_farmer_7, payment_goal_farmer_7, "farmer"),
+  # ObligationRule(payment_precon_farmer, payment_goal_farmer, ROLE_SPRITE_DICT["farmer"]),
+  ObligationRule(payment_precon_farmer_5, payment_goal_farmer_5, ROLE_SPRITE_DICT["farmer"]),
+  ObligationRule(payment_precon_farmer_6, payment_goal_farmer_6, ROLE_SPRITE_DICT["farmer"]),
+  ObligationRule(payment_precon_farmer_7, payment_goal_farmer_7, ROLE_SPRITE_DICT["farmer"]),
   # If you're in the cleaner role, clean in a certain rhythm
-  ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, "cleaner"),
-  ObligationRule(cleaning_precon_cleaner_3, cleaning_goal_cleaner_2, "cleaner"),
-  ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_3, "cleaner"),
+  # ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, ROLE_SPRITE_DICT["cleaner"]),
+  ObligationRule(cleaning_precon_cleaner_3, cleaning_goal_cleaner_2, ROLE_SPRITE_DICT["cleaner"]),
+  ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_3, ROLE_SPRITE_DICT["cleaner"]),
   # if you're a cleaner, wait until you've received a payment
-  ObligationRule(payment_precon_cleaner, payment_goal_cleaner, "cleaner"),
-  ObligationRule(payment_precon_cleaner_0, payment_goal_cleaner_1, "cleaner"),
+  # ObligationRule(payment_precon_cleaner, payment_goal_cleaner, ROLE_SPRITE_DICT["cleaner"]),
+  ObligationRule(payment_precon_cleaner_0, payment_goal_cleaner_1, ROLE_SPRITE_DICT["cleaner"]),
 ]
 
 """ PROHIBITIONS """
