@@ -1,25 +1,34 @@
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 
+from meltingpot.python.utils.substrates import shapes
+
+ROLE_SPRITE_DICT = {
+   'free': shapes.CUTE_AVATAR,
+   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
+   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
+   'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
+   }
+
 """ DEFAULT RULES """
 """ OBLIGATIONS """
 cleaning_precon_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] < 1"
 cleaning_goal_free = "lambda obs : obs['TOTAL_NUM_CLEANERS'] >= 1"
 payment_precon_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] > 4"
 payment_goal_farmer = "lambda obs : obs['SINCE_AGENT_LAST_PAYED'] < 1"
-cleaning_precon_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 4"
+cleaning_precon_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] > 2"
 cleaning_goal_cleaner = "lambda obs : obs['SINCE_AGENT_LAST_CLEANED'] < 1"
 payment_precon_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 1"
 payment_goal_cleaner = "lambda obs : obs['TIME_TO_GET_PAYED'] == 0"
 
 DEFAULT_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
-  ObligationRule(cleaning_precon_free, cleaning_goal_free, "free"),
+  ObligationRule(cleaning_precon_free, cleaning_goal_free, ROLE_SPRITE_DICT["free"]),
   # If you're in the farmer role, pay cleaner with apples
-  ObligationRule(payment_precon_farmer, payment_goal_farmer, "farmer"),
+  ObligationRule(payment_precon_farmer, payment_goal_farmer, ROLE_SPRITE_DICT["farmer"]),
   # if you're a cleaner, wait until you've received a payment
-  ObligationRule(payment_precon_cleaner, payment_goal_cleaner, "cleaner"),
+  ObligationRule(payment_precon_cleaner, payment_goal_cleaner, ROLE_SPRITE_DICT["cleaner"]),
   # If you're in the cleaner role, clean in a certain rhythm
-  ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, "cleaner"),
+  ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, ROLE_SPRITE_DICT["cleaner"]),
 ]
 
 """ PROHIBITIONS """

@@ -52,7 +52,7 @@ class ProhibitionRule(EnvironmentRule):
 class ObligationRule(EnvironmentRule):
     """Contains rules that emit a subgoal."""
 
-    def __init__(self, precondition, goal, role="free"):
+    def __init__(self, precondition, goal, target_look):
         """See base class.
 
         Args:
@@ -63,11 +63,11 @@ class ObligationRule(EnvironmentRule):
 
         self.precondition = precondition
         self.goal = goal
-        self.role = role
+        self.target_look = target_look
 
-    def holds_in_history(self, observations, role):
+    def holds_in_history(self, observations, look):
         """Returns True if a precondition holds given a certain vector of observation."""
-        if self.role != role and role != 'learner':
+        if self.target_look != look:
             return False
         
         for obs in observations:
@@ -76,9 +76,9 @@ class ObligationRule(EnvironmentRule):
         
         return True
     
-    def satisfied(self, observation, role):
+    def satisfied(self, observation, look):
         """Returns True if the rule goal is satisfied."""
-        if self.role != role and role != 'learner':
+        if self.target_look != look:
             return False
         
         goal_formula = super().walk_lambda(ast.parse(self.goal))

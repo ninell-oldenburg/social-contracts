@@ -13,8 +13,6 @@
 # limitations under the License.
 """Bot policy implementations."""
 
-from typing import Tuple
-
 import dm_env
 
 from dataclasses import dataclass, field
@@ -25,11 +23,19 @@ from queue import PriorityQueue
 from collections import deque
 
 import numpy as np
-from copy import deepcopy
 
 from meltingpot.python.utils.policies import policy
 
+from meltingpot.python.utils.substrates import shapes
+
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
+
+ROLE_SPRITE_DICT = {
+   'free': shapes.CUTE_AVATAR,
+   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
+   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
+   'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
+   }
 
 @dataclass(order=True)
 class PrioritizedItem:
@@ -45,6 +51,7 @@ class RuleObeyingPolicy(policy.Policy):
                env: dm_env.Environment, 
                player_idx: int,
                log_output: bool,
+               look: shapes,
                role: str = "free",
                prohibitions: list = DEFAULT_PROHIBITIONS, 
                obligations: list = DEFAULT_OBLIGATIONS) -> None:
@@ -55,6 +62,7 @@ class RuleObeyingPolicy(policy.Policy):
     """
     self._index = player_idx
     self.role = role
+    self.look = look
     self._max_depth = 30
     self.log_output = log_output
     self.action_spec = env.action_spec()[0]
@@ -102,7 +110,7 @@ class RuleObeyingPolicy(policy.Policy):
       # Check if any of the obligations are active
       self.current_obligation = None
       for obligation in self.obligations:
-         if obligation.holds_in_history(self.history, self.role):
+         if obligation.holds_in_history(self.history, self.look):
            self.current_obligation = obligation
            break
          
@@ -411,7 +419,7 @@ class RuleObeyingPolicy(policy.Policy):
       return True
     elif self.current_obligation != None:
       return self.current_obligation.satisfied(
-        timestep.observation, self.role)
+        timestep.observation, self.look)
     elif timestep.reward >= 1.0:
       return True
     return False

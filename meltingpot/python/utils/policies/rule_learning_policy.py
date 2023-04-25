@@ -25,8 +25,9 @@ class RuleLearningPolicy(RuleObeyingPolicy):
     def __init__(self,
                  env: dm_env.Environment,
                  player_idx: int,
-                 player_looks: list,
+                 other_player_looks: list,
                  log_output: bool,
+                 look: shapes,
                  role: str = "learner",
                  potential_obligations: list = POTENTIAL_OBLIGATIONS,
                  potential_prohibitions: list = POTENTIAL_PROHIBITIONS,
@@ -35,6 +36,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         
         self._index = player_idx
         self.role = role
+        self.look = look
         self._max_depth = 35
         self.log_output = log_output
         self.selection_mode = selection_mode
@@ -46,8 +48,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.obligations = []
         self.prohibitions = []
         self.current_obligation = None
-        self.player_looks = player_looks
-        self.num_total_agents = len(player_looks)
+        self.player_looks = other_player_looks
+        self.num_total_agents = len(other_player_looks)
         self.num_rules = len(self.potential_rules)
         self.rule_beliefs = np.array([(0.2)]*self.num_rules)
         self.nonself_active_obligations = np.array([dict() for _ in range(self.num_total_agents)])
@@ -140,7 +142,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             return len(past_available_actions)
         past_updated_obs = super().update_observation(past_obs, x, y)
 
-        if rule.satisfied(past_updated_obs, player_role):
+        if rule.satisfied(past_updated_obs, self.look):
             if rule in self.nonself_active_obligations[player_idx].keys():
                 if self.nonself_active_obligations[player_idx][rule] <= self._max_depth:
                     # obligation satisfied
@@ -150,7 +152,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                         return np.log(1/len(past_available_actions)-1) # probably random action
                     return np.log(1)
 
-        elif rule.holds_in_history(player_history, player_role):
+        elif rule.holds_in_history(player_history, self.look):
             if rule in self.nonself_active_obligations[player_idx].keys():
                 self.nonself_active_obligations[player_idx][rule] += 1
             else:

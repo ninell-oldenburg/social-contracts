@@ -579,21 +579,26 @@ def get_dry_painted_wall_palette(base_color: shapes.Color
       "#": shapes.scale_color(base_color, 0.90, 150),
   }
 
-PLAYER_COLOR_PALETTES = []
+GREY_PLAYER_COLOR_PALETTES = []
+COLOR_PLAYER_PALETTES = []
 BRUSH_PALETTES = []
+for shade_of_grey in colors.greys_avatar_palette:
+  GREY_PLAYER_COLOR_PALETTES.append(shapes.get_palette(shade_of_grey))
+  BRUSH_PALETTES.append(get_brush_palette(shade_of_grey))
+
 for human_readable_color in colors.human_readable:
-  PLAYER_COLOR_PALETTES.append(shapes.get_palette(human_readable_color))
+  COLOR_PLAYER_PALETTES.append(shapes.get_palette(human_readable_color))
   BRUSH_PALETTES.append(get_brush_palette(human_readable_color))
 
-def create_resource(num_players: int) -> PrefabConfig:
+def create_resource(roles: list) -> PrefabConfig:
   """Configure the prefab to use for all resource objects."""
   # Setup unique states corresponding to each player who can claim the resource.
   claim_state_configs = []
   claim_sprite_names = []
   claim_sprite_rgb_colors = []
-  for player_idx in range(num_players):
+  for player_idx, role in enumerate(roles):
     lua_player_idx = player_idx + 1
-    player_color = colors.human_readable[player_idx]
+    player_color = colors.human_readable[player_idx] if role == 'learner' else colors.greys_avatar_palette[player_idx]
     wet_sprite_name = "Color" + str(lua_player_idx) + "ResourceSprite"
     claim_state_configs.append({
         "state": "claimed_by_" + str(lua_player_idx),
@@ -851,7 +856,7 @@ def create_prefabs(roles: Sequence[str],
       "resource_texture": create_resource_texture(),
       "potential_dirt": create_dirt_prefab("dirtWait"),
       "actual_dirt": create_dirt_prefab("dirt"),
-      "resource": create_resource(num_players=num_players),
+      "resource": create_resource(roles=roles),
       "avatar_copy": create_avatar_copy(roles=roles),
       "inventory_display": create_inventory_display()
   }
@@ -920,7 +925,7 @@ def create_avatar_object(player_idx: int,
   # Setup the self vs other sprite mapping.
   source_sprite_self = "Avatar" + str(lua_index)
 
-  color_palette = PLAYER_COLOR_PALETTES[player_idx]
+  player_palette = COLOR_PLAYER_PALETTES[player_idx] if role == 'learner' else GREY_PLAYER_COLOR_PALETTES[player_idx]
   paintbrush_palette = BRUSH_PALETTES[player_idx]
 
   live_state_name = "player{}".format(lua_index)
@@ -954,7 +959,7 @@ def create_avatar_object(player_idx: int,
                   "renderMode": "ascii_shape",
                   "spriteNames": [source_sprite_self],
                   "spriteShapes": [shapes.CUTE_AVATAR],
-                  "palettes": [{**color_palette, **paintbrush_palette}],
+                  "palettes": [{**player_palette, **paintbrush_palette}],
                   "noRotates": [True]
               }
           },
@@ -1044,7 +1049,7 @@ def create_avatar_object(player_idx: int,
           {
               "component": "ResourceClaimer",
               "kwargs": {
-                  "color": color_palette["*"],
+                  "color": player_palette["*"],
                   "playerIndex": lua_index,
                   "beamLength": 1,
                   "beamRadius": 0,
@@ -1224,7 +1229,7 @@ def create_avatar_copy(roles: list) -> Mapping[str, Any]:
     # Lua is 1-indexed.
     lua_idx = player_idx + 1
     source_sprite_self = "Avatar" + str(lua_idx)
-    color_palette = PLAYER_COLOR_PALETTES[player_idx]
+    player_palette = COLOR_PLAYER_PALETTES[player_idx] if role == 'learner' else GREY_PLAYER_COLOR_PALETTES[player_idx]
     copy_state_configs.append({
         "state": "copy_of_" + str(lua_idx),
         "layer": "upperPhysical",
@@ -1233,7 +1238,7 @@ def create_avatar_copy(roles: list) -> Mapping[str, Any]:
     })
     copy_sprite_names.append(source_sprite_self)
     sprite_shapes.append(ROLE_SPRITE_DICT[role])
-    copy_palette_colors.append(color_palette)
+    copy_palette_colors.append(player_palette)
 
   avatar_copy_object = {
     "name": "avatar_copy",

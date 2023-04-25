@@ -62,22 +62,25 @@ def main(roles, episodes, num_iteration, create_video=True, log_output=True):
 
   env = substrate.build(config['substrate'], roles=config['roles'])
 
-  player_looks = [ROLE_SPRITE_DICT[role] for role in config['roles']]
+  other_player_looks = [ROLE_SPRITE_DICT[role] for role in config['roles']]
 
   bots = []
   role_str = ''
   for i in range(len(roles)):
+    role = config['roles'][i]
     if i < num_focal_bots:
       bots.append(RuleObeyingPolicy(env=env, 
-                                    role=config['roles'][i], 
+                                    look=ROLE_SPRITE_DICT[role],
+                                    role=role, 
                                     log_output=log_output,
                                     player_idx=i
                                     ))
     else:
       bots.append(RuleLearningPolicy(env=env, 
-                                    role=config['roles'][i], 
+                                    look=ROLE_SPRITE_DICT[role],
+                                    role=role, 
                                     player_idx=i,
-                                    player_looks=player_looks,
+                                    other_player_looks=other_player_looks,
                                     log_output=log_output,
                                     selection_mode="threshold"
                                     ))
@@ -223,7 +226,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 0
   episodes = 200
   num_iteration = 1
   main(roles=roles, episodes=episodes, num_iteration=num_iteration, create_video=True)
