@@ -46,11 +46,13 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.num_actions = self.action_spec.num_values
         self.potential_obligations = potential_obligations
         self.potential_prohibitions = potential_prohibitions
-        self.potential_rules = self.potential_obligations + self.potential_prohibitions
+        # self.potential_obligations +
+        self.potential_rules = self.potential_prohibitions
         self.obligations = []
         self.prohibitions = []
         self.current_obligation = None
         self.player_looks = other_player_looks
+        self.num_focal_agents = self.get_num_focal(self.player_looks)
         self.num_total_agents = len(other_player_looks)
         self.num_rules = len(self.potential_rules)
         self.rule_beliefs = np.array([(0.2)]*self.num_rules)
@@ -82,54 +84,57 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             "PAY_ACTION"
           ]
         
-    def update_beliefs(self, own_obs, other_agent_actions):
+    def get_num_focal(self, player_looks):
+        non_learners = 0
+        for agent_look in player_looks:
+            if agent_look != ROLE_SPRITE_DICT['learner']:
+                non_learners += 1
+
+        return non_learners
+        
+    def update_beliefs(self, other_actions):
         """Update the beliefs of the rules based on the 
         observations and actions."""
-        for player_idx, action in enumerate(other_agent_actions):
-        # check if the action violates the rule
-            pos_list = self.get_position_list(own_obs)
+        for player_idx in range(self.num_focal_agents):
             # Compute the posterior of each rule
-            self.compute_posterior(player_idx, action, pos_list)
+            self.compute_posterior(player_idx, other_actions[player_idx])
 
-        # print(self.rule_beliefs)
+        print(self.rule_beliefs)
 
-    def compute_posterior(self, player_idx, action, pos_list) -> None:
+    def compute_posterior(self, player_idx, player_act) -> None:
         """Writes the posterior for a rule given an observation 
         and other agents' actions."""
 
-        for rule_index, rule in enumerate(self.potential_rules):
+        for rule_idx, rule in enumerate(self.potential_rules):
+
+            #print('rule_idx: ' + str(rule_idx))
 
             if isinstance(rule, ProhibitionRule):
-                log_llh = self.comp_prohib_llh(player_idx, rule, pos_list)
+                log_llh = self.comp_prohib_llh(player_idx, rule, player_act)
     
             elif isinstance(rule, ObligationRule):
-                log_llh = self.comp_oblig_llh(player_idx, rule, pos_list)
+                log_llh = self.comp_oblig_llh(player_idx, rule)
                         
             # BAYESIAN UPDATING
-            prior = self.rule_beliefs[rule_index]
+            prior = self.rule_beliefs[rule_idx]
             log_prior = np.log(prior)
             log_marginal = np.log(1/self.num_actions) # num actions
             log_posterior = (log_prior + log_llh) - log_marginal
             posterior = np.exp(log_posterior)
 
-            self.rule_beliefs[rule_index] = posterior
+            #print('llh: ' + str(log_llh))
+
+            self.rule_beliefs[rule_idx] = posterior
+            #print(posterior)
     
-    def comp_oblig_llh(self, player_idx, rule, pos_list) -> np.log:
+    def comp_oblig_llh(self, player_idx, rule) -> np.log:
         # unpack appearance, observation, position of the player
         player_look = self.player_looks[player_idx]
         player_history = [all_players_timesteps[player_idx] for all_players_timesteps in self.others_history]
         cur_obs = self.others_history[-1][player_idx]
-        pos = pos_list[player_idx]
-        x, y = pos[0], pos[1]
-
-        # DEBUGGING
-        if self.exceeds_map(cur_obs['WORLD.RGB'], x, y):
-            print('exceeds map obligation')
-            return np.log(1/self.num_actions)
-        new_obs = super().update_observation(cur_obs, x, y)
 
         if self.exists(rule):
-            if rule.satisfied(new_obs, player_look):
+            if rule.satisfied(cur_obs, player_look):
                 if rule in self.nonself_active_obligations[player_idx].keys():
                     if self.nonself_active_obligations[player_idx][rule] <= self.max_depth:
                         obedient = bernoulli(self.p_obey)
@@ -152,36 +157,51 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         
         return np.log(1/self.num_actions) # all other casees
                     
-    def comp_prohib_llh(self, player_idx, rule, pos_list) -> np.log:
+    def comp_prohib_llh(self, player_idx, rule, action) -> np.log:
     
-        """ cur_obs = self.others_history[-2][player_idx]
-        cur_pos = np.copy(cur_obs['POSITION'])
-        x, y = super().update_coordinates_based_on_action(action, cur_pos, cur_obs)
-        """
         cur_obs = self.others_history[-1][player_idx]
-        pos = pos_list[player_idx]
-        x, y = pos[0], pos[1]
-        
-        # DEBUGGING
-        if self.exceeds_map(cur_obs['WORLD.RGB'], x, y):
-            print('exceeds map prohibition')
-            return np.log(1 / self.num_actions)
-        new_obs = super().update_observation(cur_obs, x, y)
+        cur_pos = np.copy(cur_obs['POSITION'])
+        cur_obs = self.update_observation(cur_obs, cur_pos[0], cur_pos[1])
 
         if self.exists(rule): # P(a | s, r=true)
-            if rule.holds_precondition(new_obs):
-                p_prohibited = self.p_obey / self.num_actions
-                p_allowed = self.p_obey * (1 / (self.num_actions - 1)) + p_prohibited
-                p_action = random.choice([p_prohibited]+[p_allowed]*(self.num_actions - 1))
-                return np.log(p_action)
+            prohib_actions = self.get_prohib_action(cur_obs, rule, cur_pos)
+            num_prohib_acts = len(prohib_actions)
+            if rule.holds_precondition(cur_obs):
+                if action in prohib_actions: # violation
+                    # p_prohib = (1-self.p_obey) / self.num_actions
+                    return np.log(0.0001) # arbitrary small number
+                else:
+                    return np.log(1 / (self.num_actions-num_prohib_acts))
             else:
-                return np.log(1 / self.num_actions)
-            
+                return np.log(1 / (self.num_actions-num_prohib_acts))
         else: # P(a | s, r=false)
             return np.log(1 / self.num_actions)
             
     def exists(self, rule):
         return rule in self.potential_rules
+    
+    def get_prohib_action(self, observation, rule, cur_pos):
+        prohib_acts = []
+        for action in range(self.action_spec.num_values):
+            x, y = self.update_coordinates_based_on_action(action, 
+                                                            cur_pos,
+                                                            observation)
+
+            if self.exceeds_map(observation['WORLD.RGB'], x, y):
+                prohib_acts.append(action)
+                continue
+
+            if observation['SURROUNDINGS'][x][y] == -2: # non-dirt water
+                prohib_acts.append(action)
+                continue
+
+            new_obs = super().update_observation(observation, x, y)
+            action_name = super().get_action_name(action)
+            if rule.holds(new_obs, action_name):
+                prohib_acts.append(action)
+                continue
+
+        return prohib_acts
     
     def threshold_rules(self, threshold):
         """Returns rules with probability over a certain threshold."""
@@ -214,15 +234,15 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         
     def step(self,
              timestep: dm_env.TimeStep,
-             other_agents_observations,
-             other_agent_actions):
+             other_obs,
+             other_acts):
         """Use the learned rules to determine the actions of the agent."""
 
-        observation = deepcopy(timestep.observation)
-        self.others_history.append(other_agents_observations)
-        self.history.append(observation)
-        if len(self.others_history) >= 2:
-            self.update_beliefs(observation, other_agent_actions)
+        cur_obs = deepcopy(timestep.observation)
+        self.others_history.append(other_obs)
+        self.history.append(cur_obs)
+        self.update_beliefs(other_acts)
+
         self.th_obligations, self.th_prohibitions = self.threshold_rules(threshold=0.8)
         self.sampl_obligations, self.sampl_prohibitions = self.sample_rules()
 

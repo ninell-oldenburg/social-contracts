@@ -147,22 +147,20 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
         if i < num_focal_bots:
           actions[i] = bot.step(timestep_bot)
         else:
-          other_agents_actions = [action[0] for _, action in islice(
+          other_acts = [action[0] for _, action in islice(
             actions.items(), num_focal_bots)]
-          other_players_observations = [observation for observation in islice(
+          other_obs = [observation for observation in islice(
             timestep.observation, num_focal_bots)]
           actions[i] = bot.step(timestep_bot, 
-                                other_players_observations, 
-                                other_agents_actions)
+                                other_obs,
+                                other_acts)
 
       else: # action pipeline not empty
         if i >= num_focal_bots: # still update learners' beliefs
-          other_agents_actions = [action[0] for _, action in islice(
+          other_acts = [action[0] for _, action in islice(
             actions.items(), num_focal_bots)]
-          if len(bot.others_history) >= 2:
-            bot.update_beliefs(timestep_bot.observation,
-                             other_agents_actions)
-            cur_beliefs = bot.rule_beliefs
+          bot.update_beliefs(other_acts)
+          cur_beliefs = bot.rule_beliefs
             
     if log_output:
       print(actions)
@@ -249,7 +247,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 0 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 1
+  roles = ("cleaner",) * 0 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 1
   episodes = 150
   num_iteration = 1
   setting, data_dict = main(roles=roles,
@@ -260,5 +258,5 @@ if __name__ == "__main__":
   
   print(setting)
   print(data_dict)
-  print(sum(data_dict['free']))
+  print(sum(data_dict['farmer']))
   print(sum(data_dict['learner']))
