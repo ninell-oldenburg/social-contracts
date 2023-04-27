@@ -100,10 +100,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         for rule_index, rule in enumerate(self.potential_rules):
 
             if isinstance(rule, ProhibitionRule):
-                log_llh = self.comp_prohib_llh(action, rule, player_idx)
+                log_llh = self.comp_prohib_llh(player_idx, rule, pos_list)
     
             elif isinstance(rule, ObligationRule):
-                    log_llh = self.comp_oblig_llh(player_idx, rule, pos_list)
+                log_llh = self.comp_oblig_llh(player_idx, rule, pos_list)
                         
             # BAYESIAN UPDATING
             prior = self.rule_beliefs[rule_index]
@@ -134,8 +134,9 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                     if self.nonself_active_obligations[player_idx][rule] <= self.max_depth:
                         obedient = bernoulli(self.p_obey)
                         if obedient:
+                            # TODO
                             # for our cases, len(obligated_actions) == 1
-                            # TODO: however, make proper function obligated_actions(cur_state, rule)
+                            # however, make proper function obligated_actions(cur_state, rule)
                             return np.log(1)
                         else:
                             return np.log(1/(self.num_actions-1))
@@ -151,11 +152,15 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         
         return np.log(1/self.num_actions) # all other casees
                     
-    def comp_prohib_llh(self, action, rule, player_idx) -> np.log:
+    def comp_prohib_llh(self, player_idx, rule, pos_list) -> np.log:
     
-        cur_obs = self.others_history[-1][player_idx]
+        """ cur_obs = self.others_history[-2][player_idx]
         cur_pos = np.copy(cur_obs['POSITION'])
-        x, y, = super().update_coordinates_based_on_action(action, cur_pos, cur_obs)
+        x, y = super().update_coordinates_based_on_action(action, cur_pos, cur_obs)
+        """
+        cur_obs = self.others_history[-1][player_idx]
+        pos = pos_list[player_idx]
+        x, y = pos[0], pos[1]
         
         # DEBUGGING
         if self.exceeds_map(cur_obs['WORLD.RGB'], x, y):

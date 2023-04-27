@@ -1414,9 +1414,10 @@ def build(
   substrate_definition = dict(
       levelName="rule_obeying_harvest",
       levelDirectory="meltingpot/lua/levels",
+      env_seed=1,
       numPlayers=num_players,
       # Define upper bound of episode length since episodes end stochastically.
-      maxEpisodeLengthFrames=5000,
+      maxEpisodeLengthFrames=500,
       spriteSize=8,
       topology="BOUNDED",  # Choose from ["BOUNDED", "TORUS"],
       simulation={

@@ -36,6 +36,8 @@ from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, 
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
 
+DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
+
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
    'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
@@ -213,10 +215,10 @@ def split_rules(rules):
   obeyed_obligations = []
   for rule in rules:
     if isinstance(rule, ProhibitionRule):
-      obeyed_prohibitions += rule
+      obeyed_prohibitions += [rule]
 
     elif isinstance(rule, ObligationRule):
-      obeyed_obligations += rule
+      obeyed_obligations += [rule]
 
   return obeyed_prohibitions, obeyed_obligations
 
@@ -248,6 +250,15 @@ def update(actions):
 
 if __name__ == "__main__":
   roles = ("cleaner",) * 0 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 1
-  episodes = 200
+  episodes = 150
   num_iteration = 1
-  main(roles=roles, episodes=episodes, num_iteration=num_iteration, create_video=True)
+  setting, data_dict = main(roles=roles,
+                            rules=DEFAULT_RULES,
+                            episodes=episodes, 
+                            num_iteration=num_iteration, 
+                            create_video=False)
+  
+  print(setting)
+  print(data_dict)
+  print(sum(data_dict['free']))
+  print(sum(data_dict['learner']))

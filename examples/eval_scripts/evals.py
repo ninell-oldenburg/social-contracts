@@ -27,9 +27,9 @@ for setting in BASELINE_SCENARIOS:
 # Make the dataframe and save it as a csv
 start_time = time.time()
 
-abs_count = 0
 baseline_results = []
-settings = {abs_count: [ROLE_SPRITE_DICT.keys()] + DEFAULT_RULES}
+counter = 0
+settings = {counter: [ROLE_SPRITE_DICT.keys()] + DEFAULT_RULES}
 
 print()
 print('*'*50)
@@ -39,7 +39,7 @@ print()
 
 for i in range(len(BASELINE_SCENARIOS)):
     for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
-      abs_count += 1
+      counter += 1
       roles = BASELINE_SCENARIOS[i]
       cur_settings, cur_result = main(roles=roles, 
                                       episodes=50, 
@@ -48,11 +48,11 @@ for i in range(len(BASELINE_SCENARIOS)):
                                       create_video=True, 
                                       log_output=False)
       cur_df = pd.DataFrame.from_dict(cur_result)
-      settings[abs_count] = cur_settings
-      path = f"examples/results/baseline/abs{abs_count}_rule_set{rule_set_idx+1}-scenario{i+1}.csv"
+      settings[counter] = cur_settings
+      path = f"examples/results/baseline/rule_set{rule_set_idx+1}-scenario{i+1}.csv"
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
-      print(f'BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} FOR RULE SET {rule_set_idx}/{len(RULE_COMBINATIONS)} COMPLETED')
+      print(f'BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} FOR RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
 
 print()
 print('*'*50)
@@ -63,7 +63,7 @@ print()
 test_results = []
 for i in range(len(TEST_SCENARIOS)):
     for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
-      abs_count += 1
+      counter += 1
       roles = TEST_SCENARIOS[i]
       cur_settings, cur_result = main(roles=roles, 
                                       episodes=150, 
@@ -72,8 +72,8 @@ for i in range(len(TEST_SCENARIOS)):
                                       create_video=True, 
                                       log_output=False)
       cur_df = pd.DataFrame.from_dict(cur_result)
-      settings[abs_count] = cur_settings
-      path = f"examples/results/test/abs{abs_count}_rule_set{rule_set_idx+1}-scenario{i+1}.csv"
+      settings[counter] = cur_settings
+      path = f"examples/results/test/rule_set{rule_set_idx+1}-scenario{i+1}.csv"
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
       print(f'TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} FOR RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
