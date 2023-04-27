@@ -99,15 +99,13 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             # Compute the posterior of each rule
             self.compute_posterior(player_idx, other_actions[player_idx])
 
-        print(self.rule_beliefs)
+        # print(self.rule_beliefs)
 
     def compute_posterior(self, player_idx, player_act) -> None:
         """Writes the posterior for a rule given an observation 
         and other agents' actions."""
 
         for rule_idx, rule in enumerate(self.potential_rules):
-
-            #print('rule_idx: ' + str(rule_idx))
 
             if isinstance(rule, ProhibitionRule):
                 log_llh = self.comp_prohib_llh(player_idx, rule, player_act)
@@ -122,10 +120,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             log_posterior = (log_prior + log_llh) - log_marginal
             posterior = np.exp(log_posterior)
 
-            #print('llh: ' + str(log_llh))
-
             self.rule_beliefs[rule_idx] = posterior
-            #print(posterior)
     
     def comp_oblig_llh(self, player_idx, rule) -> np.log:
         # unpack appearance, observation, position of the player
@@ -139,8 +134,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                     if self.nonself_active_obligations[player_idx][rule] <= self.max_depth:
                         obedient = bernoulli(self.p_obey)
                         if obedient:
-                            # TODO
-                            # for our cases, len(obligated_actions) == 1
+                            # TODO: for our cases, len(obligated_actions) == 1
                             # however, make proper function obligated_actions(cur_state, rule)
                             return np.log(1)
                         else:
@@ -243,7 +237,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.history.append(cur_obs)
         self.update_beliefs(other_acts)
 
-        self.th_obligations, self.th_prohibitions = self.threshold_rules(threshold=0.8)
+        self.th_obligations, self.th_prohibitions = self.threshold_rules(threshold=0.95)
         self.sampl_obligations, self.sampl_prohibitions = self.sample_rules()
 
         # choose whether to use thresholded or sampled rules

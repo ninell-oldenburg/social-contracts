@@ -11,18 +11,29 @@ import itertools
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
 
 # Generate all possible combinations of the rules
-RULE_COMBINATIONS = [[]] # include empty rule set
-for i in range(1, len(DEFAULT_RULES) + 1):
+RULE_COMBINATIONS = [] # include empty rule set
+for i in range(0, len(DEFAULT_RULES) + 1):
     RULE_COMBINATIONS += list(itertools.combinations(DEFAULT_RULES, i))
 
-baseline_roles = ['free', 'cleaner', 'farmer']
-BASELINE_SCENARIOS = []
-for i in range(1, len(baseline_roles) + 1):
-    BASELINE_SCENARIOS += list(itertools.combinations(baseline_roles, i))
+print(len(RULE_COMBINATIONS))
 
-TEST_SCENARIOS = [('learner',)]
-for setting in BASELINE_SCENARIOS:
-    TEST_SCENARIOS += [setting + ('learner',)]
+baseline_roles = ['free', 'cleaner', 'farmer', 'learner']
+BASELINE_SCENARIOS = [('free',), ('cleaner',), ('farmer',),]
+TEST_SCENARIOS = []
+for i in range(1, len(baseline_roles) + 1):
+    new_comb = list(itertools.combinations(baseline_roles, i))
+    for comb in new_comb:
+      if 'learner' in comb:
+         TEST_SCENARIOS.append(comb)
+         if i > 1:
+          lst = list(comb)
+          idx = lst.index('learner')
+          lst[idx] = 'free'
+          new_comb = tuple(lst)
+          BASELINE_SCENARIOS.append(new_comb)
+
+print(len(BASELINE_SCENARIOS))
+print(len(TEST_SCENARIOS))
 
 # Make the dataframe and save it as a csv
 start_time = time.time()
