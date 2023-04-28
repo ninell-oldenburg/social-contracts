@@ -254,7 +254,7 @@ if __name__ == "__main__":
                             rules=DEFAULT_RULES,
                             episodes=episodes, 
                             num_iteration=num_iteration, 
-                            create_video=False,
+                            create_video=True,
                             log_output=False)
   
   print(sum(data_dict['cleaner']))

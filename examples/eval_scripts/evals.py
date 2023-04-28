@@ -9,7 +9,7 @@ from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, 
 import itertools
 
 baseline_roles = ['free', 'cleaner', 'farmer', 'learner']
-BASELINE_SCENARIOS = [('free',), ('cleaner',), ('farmer',),]
+BASELINE_SCENARIOS = [('free',), ('cleaner',), ('farmer',)]
 TEST_SCENARIOS = []
 for i in range(1, len(baseline_roles) + 1):
     new_comb = list(itertools.combinations(baseline_roles, i))
@@ -24,10 +24,17 @@ for i in range(1, len(baseline_roles) + 1):
           BASELINE_SCENARIOS.append(new_comb)
 
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
+STR_RULES = [rule.make_str_repr() for rule in DEFAULT_RULES]
 # Generate all possible combinations of the rules
 RULE_COMBINATIONS = [] # include empty rule set
-for i in range(0, len(DEFAULT_RULES) + 1):
-    RULE_COMBINATIONS += list(itertools.combinations(DEFAULT_RULES, i))
+for i in range(0, len(STR_RULES) + 1):
+    RULE_COMBINATIONS +=  list(itertools.combinations(STR_RULES, i))
+
+for i in range(len(RULE_COMBINATIONS)):
+  if i >= len(BASELINE_SCENARIOS):
+      BASELINE_SCENARIOS.append('')
+  if i >= len(TEST_SCENARIOS):
+     TEST_SCENARIOS.append('')
 
 start_time = time.time()
 
@@ -36,7 +43,7 @@ settings = {'BASELINE_SCENARIOS': BASELINE_SCENARIOS,
             'TEST_SCENARIOS': TEST_SCENARIOS,
             'RULE_COMBINATIONS': RULE_COMBINATIONS}
 settings_df = pd.DataFrame.from_dict(settings)
-settings_df.to_csv(path_or_buf="examples/results/test/settings.csv")
+settings_df.to_csv(path_or_buf="examples/results/settings.csv")
 
 stats_relevance = 1
 
@@ -56,7 +63,7 @@ for k in range(stats_relevance):
                                       create_video=True, 
                                       log_output=False)
       cur_df = pd.DataFrame.from_dict(cur_result)
-      path = f"examples/results/baseline/scenario{i+1}/trial{k+1}.csv"
+      path = f"examples/results/base/scenario{i+1}/trial{k+1}.csv"
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
       print(f'BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')

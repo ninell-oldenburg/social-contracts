@@ -161,7 +161,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             num_prohib_acts = len(prohib_actions)
             if rule.holds_precondition(cur_obs):
                 if action in prohib_actions: # violation
-                    return np.log(0.00000001) # arbitrarily small number
+                    return np.log(0.0000000001) # arbitrarily small number
                 else:
                     return np.log(1 / (self.num_actions-num_prohib_acts))
             else:
