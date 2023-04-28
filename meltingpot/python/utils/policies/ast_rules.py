@@ -36,6 +36,7 @@ class ProhibitionRule(EnvironmentRule):
             prohibited_action: action that is disallowed
         """
 
+        self.pure_precon = precondition
         self.precondition = "lambda obs : " + precondition
         self.prohibited_action = prohibited_action
 
@@ -47,7 +48,7 @@ class ProhibitionRule(EnvironmentRule):
         return super().holds_precondition(obs)
     
     def make_str_repr(self):
-        return self.precondition + ' -> !' + self.prohibited_action
+        return self.pure_precon + ' -> !' + self.prohibited_action
     
 class ObligationRule(EnvironmentRule):
     """Contains rules that emit a subgoal."""
@@ -61,6 +62,8 @@ class ObligationRule(EnvironmentRule):
             role: role of the agent
         """
 
+        self.pure_precon = precondition
+        self.pure_goal = goal
         self.precondition = "lambda obs : " + precondition
         self.goal = "lambda obs : " + goal
         self.target_look = target_look
@@ -85,4 +88,4 @@ class ObligationRule(EnvironmentRule):
         return goal_formula(observation)
     
     def make_str_repr(self):
-        return self.precondition + ' -> ' + self.goal
+        return self.pure_precon + ' -> ' + self.pure_goal

@@ -1,5 +1,5 @@
 
-from examples.eval_scripts.view_custom_model import main, ROLE_SPRITE_DICT
+from examples.eval_scripts.view_custom_model import main
 import pandas as pd
 import time
 import datetime
@@ -38,25 +38,28 @@ settings = {'BASELINE_SCENARIOS': BASELINE_SCENARIOS,
 settings_df = pd.DataFrame.from_dict(settings)
 settings_df.to_csv(path_or_buf="examples/results/test/settings.csv")
 
+stats_relevance = 1
+
 print()
 print('*'*50)
 print('STARTING BASELINE SCENARIOS')
 print('*'*50)
 print()
 
-for i in range(len(BASELINE_SCENARIOS)):
-    roles = BASELINE_SCENARIOS[i]
-    cur_settings, cur_result = main(roles=roles, 
-                                    episodes=200, 
-                                    num_iteration=i, 
-                                    rules=DEFAULT_RULES, 
-                                    create_video=True, 
-                                    log_output=False)
-    cur_df = pd.DataFrame.from_dict(cur_result)
-    path = f"examples/results/baseline/scenario{i+1}.csv"
-    cur_df.to_csv(path_or_buf=path)
-    print('='*50)
-    print(f'BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
+for k in range(stats_relevance):
+  for i in range(len(BASELINE_SCENARIOS)):
+      roles = BASELINE_SCENARIOS[i]
+      cur_settings, cur_result = main(roles=roles, 
+                                      episodes=200, 
+                                      num_iteration=i, 
+                                      rules=DEFAULT_RULES, 
+                                      create_video=True, 
+                                      log_output=False)
+      cur_df = pd.DataFrame.from_dict(cur_result)
+      path = f"examples/results/baseline/scenario{i+1}/trial{k+1}.csv"
+      cur_df.to_csv(path_or_buf=path)
+      print('='*50)
+      print(f'BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
 
 print()
 print('*'*50)
@@ -64,20 +67,20 @@ print('STARTING TEST SCENARIOS')
 print('*'*50)
 print()
 
-test_results = []
-for i in range(len(TEST_SCENARIOS)):
-    roles = TEST_SCENARIOS[i]
-    cur_settings, cur_result = main(roles=roles, 
-                                    episodes=200, 
-                                    num_iteration=i, 
-                                    rules=DEFAULT_RULES, 
-                                    create_video=True, 
-                                    log_output=False)
-    cur_df = pd.DataFrame.from_dict(cur_result)
-    path = f"examples/results/test/scenario{i+1}.csv"
-    cur_df.to_csv(path_or_buf=path)
-    print('='*50)
-    print(f'TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
+for k in range(stats_relevance):
+  for i in range(len(TEST_SCENARIOS)):
+      roles = TEST_SCENARIOS[i]
+      cur_settings, cur_result = main(roles=roles, 
+                                      episodes=200, 
+                                      num_iteration=i, 
+                                      rules=DEFAULT_RULES, 
+                                      create_video=True, 
+                                      log_output=False)
+      cur_df = pd.DataFrame.from_dict(cur_result)
+      path = f"examples/results/test/scenario{i+1}/trial{k+1}..csv"
+      cur_df.to_csv(path_or_buf=path)
+      print('='*50)
+      print(f'TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
 
 print()
 print('*'*50)
@@ -85,18 +88,19 @@ print('STARTING RULE TRIALS')
 print('*'*50)
 print()
 
-for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
-  cur_settings, cur_result = main(roles=roles, 
-                                    episodes=50, 
-                                    num_iteration=i, 
-                                    rules=rule_set, 
-                                    create_video=True, 
-                                    log_output=False)
-  cur_df = pd.DataFrame.from_dict(cur_result)
-  path = f"examples/results/rules_trials/rule_set{rule_set_idx+1}.csv"
-  cur_df.to_csv(path_or_buf=path)
-  print('='*50)
-  print(f'RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
+for k in range(stats_relevance):
+  for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
+    cur_settings, cur_result = main(roles=roles, 
+                                      episodes=50, 
+                                      num_iteration=i, 
+                                      rules=rule_set, 
+                                      create_video=True, 
+                                      log_output=False)
+    cur_df = pd.DataFrame.from_dict(cur_result)
+    path = f"examples/results/rules_trials/rule_set{rule_set_idx+1}/trial{k+1}..csv"
+    cur_df.to_csv(path_or_buf=path)
+    print('='*50)
+    print(f'RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
 
 seconds = time.time() - start_time
 hours = str(datetime.timedelta(seconds=seconds))

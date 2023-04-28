@@ -53,7 +53,7 @@ local function apiFactory(env)
   function api:init(kwargs)
     read_settings.apply(tables.flatten(env.settings), self._settings)
     read_settings.apply(kwargs, self._settings)
-    random:seed(self._settings.env_seed)
+    -- random:seed(self._settings.env_seed)
 
     self.simulation = env.Simulation{
         numPlayers = self._settings.numPlayers,

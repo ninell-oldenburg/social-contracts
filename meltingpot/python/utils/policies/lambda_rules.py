@@ -92,23 +92,23 @@ payment_precon_cleaner_0 = "obs['TIME_TO_GET_PAYED'] == 0"
 payment_goal_cleaner_1 = "obs['TIME_TO_GET_PAYED'] == 1"
 
 POTENTIAL_OBLIGATIONS = [
-  ObligationRule(cleaning_precon_free, cleaning_goal_free, free),
-  ObligationRule(payment_precon_farmer, payment_goal_farmer, farmer),
-  ObligationRule(payment_precon_cleaner, payment_goal_cleaner, cleaner),
-  ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, cleaner),
   # clean the water if less than 1 agent is cleaning
+  ObligationRule(cleaning_precon_free, cleaning_goal_free, free),
   ObligationRule(cleaning_precon_free_2, cleaning_goal_free_2, free),
   ObligationRule(cleaning_precon_free_3, cleaning_goal_free_3, free),
   ObligationRule(cleaning_precon_free_4, cleaning_goal_free_4, free),
   ObligationRule(cleaning_precon_free_5, cleaning_goal_free_5, free),
   # If you're in the farmer role, pay cleaner with apples
+  ObligationRule(payment_precon_farmer, payment_goal_farmer, farmer),
   ObligationRule(payment_precon_farmer_5, payment_goal_farmer_5, farmer),
   ObligationRule(payment_precon_farmer_6, payment_goal_farmer_6, farmer),
   ObligationRule(payment_precon_farmer_7, payment_goal_farmer_7, farmer),
   # If you're in the cleaner role, clean in a certain rhythm
+  ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, cleaner),
   ObligationRule(cleaning_precon_cleaner_3, cleaning_goal_cleaner_2, cleaner),
   ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_3, cleaner),
   # if you're a cleaner, wait until you've received a payment
+  ObligationRule(payment_precon_cleaner, payment_goal_cleaner, cleaner),
   ObligationRule(payment_precon_cleaner_0, payment_goal_cleaner_1, cleaner),
 ]
 
@@ -124,12 +124,12 @@ harvest_apple_precon_6 = "obs['NUM_APPLES_AROUND'] < 6 and obs['CUR_CELL_HAS_APP
 harvest_apple_precon_7 = "obs['NUM_APPLES_AROUND'] < 7 and obs['CUR_CELL_HAS_APPLE']"
 harvest_apple_precon_8 = "obs['NUM_APPLES_AROUND'] < 8 and obs['CUR_CELL_HAS_APPLE']"
 cur_cell_has_apple_precon = "obs['CUR_CELL_HAS_APPLE']"
-position_equal_precon = "lambda obs: obs['POSITION'][0] == obs['POSITION'][1]"
-total_num_cleaners_precon = "lambda obs: obs['TOTAL_NUM_CLEANERS'] == 1"
-orientation_north_precon = "lambda obs: obs['ORIENTATION'] == 0"
-orientation_east_precon = "lambda obs: obs['ORIENTATION'] == 1"
-orientation_south_precon = "lambda obs: obs['ORIENTATION'] == 2"
-orientation_west_precon = "lambda obs: obs['ORIENTATION'] == 3"
+position_equal_precon = "obs['POSITION'][0] == obs['POSITION'][1]"
+total_num_cleaners_precon = "obs['TOTAL_NUM_CLEANERS'] == 1"
+orientation_north_precon = "obs['ORIENTATION'] == 0"
+orientation_east_precon = "obs['ORIENTATION'] == 1"
+orientation_south_precon = "obs['ORIENTATION'] == 2"
+orientation_west_precon = "obs['ORIENTATION'] == 3"
 
 POTENTIAL_PROHIBITIONS = [
   # don't go if <x apples around
