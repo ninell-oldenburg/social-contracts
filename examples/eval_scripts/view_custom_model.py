@@ -45,7 +45,7 @@ ROLE_SPRITE_DICT = {
    'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
    }
 
-def main(roles, episodes, num_iteration, rules, create_video=True, log_output=True):
+def main(roles, episodes, num_iteration, rules, create_video=True, log_output=True, env_seed=1):
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
       "--substrate_name",
@@ -90,7 +90,7 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
                                     role=role, 
                                     player_idx=i,
                                     other_player_looks=other_player_looks,
-                                    log_output=log_output,
+                                    log_output=True,
                                     selection_mode="threshold"
                                     ))
       
@@ -247,16 +247,17 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 0 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 1
-  episodes = 150
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 1
+  episodes = 300
   num_iteration = 1
   setting, data_dict = main(roles=roles,
                             rules=DEFAULT_RULES,
                             episodes=episodes, 
                             num_iteration=num_iteration, 
-                            create_video=False)
+                            create_video=False,
+                            log_output=False)
   
-  print(setting)
-  print(data_dict)
+  print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
+  print(sum(data_dict['free']))
   print(sum(data_dict['learner']))

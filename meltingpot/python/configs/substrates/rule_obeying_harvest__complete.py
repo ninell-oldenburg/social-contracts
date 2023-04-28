@@ -71,7 +71,7 @@ from meltingpot.python.utils.substrates import specs
 PrefabConfig = game_object_utils.PrefabConfig
 
 APPLE_RESPAWN_RADIUS = 2.0
-REGROWTH_PROBABILITIES = [0.01, 0.03, 0.05, 0.08]
+REGROWTH_PROBABILITIES = [0.02, 0.05, 0.07, 0.09]
 OBSERVATION_RADIUS = 6 # defines radius that agents can observe
 
 ASCII_MAP = """
@@ -1414,7 +1414,7 @@ def build(
   substrate_definition = dict(
       levelName="rule_obeying_harvest",
       levelDirectory="meltingpot/lua/levels",
-      env_seed=1,
+      #env_seed=env_seed,
       numPlayers=num_players,
       # Define upper bound of episode length since episodes end stochastically.
       maxEpisodeLengthFrames=500,

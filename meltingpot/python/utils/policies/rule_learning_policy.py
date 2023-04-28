@@ -46,8 +46,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.num_actions = self.action_spec.num_values
         self.potential_obligations = potential_obligations
         self.potential_prohibitions = potential_prohibitions
-        # self.potential_obligations +
-        self.potential_rules = self.potential_prohibitions
+        self.potential_rules = self.potential_obligations + self.potential_prohibitions
         self.obligations = []
         self.prohibitions = []
         self.current_obligation = None
@@ -162,8 +161,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             num_prohib_acts = len(prohib_actions)
             if rule.holds_precondition(cur_obs):
                 if action in prohib_actions: # violation
-                    # p_prohib = (1-self.p_obey) / self.num_actions
-                    return np.log(0.0001) # arbitrary small number
+                    return np.log(0.00000001) # arbitrarily small number
                 else:
                     return np.log(1 / (self.num_actions-num_prohib_acts))
             else:

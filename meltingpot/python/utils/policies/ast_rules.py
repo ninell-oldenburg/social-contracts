@@ -9,7 +9,7 @@ class EnvironmentRule():
             precondition: rule to be evaluated against
                 the current timestep observation
         """
-        self.precondition = precondition
+        self.precondition = "lambda obs : " + precondition
 
     def walk_lambda(self, ast_tree):
         # Wrap the lambda node in a complete expression
@@ -36,7 +36,7 @@ class ProhibitionRule(EnvironmentRule):
             prohibited_action: action that is disallowed
         """
 
-        self.precondition = precondition
+        self.precondition = "lambda obs : " + precondition
         self.prohibited_action = prohibited_action
 
     def holds(self, obs, action):
@@ -61,8 +61,8 @@ class ObligationRule(EnvironmentRule):
             role: role of the agent
         """
 
-        self.precondition = precondition
-        self.goal = goal
+        self.precondition = "lambda obs : " + precondition
+        self.goal = "lambda obs : " + goal
         self.target_look = target_look
 
     def holds_in_history(self, observations, look):
@@ -71,10 +71,10 @@ class ObligationRule(EnvironmentRule):
             return False
         
         for obs in observations:
-            if not super().holds_precondition(obs):
-                return False
+            if super().holds_precondition(obs):
+                return True
         
-        return True
+        return False
     
     def satisfied(self, observation, look):
         """Returns True if the rule goal is satisfied."""
