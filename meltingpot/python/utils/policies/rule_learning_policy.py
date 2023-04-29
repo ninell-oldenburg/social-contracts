@@ -133,9 +133,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         past_obs = self.others_history[-2][player_idx]
 
         past_pos = np.copy(past_obs['POSITION'])
+        # transition to next possible observation
         x, y = super().update_coordinates_based_on_action(action, past_pos, past_obs)
         if self.exceeds_map(past_obs['WORLD.RGB'], x, y):
-            return np.log(1/(self.num_actions))
+            return np.log(1/(self.num_actions)) # random action
     
         next_obs = super().update_observation(past_obs, x, y)
 
