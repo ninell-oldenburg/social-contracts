@@ -126,14 +126,14 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
             self.rule_beliefs[rule_idx] = posterior
     
-    def comp_oblig_llh(self, player_idx, rule, action) -> np.log:
+    def comp_oblig_llh(self, player_idx, rule, action) -> float:
         # unpack appearance, observation, position of the player
         player_look = self.player_looks[player_idx]
         player_history = [all_players_timesteps[player_idx] for all_players_timesteps in self.others_history]
         past_obs = self.others_history[-2][player_idx]
 
         past_pos = np.copy(past_obs['POSITION'])
-        # transition to next possible observation
+        # transition to next possible observation with observed action
         x, y = super().update_coordinates_based_on_action(action, past_pos, past_obs)
         if self.exceeds_map(past_obs['WORLD.RGB'], x, y):
             return np.log(1/(self.num_actions)) # random action
@@ -159,16 +159,18 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                     p_obedient_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
                     return np.log(p_obedient_action)
                 else: # Rule has expired, i.e. agent disobeyed the obligation
-                    p_disobedient_action = (1-self.p_obey)/(self.num_actions)
-                    return np.log(p_disobedient_action)
+                    #p_disobedient_action = (1-self.p_obey)/(self.num_actions)
+                    return np.log(1/(self.num_actions))
+                    #return np.log(p_disobedient_action)
             else: # obligation not active
-                p_disobedient_action = (1-self.p_obey)/(self.num_actions)
-                return np.log(p_disobedient_action)
+                #p_disobedient_action = (1-self.p_obey)/(self.num_actions)
+                return np.log(1/(self.num_actions))
+                #return np.log(p_disobedient_action)
         else: # action has not fulfilled the obligation
          return np.log(1/(self.num_actions))
 
                     
-    def comp_prohib_llh(self, player_idx, rule, action) -> np.log:
+    def comp_prohib_llh(self, player_idx, rule, action) -> float:
     
         past_obs = self.others_history[-2][player_idx]
         past_pos = np.copy(past_obs['POSITION'])
@@ -252,7 +254,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.append_history(timestep, other_obs)
         if len(self.history) > 1:
             self.update_beliefs(other_acts)
-        self.th_obligations, self.th_prohibitions = self.threshold_rules(threshold=0.95)
+        self.th_obligations, self.th_prohibitions = self.threshold_rules(threshold=0.99)
         self.sampl_obligations, self.sampl_prohibitions = self.sample_rules()
 
         # choose whether to use thresholded or sampled rules
