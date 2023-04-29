@@ -75,33 +75,31 @@ REGROWTH_PROBABILITIES = [0.02, 0.05, 0.07, 0.09]
 OBSERVATION_RADIUS = 6 # defines radius that agents can observe
 
 ASCII_MAP = """
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-WHFFFHFFHFHFHFHFHFHFHHFHFFHFW
-WHFHFHFFHFHFHFHFHFHFHHFHFFHFW
-WHFFFFFFHFHFHFHFHFHFHHFHFFHFW
-W==============+~FHHHHHHf===W
-W   P    P      ===+~SSf    W
-W           P   P  <~Sf  P  W
-W  P             P <~S>     W
-W^T^T^T^T^T^T^T^T^T;~S^T^T^TW
-WAAA____A____________A____AAW
-WAA____AAA____Q_____AAA____AW
-WA____AAAAA________AAAAA____W
-W______AAA__________AAA_____W
-W_______A____________A______W
-W__A___Q______A______Q___A__W
-W_AAA________AAA________AAA_W
-WAAAAA______AAAAA______AAAAAW
-W_AAA________AAA________AAA_W
-W__A__________A__________A__W
-W__GGGGGGGGGGGGGGGGGGGGGGG__W
-W__GGGGGGGGGGGGGGGGGGGGGGG__W
-WGGGGGGGGGGGGGGGGGGGGGGGGGGGW
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-WD-----WD-----WD-----WD-----W
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-WD-----WD-----WD-----WD-----W
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+WWWWWWWWWWWWWWWWWWWWWWW
+WFHFHFHFHFHFHFHHFHFFHFW
+WFHFHFHFHFHFHFHHFHFFHFW
+W========+~FHHHHHHf===W
+W   P     ===+~SSf    W
+W      P     <~Sf  P  W
+W          P <~S>     W
+WT^TT^T^T^T^T;~S^T^T^TW
+WA_____________A____AAW
+WAA______Q____AAA____AW
+WAAA_________AAAAA____W
+WAA___________AAA_____W
+WA_____________A______W
+W______A____Q______A__W
+W_____AAA_________AAA_W
+W____AAAAA_______AAAAAW
+W_____AAA_________AAA_W
+W______A___________A__W
+W__GGGGGGGGGGGGGGGGG__W
+WGGGGGGGGGGGGGGGGGGGGGW
+WWWWWWWWWWWWWWWWWWWWWWW
+WD-----WD-----WD-----WW
+WWWWWWWWWWWWWWWWWWWWWWW
+WD-----WD-----WD-----WW
+WWWWWWWWWWWWWWWWWWWWWWW
 """
 
 x_size = ASCII_MAP.find('\n', 1) -2
@@ -887,7 +885,7 @@ def create_scene():
           {
               "component": "DirtSpawner",
               "kwargs": {
-                  "dirtSpawnProbability": 0.5,
+                  "dirtSpawnProbability": 0.2,
                   "delayStartOfDirtSpawning": 50,
               },
           },

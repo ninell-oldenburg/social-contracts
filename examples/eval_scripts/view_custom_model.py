@@ -143,23 +143,25 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
       
       cum_reward[i] += timestep_bot.reward
       
-      if len(actions[i]) == 0: # action pipeline empty
-        if i < num_focal_bots:
+      if i < num_focal_bots:
+        if len(actions[i]) == 0: # action pipeline empty
           actions[i] = bot.step(timestep_bot)
-        else:
-          other_acts = [action[0] for _, action in islice(
-            actions.items(), num_focal_bots)]
-          other_obs = [observation for observation in islice(
-            timestep.observation, num_focal_bots)]
-          actions[i] = bot.step(timestep_bot, 
-                                other_obs,
-                                other_acts)
 
-      else: # action pipeline not empty
-        if i >= num_focal_bots: # still update learners' beliefs
-          other_acts = [action[0] for _, action in islice(
-            actions.items(), num_focal_bots)]
-          bot.update_beliefs(other_acts)
+      else: # if not focal bot 
+        other_acts = [action[0] for _, action in islice(
+          actions.items(), num_focal_bots)]
+        other_obs = [observation for observation in islice(
+          timestep.observation, num_focal_bots)]
+        
+        if len(actions[i]) == 0: # action pipeline empty
+          actions[i] = bot.step(timestep_bot, 
+                              other_obs,
+                              other_acts)
+
+        else: # action pipeline not empty
+          bot.append_history(timestep_bot, other_obs)
+          if len(bot.history) > 1:
+            bot.update_beliefs(other_acts)
           cur_beliefs = bot.rule_beliefs
             
     if log_output:
