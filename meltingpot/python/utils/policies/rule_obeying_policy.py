@@ -63,7 +63,7 @@ class RuleObeyingPolicy(policy.Policy):
     self._index = player_idx
     self.role = role
     self.look = look
-    self.max_depth = 30
+    self.max_depth = 20
     self.log_output = log_output
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions

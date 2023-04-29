@@ -32,6 +32,7 @@ from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
+from meltingpot.python.utils.policies.lambda_rules import CLEANING_RULES, PICK_APPLE_RULES, TERRITORY_RULES
 
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
@@ -46,20 +47,9 @@ ROLE_SPRITE_DICT = {
    }
 
 def main(roles, episodes, num_iteration, rules, create_video=True, log_output=True, env_seed=1):
-  parser = argparse.ArgumentParser(description=__doc__)
-  parser.add_argument(
-      "--substrate_name",
-      type=str,
-      default="complete",
-      help="Substrate name to load. Choose for a reduced version of the "
-      "rule_obeying_harvest template: 'harvest' for only harvest, 'pollution' "
-      "for harvest + pollution, or 'territory' for harvest + territory "
-      "dimensions. Default is the complete environment.")
 
-  args = parser.parse_args()
-
-  level_name = args.substrate_name
-  substrate_name = f'rule_obeying_harvest__{level_name}'
+  level_name = get_name_from_rules(rules)
+  substrate_name = f'rule_obeying_harvest_{level_name}'
   num_bots = len(roles)
   num_focal_bots = num_bots - roles.count("learner")
 
@@ -123,6 +113,7 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
       (int(shape[1] * scale), int(shape[0] * scale)))
 
   for k in range(episodes):
+    print(f"timestep: {k}")
     obs = timestep.observation[0]["WORLD.RGB"]
     obs = np.transpose(obs, (1, 0, 2))
     surface = pygame.surfarray.make_surface(obs)
@@ -190,7 +181,7 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
   """ Profiler Run:
   ~ python3 -m cProfile -o run1.prof -s cumtime  examples/evals/evals.py """
 
-def append_to_dict(data_dict, reward_arr, beliefs, all_roles):
+def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles) -> dict:
   for i, key in enumerate(data_dict):
     if i < 4: # player rewards
       if key in all_roles:
@@ -209,6 +200,28 @@ def get_index(role, all_roles):
   for i, name in enumerate(all_roles):
     if name == role:
       return i
+    
+def get_name_from_rules(rules: list) -> str:
+  components = set()
+  for rule in rules:
+    if rule in CLEANING_RULES:
+      components.add("cleaning")
+    elif rule in TERRITORY_RULES:
+      components.add("territory")
+    elif rule in PICK_APPLE_RULES:
+      components.add("apples")
+
+  if len(components) == 0:
+    return "_empty"
+  elif len(components) == 3:
+    return "_complete"
+  else:
+    output = ''
+    for item in sorted(list(components)):
+      print(item)
+      output += f"_{item}"
+
+  return output
 
 def split_rules(rules):
   obeyed_prohibitions = []

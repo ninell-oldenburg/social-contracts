@@ -38,7 +38,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self._index = player_idx
         self.role = role
         self.look = look
-        self.max_depth = 35
+        self.max_depth = 20
         self.p_obey = 0.9
         self.log_output = log_output
         self.selection_mode = selection_mode
@@ -98,7 +98,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             # Compute the posterior of each rule
             self.compute_posterior(player_idx, other_actions[player_idx])
 
-        print(self.rule_beliefs)
+        # print(self.rule_beliefs)
 
     def compute_posterior(self, player_idx, player_act) -> None:
         """Writes the posterior for a rule given an observation 
@@ -108,10 +108,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
             # P(a | r = 1)
             if isinstance(rule, ProhibitionRule):
-                log_llh = self.comp_prohib_llh(player_idx, rule, player_act, rule_idx)
+                log_llh = self.comp_prohib_llh(player_idx, rule, player_act)
     
             elif isinstance(rule, ObligationRule):
-                log_llh = self.comp_oblig_llh(player_idx, rule, player_act, rule_idx)
+                log_llh = self.comp_oblig_llh(player_idx, rule, player_act)
                         
             # BAYESIAN UPDATING
             # P(r = 1)
@@ -126,7 +126,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
             self.rule_beliefs[rule_idx] = posterior
     
-    def comp_oblig_llh(self, player_idx, rule, action, rule_idx) -> np.log:
+    def comp_oblig_llh(self, player_idx, rule, action) -> np.log:
         # unpack appearance, observation, position of the player
         player_look = self.player_looks[player_idx]
         player_history = [all_players_timesteps[player_idx] for all_players_timesteps in self.others_history]
@@ -168,7 +168,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
          return np.log(1/(self.num_actions))
 
                     
-    def comp_prohib_llh(self, player_idx, rule, action, rule_idx) -> np.log:
+    def comp_prohib_llh(self, player_idx, rule, action) -> np.log:
     
         past_obs = self.others_history[-2][player_idx]
         past_pos = np.copy(past_obs['POSITION'])
@@ -178,18 +178,13 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         num_prohib_acts = len(prohib_actions)
         if rule.holds_precondition(past_obs):
             if action in prohib_actions: # violation
-                p_disobedient_action = (1-self.p_obey)/(self.num_actions)
-                return np.log(p_disobedient_action)
+                return np.log(0)
             else: # action not prohibited
                 p_obedient_action = 1/(self.num_actions-num_prohib_acts)
                 return np.log(p_obedient_action)
         else: # precondition doesn't hold
             p_obedient_action = 1/(self.num_actions-num_prohib_acts)
             return np.log(p_obedient_action)
-            
-    def exists(self, idx):
-        #return True
-        return bernoulli(self.rule_beliefs[idx])
     
     def get_prohib_action(self, observation, rule, cur_pos):
         prohib_acts = []

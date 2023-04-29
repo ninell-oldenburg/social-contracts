@@ -17,7 +17,6 @@ free = ROLE_SPRITE_DICT["free"]
 farmer = ROLE_SPRITE_DICT["farmer"]
 cleaner = ROLE_SPRITE_DICT["cleaner"]
 
-
 """ 
 #################################################
 ################# DEFAULT RULES #################
@@ -44,17 +43,34 @@ DEFAULT_OBLIGATIONS = [
   ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, cleaner),
 ]
 
+CLEANING_RULES = [
+  # clean the water if less than 1 agent is cleaning
+  ObligationRule(cleaning_precon_free, cleaning_goal_free, free),
+  # If you're in the cleaner role, clean in a certain rhythm
+  ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, cleaner),
+]
+
 """ 
 ################# PROHIBITIONS ################## 
 """
-harvest_apple_precon_standard = "obs['NUM_APPLES_AROUND'] < 2 and obs['CUR_CELL_HAS_APPLE']"
+harvest_apple_precon_standard = "obs['NUM_APPLES_AROUND'] < 3 and obs['CUR_CELL_HAS_APPLE']"
 steal_from_forgein_cell_precon = "obs['CUR_CELL_HAS_APPLE'] and not obs['AGENT_HAS_STOLEN']"
 
 DEFAULT_PROHIBITIONS = [
   # don't go if <2 apples around
   ProhibitionRule(harvest_apple_precon_standard, 'MOVE_ACTION'),
   # don't go if it is foreign property and cell has apples 
-  # ProhibitionRule(steal_from_forgein_cell_precon, 'MOVE_ACTION'),
+  ProhibitionRule(steal_from_forgein_cell_precon, 'MOVE_ACTION'),
+]
+
+PICK_APPLE_RULES = [
+  # don't go if <2 apples around
+  ProhibitionRule(harvest_apple_precon_standard, 'MOVE_ACTION'),
+]
+
+TERRITORY_RULES = [
+  # don't go if it is foreign property and cell has apples 
+  ProhibitionRule(steal_from_forgein_cell_precon, 'MOVE_ACTION'),
 ]
 
 """ 
@@ -79,15 +95,11 @@ payment_goal_farmer_6 = "obs['SINCE_AGENT_LAST_PAYED'] < 6"
 payment_precon_farmer_7 = "obs['SINCE_AGENT_LAST_PAYED'] > 7"
 payment_goal_farmer_7 = "obs['SINCE_AGENT_LAST_PAYED'] < 7"
 
-cleaning_precon_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] > 4"
-cleaning_goal_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] < 1"
-cleaning_precon_cleaner_3 = "obs['SINCE_AGENT_LAST_CLEANED'] > 3"
+cleaning_precon_cleaner_4 = "obs['SINCE_AGENT_LAST_CLEANED'] > 4"
 cleaning_goal_cleaner_2 = "obs['SINCE_AGENT_LAST_CLEANED'] < 2"
 cleaning_precon_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 5"
 cleaning_goal_cleaner_3 = "obs['SINCE_AGENT_LAST_CLEANED'] < 3"
 
-payment_precon_cleaner = "obs['TIME_TO_GET_PAYED'] == 1"
-payment_goal_cleaner = "obs['TIME_TO_GET_PAYED'] == 0"
 payment_precon_cleaner_0 = "obs['TIME_TO_GET_PAYED'] == 0"
 payment_goal_cleaner_1 = "obs['TIME_TO_GET_PAYED'] == 1"
 
@@ -105,7 +117,7 @@ POTENTIAL_OBLIGATIONS = [
   ObligationRule(payment_precon_farmer_7, payment_goal_farmer_7, farmer),
   # If you're in the cleaner role, clean in a certain rhythm
   ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, cleaner),
-  ObligationRule(cleaning_precon_cleaner_3, cleaning_goal_cleaner_2, cleaner),
+  ObligationRule(cleaning_precon_cleaner_4, cleaning_goal_cleaner_2, cleaner),
   ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_3, cleaner),
   # if you're a cleaner, wait until you've received a payment
   ObligationRule(payment_precon_cleaner, payment_goal_cleaner, cleaner),
