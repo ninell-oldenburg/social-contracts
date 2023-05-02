@@ -373,7 +373,9 @@ function Harvestable:onEnter(enteringGameObject, contactName)
   -- Unpack variables for recording property violations
   local resource = self.gameObject:getComponent(
       'Transform'):queryPosition('resourceLayer')
-  playerClaimed = resource._claimedByAvatarComponent
+  if resource ~= nil then
+    playerClaimed = resource._claimedByAvatarComponent
+  end
   
   if contactName == 'avatar' then
     if self.gameObject:getState() == self._liveState then

@@ -71,7 +71,7 @@ from meltingpot.python.utils.substrates import specs
 PrefabConfig = game_object_utils.PrefabConfig
 
 APPLE_RESPAWN_RADIUS = 2.0
-REGROWTH_PROBABILITIES = [0.02, 0.05, 0.07, 0.09]
+REGROWTH_PROBABILITIES = [0.5, 0.5, 0.5, 0.5]
 OBSERVATION_RADIUS = 6 # defines radius that agents can observe
 
 ASCII_MAP = """
@@ -83,22 +83,22 @@ W   P     ===+~SSf    W
 W      P     <~Sf  P  W
 W          P <~S>     W
 WT^TT^T^T^T^T;~S^T^T^TW
-WA_____________A____AAW
-WAA______Q____AAA____AW
-WAAA_________AAAAA____W
-WAA___________AAA_____W
-WA_____________A______W
-W______A____Q______A__W
-W_____AAA_________AAA_W
-W____AAAAA_______AAAAAW
-W_____AAA_________AAA_W
-W______A___________A__W
+WA____________A_____AAW
+WAA____Q_____AAA_____AW
+WAAA________AAAAA_____W
+WAA__________AAA______W
+WA____________A_______W
+W______A____Q________AW
+W_____AAA___________AAW
+W____AAAAA_________AAAW
+W_____AAA___________AAW
+W______A_____________AW
 W__GGGGGGGGGGGGGGGGG__W
 WGGGGGGGGGGGGGGGGGGGGGW
 WWWWWWWWWWWWWWWWWWWWWWW
-WD-----WD-----WD-----WW
+WD---------WD---------W
 WWWWWWWWWWWWWWWWWWWWWWW
-WD-----WD-----WD-----WW
+WD---------WD---------W
 WWWWWWWWWWWWWWWWWWWWWWW
 """
 
@@ -554,7 +554,7 @@ ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
    'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
    'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
-   'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
+   'learner': shapes.CUTE_AVATAR,
    }
 
 def get_brush_palette(

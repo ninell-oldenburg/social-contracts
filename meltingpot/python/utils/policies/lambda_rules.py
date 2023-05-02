@@ -1,17 +1,10 @@
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 
-from meltingpot.python.utils.substrates import shapes
+from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
 
 """ 
 ########### APPREARANCE DEFINTIONS ############# 
 """
-
-ROLE_SPRITE_DICT = {
-   'free': shapes.CUTE_AVATAR,
-   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
-   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
-   'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
-   }
 
 free = ROLE_SPRITE_DICT["free"]
 farmer = ROLE_SPRITE_DICT["farmer"]
@@ -38,16 +31,18 @@ DEFAULT_OBLIGATIONS = [
   # If you're in the farmer role, pay cleaner with apples
   ObligationRule(payment_precon_farmer, payment_goal_farmer, farmer),
   # if you're a cleaner, wait until you've received a payment
-  ObligationRule(payment_precon_cleaner, payment_goal_cleaner, cleaner),
+  # ObligationRule(payment_precon_cleaner, payment_goal_cleaner, cleaner),
   # If you're in the cleaner role, clean in a certain rhythm
   ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, cleaner),
 ]
 
 CLEANING_RULES = [
   # clean the water if less than 1 agent is cleaning
-  ObligationRule(cleaning_precon_free, cleaning_goal_free, free),
+  ObligationRule(cleaning_precon_free, cleaning_goal_free, free).make_str_repr(),
+  # If you're in the farmer role, pay cleaner with apples
+  ObligationRule(payment_precon_farmer, payment_goal_farmer, farmer),
   # If you're in the cleaner role, clean in a certain rhythm
-  ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, cleaner),
+  ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, cleaner).make_str_repr(),
 ]
 
 """ 
@@ -65,7 +60,7 @@ DEFAULT_PROHIBITIONS = [
 
 PICK_APPLE_RULES = [
   # don't go if <2 apples around
-  ProhibitionRule(harvest_apple_precon_standard, 'MOVE_ACTION'),
+  ProhibitionRule(harvest_apple_precon_standard, 'MOVE_ACTION').make_str_repr(),
 ]
 
 TERRITORY_RULES = [

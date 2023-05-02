@@ -29,13 +29,7 @@ from meltingpot.python.utils.policies import policy
 from meltingpot.python.utils.substrates import shapes
 
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
-
-ROLE_SPRITE_DICT = {
-   'free': shapes.CUTE_AVATAR,
-   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
-   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
-   'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
-   }
+from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
 
 @dataclass(order=True)
 class PrioritizedItem:

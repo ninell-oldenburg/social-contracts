@@ -68,6 +68,8 @@ from meltingpot.python.utils.substrates import game_object_utils
 from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.substrates import specs
 
+from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
+
 PrefabConfig = game_object_utils.PrefabConfig
 
 APPLE_RESPAWN_RADIUS = 2.0
@@ -83,22 +85,22 @@ W   P     ===+~SSf    W
 W      P     <~Sf  P  W
 W          P <~S>     W
 WT^TT^T^T^T^T;~S^T^T^TW
-WA_____________A____AAW
-WAA______Q____AAA____AW
-WAAA_________AAAAA____W
-WAA___________AAA_____W
-WA_____________A______W
-W______A____Q______A__W
-W_____AAA_________AAA_W
-W____AAAAA_______AAAAAW
-W_____AAA_________AAA_W
-W______A___________A__W
+WA____________A_____AAW
+WAA____Q_____AAA_____AW
+WAAA________AAAAA_____W
+WAA__________AAA______W
+WA____________A_______W
+W______A____Q________AW
+W_____AAA___________AAW
+W____AAAAA_________AAAW
+W_____AAA___________AAW
+W______A_____________AW
 W__GGGGGGGGGGGGGGGGG__W
 WGGGGGGGGGGGGGGGGGGGGGW
 WWWWWWWWWWWWWWWWWWWWWWW
-WD-----WD-----WD-----WW
+WD---------WD---------W
 WWWWWWWWWWWWWWWWWWWWWWW
-WD-----WD-----WD-----WW
+WD---------WD---------W
 WWWWWWWWWWWWWWWWWWWWWWW
 """
 
@@ -110,25 +112,25 @@ MAP_SIZE = (x_size, y_size) # lua is i-indexed
 # ascii map.
 CHAR_PREFAB_MAP = {
     "W": "wall",
-    " ": {"type": "all", "list": ["sand", "resource"]},
-    "P": {"type": "all", "list": ["sand", "resource", "spawn_point"]},
-    "+": {"type": "all", "list": ["sand", "resource", "shadow_e"]},
-    "f": {"type": "all", "list": ["sand", "resource", "shadow_w"]},
-    ";": {"type": "all", "list": ["sand", "grass_edge", "resource", "shadow_e"]},
-    ",": {"type": "all", "list": ["sand", "grass_edge", "resource", "shadow_w"]},
-    "^": {"type": "all", "list": ["sand", "grass_edge", "resource"]},
-    "=": {"type": "all", "list": ["sand", "resource"]},
-    ">": {"type": "all", "list": ["sand", "resource", "shadow_w",]},
-    "<": {"type": "all", "list": ["sand", "resource", "shadow_e",]},
-    "T": {"type": "all", "list": ["sand", "resource", "grass_edge"]},
+    " ": {"type": "all", "list": ["sand",]},
+    "P": {"type": "all", "list": ["sand", "spawn_point"]},
+    "+": {"type": "all", "list": ["sand", "shadow_e"]},
+    "f": {"type": "all", "list": ["sand", "shadow_w"]},
+    ";": {"type": "all", "list": ["sand", "grass_edge", "shadow_e"]},
+    ",": {"type": "all", "list": ["sand", "grass_edge", "shadow_w"]},
+    "^": {"type": "all", "list": ["sand", "grass_edge"]},
+    "=": {"type": "all", "list": ["sand"]},
+    ">": {"type": "all", "list": ["sand", "shadow_w",]},
+    "<": {"type": "all", "list": ["sand", "shadow_e",]},
+    "T": {"type": "all", "list": ["sand", "grass_edge"]},
     "S": "river",
-    "H": {"type": "all", "list": ["river", "potential_dirt"]},
-    "F": {"type": "all", "list": ["river", "actual_dirt"]},
+    "H": {"type": "all", "list": ["river"]},
+    "F": {"type": "all", "list": ["river"]},
     "~": {"type": "all", "list": ["river", "shadow_w",]},
-    "_": {"type": "all", "list": ["grass", "resource"]},
-    "Q": {"type": "all", "list": ["grass", "resource", "inside_spawn_point"]},
-    "A": {"type": "all", "list": ["grass", "resource", "apple"]},
-    "G": {"type": "all", "list": ["grass", "resource", "spawn_point"]},
+    "_": {"type": "all", "list": ["grass"]},
+    "Q": {"type": "all", "list": ["grass", "inside_spawn_point"]},
+    "A": {"type": "all", "list": ["grass", "apple"]},
+    "G": {"type": "all", "list": ["grass", "spawn_point"]},
     "D": "avatar_copy",
     "-": "inventory_display"
 }
@@ -468,55 +470,6 @@ SHADOW_N = {
     ]
 }
 
-def create_dirt_prefab(initial_state):
-  # Create a dirt prefab with the given initial state.
-  dirt_prefab = {
-      "name": "DirtContainer",
-      "components": [
-          {
-              "component": "StateManager",
-              "kwargs": {
-                  "initialState": initial_state,
-                  "stateConfigs": [
-                      {
-                          "state": "dirtWait",
-                          "layer": "logic",
-                      },
-                      {
-                          "state": "dirt",
-                          "layer": "overlay",
-                          "sprite": "Dirt",
-                      },
-                  ],
-              }
-          },
-          {
-              "component": "Transform",
-          },
-          {
-              "component": "Appearance",
-              "kwargs": {
-                  "spriteNames": ["Dirt"],
-                  # This color is greenish, and quite transparent to expose the
-                  # animated water below.
-                  "spriteRGBColors": [(2, 245, 80, 50)],
-              }
-          },
-          {
-              "component": "DirtTracker",
-              "kwargs": {
-                  "activeState": "dirt",
-                  "inactiveState": "dirtWait",
-              }
-          },
-          {
-              "component": "DirtCleaning",
-              "kwargs": {}
-          },
-      ]
-  }
-  return dirt_prefab
-
 # Primitive action components.
 # pylint: disable=bad-whitespace
 # pyformat: disable
@@ -550,12 +503,6 @@ ACTION_SET = (
     PAY,
 )
 
-ROLE_SPRITE_DICT = {
-   'free': shapes.CUTE_AVATAR,
-   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
-   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
-   'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
-   }
 
 def get_brush_palette(
     base_color: shapes.Color) -> Mapping[str, shapes.ColorRGBA]:
@@ -587,111 +534,6 @@ for shade_of_grey in colors.greys_avatar_palette:
 for human_readable_color in colors.human_readable:
   COLOR_PLAYER_PALETTES.append(shapes.get_palette(human_readable_color))
   BRUSH_PALETTES.append(get_brush_palette(human_readable_color))
-
-def create_resource(roles: list) -> PrefabConfig:
-  """Configure the prefab to use for all resource objects."""
-  # Setup unique states corresponding to each player who can claim the resource.
-  claim_state_configs = []
-  claim_sprite_names = []
-  claim_sprite_rgb_colors = []
-  for player_idx, role in enumerate(roles):
-    lua_player_idx = player_idx + 1
-    player_color = colors.human_readable[player_idx] if role == 'learner' else colors.greys_avatar_palette[player_idx]
-    wet_sprite_name = "Color" + str(lua_player_idx) + "ResourceSprite"
-    claim_state_configs.append({
-        "state": "claimed_by_" + str(lua_player_idx),
-        "layer": "resourceLayer",
-        "sprite": wet_sprite_name,
-        "groups": ["claimedResources"]
-    })
-    claim_sprite_names.append(wet_sprite_name)
-    # Use alpha channel to make transparent version of claiming agent's color.
-    wet_paint_color = player_color + (75,)
-    claim_sprite_rgb_colors.append(wet_paint_color)
-
-  prefab = {
-      "name": "resource",
-      "components": [
-          {
-            "component": "StateManager",
-              "kwargs": {
-                  "initialState": "unclaimedGrass",
-                  "stateConfigs": [
-                      {"state": "unclaimedGrass",
-                       "layer": "resourceLayer",
-                       "sprite": "UnclaimedResourceSprite"},
-                  ] + claim_state_configs,
-              }
-          },
-          {
-              "component": "Appearance",
-              "kwargs": {
-                  "renderMode": "colored_square",
-                  "spriteNames": claim_sprite_names,
-                  "spriteRGBColors": claim_sprite_rgb_colors
-              }
-          },
-          {
-              "component": "Transform",
-          },
-          {
-              "component": "Resource",
-              "kwargs": {
-                  "initialHealth": 2,
-                  "destroyedState": "destroyed",
-                  "delayTillSelfRepair": 15,
-                  "selfRepairProbability": 0.1,
-              }
-          },
-      ]
-  }
-  return prefab
-
-def create_resource_texture() -> PrefabConfig:
-  """Configure the background texture for a resource. It looks like grass."""
-  prefab = {
-      "name": "resource_texture",
-      "components": [
-          {
-              "component": "StateManager",
-              "kwargs": {
-                  "initialState": "grass",
-                  "stateConfigs": [
-                    {
-                        "state": "grass",
-                        "layer": "background",
-                        "sprite": "grass"
-                    },
-                    {
-                        "state": "dessicated",
-                        "layer": "background",
-                        "sprite": "floor"
-                    },
-                  ],
-              }
-          },
-          {
-              "component": "Appearance",
-              "kwargs": {
-                  "renderMode": "ascii_shape",
-                  "spriteNames": ["grass","floor"],
-                  "spriteShapes": [shapes.GRASS_STRAIGHT, shapes.GRAINY_FLOOR],
-                  "palettes": [{
-                    "*": (158, 194, 101, 255),
-                    "@": (170, 207, 112, 255)
-                }, {
-                    "*": (220, 205, 185, 255),
-                    "+": (210, 195, 175, 255),
-                }],
-                  "noRotates": [False, False]
-              }
-          },
-          {
-              "component": "Transform",
-          },
-      ]
-  }
-  return prefab
 
 
 def get_water():
@@ -851,10 +693,6 @@ def create_prefabs(roles: Sequence[str],
       "shadow_e": SHADOW_E,
       "shadow_n": SHADOW_N,
       "river": get_water(),
-      "resource_texture": create_resource_texture(),
-      "potential_dirt": create_dirt_prefab("dirtWait"),
-      "actual_dirt": create_dirt_prefab("dirt"),
-      "resource": create_resource(roles=roles),
       "avatar_copy": create_avatar_copy(roles=roles),
       "inventory_display": create_inventory_display()
   }

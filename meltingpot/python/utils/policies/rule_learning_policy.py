@@ -14,13 +14,8 @@ from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
+from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
 
-ROLE_SPRITE_DICT = {
-   'free': shapes.CUTE_AVATAR,
-   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
-   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
-   'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
-   }
 
 class RuleLearningPolicy(RuleObeyingPolicy):
     def __init__(self,
@@ -39,7 +34,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.role = role
         self.look = look
         self.max_depth = 20
-        self.p_obey = 0.9
+        self.p_obey = 0.99
         self.log_output = log_output
         self.selection_mode = selection_mode
         self.action_spec = env.action_spec()[0]
@@ -98,7 +93,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             # Compute the posterior of each rule
             self.compute_posterior(player_idx, other_actions[player_idx])
 
-        # print(self.rule_beliefs)
+        print(self.rule_beliefs)
 
     def compute_posterior(self, player_idx, player_act) -> None:
         """Writes the posterior for a rule given an observation 
@@ -149,25 +144,22 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         elif rule in self.nonself_active_obligations_count[player_idx].keys():
              self.nonself_active_obligations_count[player_idx].pop(rule, None)
 
-        if rule.satisfied(next_obs, player_look): # Agent obeyed the obligation
-            if rule in self.nonself_active_obligations_count[player_idx].keys():
-                if self.nonself_active_obligations_count[player_idx][rule] <= self.max_depth:
-                    # P(a | rule = true) = P(a | obedient = true, rule = true) P(obedient = true) + ...
-                    # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)                     
-                    # P(disobedient action | rule = true) = (0 * p_obey) + 1/n_actions * (1-p_obey)    
-                    # Assume len(obligated_actions) = 1
-                    p_obedient_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
-                    return np.log(p_obedient_action)
-                else: # Rule has expired, i.e. agent disobeyed the obligation
-                    #p_disobedient_action = (1-self.p_obey)/(self.num_actions)
-                    return np.log(1/(self.num_actions))
-                    #return np.log(p_disobedient_action)
-            else: # obligation not active
-                #p_disobedient_action = (1-self.p_obey)/(self.num_actions)
+        # Check if obligation rule is active # ADDED
+        rule_active_count = self.nonself_active_obligations_count[player_idx].get(rule, float('inf')) # ADDED
+        rule_is_active = rule_active_count <= self.max_depth # ADDED
+
+        if rule_is_active: # Obligation is active
+            if rule.satisfied(next_obs, player_look): # Agent obeyed the obligation
+                # P(a | rule = true) = P(a | obedient = true, rule = true) P(obedient = true) + ...
+                # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)                     
+                # P(disobedient action | rule = true) = (0 * p_obey) + 1/n_actions * (1-p_obey)    
+                # Assume len(obligated_actions) = 1
+                p_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
+                return np.log(p_action)
+            else: # Agent disobeyed the obligation
                 return np.log(1/(self.num_actions))
-                #return np.log(p_disobedient_action)
-        else: # action has not fulfilled the obligation
-         return np.log(1/(self.num_actions))
+        else: # Obligation is not active, or has expired
+            return np.log(1/(self.num_actions))
 
                     
     def comp_prohib_llh(self, player_idx, rule, action) -> float:
@@ -180,13 +172,21 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         num_prohib_acts = len(prohib_actions)
         if rule.holds_precondition(past_obs):
             if action in prohib_actions: # violation
+                #p_disobedient_action = (1 - self.p_obey)/(self.num_actions) # ADDED
+                #return np.log(p_disobedient_action) # ADDED
                 return np.log(0)
             else: # action not prohibited
-                p_obedient_action = 1/(self.num_actions-num_prohib_acts)
+                p_obedient_action = self.p_obey/(self.num_actions-num_prohib_acts) # EDITED
+                p_obedient_action += (1 - self.p_obey)/(self.num_actions) # ADDED
+                # p_action = 1/(self.num_actions-num_prohib_acts)
                 return np.log(p_obedient_action)
         else: # precondition doesn't hold
-            p_obedient_action = 1/(self.num_actions-num_prohib_acts)
+            p_obedient_action = self.p_obey/(self.num_actions-num_prohib_acts) # EDITED
+            p_obedient_action += (1 - self.p_obey)/(self.num_actions) # ADDED
+            # p_action = 1/(self.num_actions-num_prohib_acts)
             return np.log(p_obedient_action)
+            # p_action = 1/(self.num_actions-num_prohib_acts)
+            return np.log(p_action)
     
     def get_prohib_action(self, observation, rule, cur_pos):
         prohib_acts = []
@@ -254,7 +254,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.append_history(timestep, other_obs)
         if len(self.history) > 1:
             self.update_beliefs(other_acts)
-        self.th_obligations, self.th_prohibitions = self.threshold_rules(threshold=0.99)
+        self.th_obligations, self.th_prohibitions = self.threshold_rules(threshold=0.8)
         self.sampl_obligations, self.sampl_prohibitions = self.sample_rules()
 
         # choose whether to use thresholded or sampled rules

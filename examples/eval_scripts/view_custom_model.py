@@ -33,18 +33,12 @@ from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, Obligati
 from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
 from meltingpot.python.utils.policies.lambda_rules import CLEANING_RULES, PICK_APPLE_RULES, TERRITORY_RULES
+from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
 
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
 
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
-
-ROLE_SPRITE_DICT = {
-   'free': shapes.CUTE_AVATAR,
-   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
-   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
-   'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
-   }
 
 def main(roles, episodes, num_iteration, rules, create_video=True, log_output=True, env_seed=1):
 
@@ -113,7 +107,6 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
       (int(shape[1] * scale), int(shape[0] * scale)))
 
   for k in range(episodes):
-    print(f"timestep: {k}")
     obs = timestep.observation[0]["WORLD.RGB"]
     obs = np.transpose(obs, (1, 0, 2))
     surface = pygame.surfarray.make_surface(obs)
@@ -153,6 +146,9 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
           bot.append_history(timestep_bot, other_obs)
           if len(bot.history) > 1:
             bot.update_beliefs(other_acts)
+            bot.th_obligations, bot.th_prohibitions = bot.threshold_rules(threshold=0.99)
+            bot.obligations = bot.th_obligations
+            bot.prohibitions = bot.th_prohibitions
           cur_beliefs = bot.rule_beliefs
             
     if log_output:
@@ -162,7 +158,11 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
     timestep = env.step(action_list)
     actions = update(actions)
 
-    data_dict = append_to_dict(data_dict, timestep.reward, cur_beliefs, roles)
+    data_dict = append_to_dict(data_dict, 
+                               timestep.reward, 
+                               cur_beliefs, 
+                               roles, 
+                               action_list)
 
     # Saving files in superdircetory
     filename = '../videos/screen_%04d.png' % (k)
@@ -181,13 +181,20 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
   """ Profiler Run:
   ~ python3 -m cProfile -o run1.prof -s cumtime  examples/evals/evals.py """
 
-def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles) -> dict:
+def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions) -> dict:
   for i, key in enumerate(data_dict):
     if i < 4: # player rewards
-      if key in all_roles:
+      if key in all_roles: # key 0-3 are the name of the role
         j = get_index(key, all_roles)
         data_dict[key].append(reward_arr[j].item())
       else: data_dict[key].append(0)
+
+    elif i < 8:
+      role = key.replace('_action', '')
+      if role in all_roles:
+        k = get_index(role, all_roles)
+        data_dict[key].append(actions[j])
+      else: data_dict[key].append('')
 
     else:
       if len(beliefs) > i-4: # without first four columns
@@ -204,12 +211,13 @@ def get_index(role, all_roles):
 def get_name_from_rules(rules: list) -> str:
   components = set()
   for rule in rules:
-    if rule in CLEANING_RULES:
+    rule_str = rule.make_str_repr()
+    if rule_str in CLEANING_RULES:
       components.add("cleaning")
-    elif rule in TERRITORY_RULES:
-      components.add("territory")
-    elif rule in PICK_APPLE_RULES:
+    elif rule_str in PICK_APPLE_RULES:
       components.add("apples")
+    elif rule_str in TERRITORY_RULES:
+      components.add("territory")
 
   if len(components) == 0:
     return "_empty"
@@ -218,7 +226,6 @@ def get_name_from_rules(rules: list) -> str:
   else:
     output = ''
     for item in sorted(list(components)):
-      print(item)
       output += f"_{item}"
 
   return output
@@ -262,8 +269,8 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 1
-  episodes = 300
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 1
+  episodes = 200
   num_iteration = 1
   setting, data_dict = main(roles=roles,
                             rules=DEFAULT_RULES,

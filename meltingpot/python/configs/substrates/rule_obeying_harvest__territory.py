@@ -68,10 +68,12 @@ from meltingpot.python.utils.substrates import game_object_utils
 from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.substrates import specs
 
+from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
+
 PrefabConfig = game_object_utils.PrefabConfig
 
 APPLE_RESPAWN_RADIUS = 2.0
-REGROWTH_PROBABILITIES = [0.02, 0.05, 0.07, 0.09]
+REGROWTH_PROBABILITIES = [0.5, 0.5, 0.5, 0.5]
 OBSERVATION_RADIUS = 6 # defines radius that agents can observe
 
 ASCII_MAP = """
@@ -83,22 +85,22 @@ W   P     ===+~SSf    W
 W      P     <~Sf  P  W
 W          P <~S>     W
 WT^TT^T^T^T^T;~S^T^T^TW
-WA_____________A____AAW
-WAA______Q____AAA____AW
-WAAA_________AAAAA____W
-WAA___________AAA_____W
-WA_____________A______W
-W______A____Q______A__W
-W_____AAA_________AAA_W
-W____AAAAA_______AAAAAW
-W_____AAA_________AAA_W
-W______A___________A__W
+WA____________A_____AAW
+WAA____Q_____AAA_____AW
+WAAA________AAAAA_____W
+WAA__________AAA______W
+WA____________A_______W
+W______A____Q________AW
+W_____AAA___________AAW
+W____AAAAA_________AAAW
+W_____AAA___________AAW
+W______A_____________AW
 W__GGGGGGGGGGGGGGGGG__W
 WGGGGGGGGGGGGGGGGGGGGGW
 WWWWWWWWWWWWWWWWWWWWWWW
-WD-----WD-----WD-----WW
+WD---------WD---------W
 WWWWWWWWWWWWWWWWWWWWWWW
-WD-----WD-----WD-----WW
+WD---------WD---------W
 WWWWWWWWWWWWWWWWWWWWWWW
 """
 
@@ -122,8 +124,8 @@ CHAR_PREFAB_MAP = {
     "<": {"type": "all", "list": ["sand", "resource", "shadow_e",]},
     "T": {"type": "all", "list": ["sand", "resource", "grass_edge"]},
     "S": "river",
-    "H": {"type": "all", "list": ["river", "potential_dirt"]},
-    "F": {"type": "all", "list": ["river", "actual_dirt"]},
+    "H": {"type": "all", "list": ["river"]},
+    "F": {"type": "all", "list": ["river"]},
     "~": {"type": "all", "list": ["river", "shadow_w",]},
     "_": {"type": "all", "list": ["grass", "resource"]},
     "Q": {"type": "all", "list": ["grass", "resource", "inside_spawn_point"]},
@@ -468,55 +470,6 @@ SHADOW_N = {
     ]
 }
 
-def create_dirt_prefab(initial_state):
-  # Create a dirt prefab with the given initial state.
-  dirt_prefab = {
-      "name": "DirtContainer",
-      "components": [
-          {
-              "component": "StateManager",
-              "kwargs": {
-                  "initialState": initial_state,
-                  "stateConfigs": [
-                      {
-                          "state": "dirtWait",
-                          "layer": "logic",
-                      },
-                      {
-                          "state": "dirt",
-                          "layer": "overlay",
-                          "sprite": "Dirt",
-                      },
-                  ],
-              }
-          },
-          {
-              "component": "Transform",
-          },
-          {
-              "component": "Appearance",
-              "kwargs": {
-                  "spriteNames": ["Dirt"],
-                  # This color is greenish, and quite transparent to expose the
-                  # animated water below.
-                  "spriteRGBColors": [(2, 245, 80, 50)],
-              }
-          },
-          {
-              "component": "DirtTracker",
-              "kwargs": {
-                  "activeState": "dirt",
-                  "inactiveState": "dirtWait",
-              }
-          },
-          {
-              "component": "DirtCleaning",
-              "kwargs": {}
-          },
-      ]
-  }
-  return dirt_prefab
-
 # Primitive action components.
 # pylint: disable=bad-whitespace
 # pyformat: disable
@@ -549,13 +502,6 @@ ACTION_SET = (
     EAT,
     PAY,
 )
-
-ROLE_SPRITE_DICT = {
-   'free': shapes.CUTE_AVATAR,
-   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
-   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
-   'learner': shapes.CUTE_AVATAR_W_STUDENT_HAT,
-   }
 
 def get_brush_palette(
     base_color: shapes.Color) -> Mapping[str, shapes.ColorRGBA]:
@@ -852,8 +798,6 @@ def create_prefabs(roles: Sequence[str],
       "shadow_n": SHADOW_N,
       "river": get_water(),
       "resource_texture": create_resource_texture(),
-      "potential_dirt": create_dirt_prefab("dirtWait"),
-      "actual_dirt": create_dirt_prefab("dirt"),
       "resource": create_resource(roles=roles),
       "avatar_copy": create_avatar_copy(roles=roles),
       "inventory_display": create_inventory_display()
@@ -885,7 +829,7 @@ def create_scene():
           {
               "component": "DirtSpawner",
               "kwargs": {
-                  "dirtSpawnProbability": 0.2,
+                  "dirtSpawnProbability": 0.0,
                   "delayStartOfDirtSpawning": 50,
               },
           },

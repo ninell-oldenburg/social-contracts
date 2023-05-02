@@ -8,6 +8,8 @@ from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, 
 
 import itertools
 
+DEFAULT_ROLES = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 1
+
 baseline_roles = ['free', 'cleaner', 'farmer', 'learner']
 BASELINE_SCENARIOS = [('free',), ('cleaner',), ('farmer',)]
 TEST_SCENARIOS = []
@@ -24,26 +26,13 @@ for i in range(1, len(baseline_roles) + 1):
           BASELINE_SCENARIOS.append(new_comb)
 
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
-STR_RULES = [rule.make_str_repr() for rule in DEFAULT_RULES]
+# STR_RULES = [rule.make_str_repr() for rule in DEFAULT_RULES]
 # Generate all possible combinations of the rules
 RULE_COMBINATIONS = [] # include empty rule set
-for i in range(0, len(STR_RULES) + 1):
-    RULE_COMBINATIONS +=  list(itertools.combinations(STR_RULES, i))
-
-for i in range(len(RULE_COMBINATIONS)):
-  if i >= len(BASELINE_SCENARIOS):
-      BASELINE_SCENARIOS.append('')
-  if i >= len(TEST_SCENARIOS):
-     TEST_SCENARIOS.append('')
+for i in range(0, len(DEFAULT_RULES) + 1):
+    RULE_COMBINATIONS +=  list(itertools.combinations(DEFAULT_RULES, i))
 
 start_time = time.time()
-
-# save settings as csv
-settings = {'BASELINE_SCENARIOS': BASELINE_SCENARIOS, 
-            'TEST_SCENARIOS': TEST_SCENARIOS,
-            'RULE_COMBINATIONS': RULE_COMBINATIONS}
-settings_df = pd.DataFrame.from_dict(settings)
-settings_df.to_csv(path_or_buf="examples/results/settings.csv")
 
 stats_relevance = 1
 
@@ -97,17 +86,31 @@ print()
 
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
-    cur_settings, cur_result = main(roles=roles, 
-                                      episodes=50, 
+    cur_settings, cur_result = main(roles=DEFAULT_ROLES, 
+                                      episodes=200, 
                                       num_iteration=i, 
                                       rules=rule_set, 
                                       create_video=True, 
                                       log_output=False)
     cur_df = pd.DataFrame.from_dict(cur_result)
-    path = f"examples/results/rules_trials/rule_set{rule_set_idx+1}/trial{k+1}..csv"
+    path = f"examples/results/rule_trials/rule_set{rule_set_idx+1}/trial{k+1}..csv"
     cur_df.to_csv(path_or_buf=path)
     print('='*50)
     print(f'RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
+
+# align length of df columns
+for i in range(len(RULE_COMBINATIONS)):
+  if i >= len(BASELINE_SCENARIOS):
+      BASELINE_SCENARIOS.append('')
+  if i >= len(TEST_SCENARIOS):
+     TEST_SCENARIOS.append('')
+
+# save settings as csv
+settings = {'BASELINE_SCENARIOS': BASELINE_SCENARIOS, 
+            'TEST_SCENARIOS': TEST_SCENARIOS,
+            'RULE_COMBINATIONS': RULE_COMBINATIONS}
+settings_df = pd.DataFrame.from_dict(settings)
+settings_df.to_csv(path_or_buf="examples/results/settings.csv")
 
 seconds = time.time() - start_time
 hours = str(datetime.timedelta(seconds=seconds))
