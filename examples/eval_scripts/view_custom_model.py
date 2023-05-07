@@ -16,8 +16,6 @@ You must provide experiment_state, expected to be
 ~/ray_results/PPO/experiment_state_YOUR_RUN_ID.json
 """
 
-import argparse
-
 import dm_env
 from dmlab2d.ui_renderer import pygame
 import numpy as np
@@ -263,7 +261,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 1
   episodes = 200
   num_iteration = 1
   setting, data_dict = main(roles=roles,

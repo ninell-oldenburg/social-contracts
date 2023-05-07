@@ -24,6 +24,8 @@ from collections import deque
 
 import numpy as np
 
+import random
+
 from meltingpot.python.utils.policies import policy
 
 from meltingpot.python.utils.substrates import shapes
@@ -56,13 +58,13 @@ class RuleObeyingPolicy(policy.Policy):
     self._index = player_idx
     self.role = role
     self.look = look
-    self.max_depth = 20
+    self.max_depth = 22
     self.log_output = log_output
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
     self.obligations = obligations
     self.current_obligation = None
-    self.history = deque(maxlen=20)
+    self.history = deque(maxlen=10)
     self.payees = []
     if self.role == 'farmer':
       self.payees = None
@@ -287,7 +289,13 @@ class RuleObeyingPolicy(policy.Policy):
       cur_orient = cur_timestep.observation['ORIENTATION']
       cur_depth = priority_item.priority
 
-      if self.is_done(cur_timestep, cur_depth):
+      # usually good to moce agent 
+      # when currently no plan can be found
+      if cur_depth > self.max_depth: 
+        random_action_sequence = [random.randint(0, 6) for _ in range(5)]
+        return random_action_sequence
+
+      if self.is_done(cur_timestep):
         return self.reconstruct_path(came_from, (cur_pos, cur_orient, cur_action))
 
       # Get the list of actions that are possible and satisfy the rules
@@ -419,11 +427,9 @@ class RuleObeyingPolicy(policy.Policy):
       return True
     return False
 
-  def is_done(self, timestep, plan_length):
+  def is_done(self, timestep):
     """Check whether any of the break criteria are met."""
     if timestep.last():
-      return True
-    elif plan_length > self.max_depth:
       return True
     elif self.current_obligation != None:
       return self.current_obligation.satisfied(

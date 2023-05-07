@@ -956,8 +956,8 @@ def create_avatar_object(player_idx: int,
               "component": "Paying",
               "kwargs": {
                   "amount": 1.0,
-                  "beamLength": 2,
-                  "beamRadius": 1,
+                  "beamLength": 3,
+                  "beamRadius": 2,
                   "agentRole": role,
               }
           },

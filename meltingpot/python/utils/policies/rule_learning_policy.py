@@ -33,7 +33,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self._index = player_idx
         self.role = role
         self.look = look
-        self.max_depth = 30
+        self.max_depth = 22
         self.p_obey = 0.9
         self.log_output = log_output
         self.selection_mode = selection_mode
@@ -41,7 +41,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.num_actions = self.action_spec.num_values
         self.potential_obligations = potential_obligations
         self.potential_prohibitions = potential_prohibitions
-        self.potential_rules = self.potential_obligations #+ self.potential_prohibitions
+        self.potential_rules = self.potential_obligations + self.potential_prohibitions
         self.obligations = []
         self.prohibitions = []
         self.current_obligation = None
