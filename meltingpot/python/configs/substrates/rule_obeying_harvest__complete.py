@@ -1163,6 +1163,13 @@ def create_avatar_object(player_idx: int,
                           "variable": "property"
                       },
                       {
+                          "name": "DEAD_APPLE_RATIO",
+                          "type": "Int32s",
+                          "shape": [],
+                          "component": "Surroundings",
+                          "variable": "deadAppleRatio"
+                      },
+                      {
                           "name": "SURROUNDINGS",
                           "type": "tensor.Int32Tensor",
                           "shape": [OBSERVATION_RADIUS],
@@ -1358,6 +1365,7 @@ def get_config():
       # Cumulants.
       "AGENT_CLEANED",
       "PROPERTY",
+      "DEAD_APPLE_RATIO",
       "INVENTORY",
       "SURROUNDINGS",
       "TOTAL_NUM_CLEANERS",

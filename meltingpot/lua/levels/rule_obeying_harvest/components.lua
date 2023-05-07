@@ -1176,6 +1176,22 @@ function Surroundings:postStart()
   self:update()
 end
 
+function Surroundings:getRatioDessicatedFields()
+  local upperLeft = {1, 1}
+  local lowerRight = {self._config.mapSize[1], self._config.mapSize[2]}
+  local objects = self.transform:queryRectangle('appleLayer', upperLeft, lowerRight)
+  local apples = self.gameObject:getComponent('apple')
+  counter = 0
+  for appleField in apples do
+    local underlyingGrass = appleFieldgameObject:getComponent(
+      'Transform'):queryPosition('background')
+    if underlyingGrass:getState() == 'dessicated' then
+      counter += 1
+    end 
+  end
+  self.deadAppleRatio = counter / apples:length()
+end
+
 function Surroundings:setDirtLocations()
   local mapSize = self._config.mapSize
   for i=1, mapSize[1] do
