@@ -3,10 +3,43 @@ from examples.eval_scripts.view_custom_model import main
 import pandas as pd
 import time
 import datetime
+import matplotlib.pyplot as plt
 
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
 
 import itertools
+
+"""def bayes_formula_obedience(prior):
+    # Set the values for the conditional probability and the evidence
+    # P(a) = P(a | r = 1) P(r = 1) + P(a | r = 0) P(r = 0)
+    # P(r=1 | a) = P(a | r = 1) * P(r = 1) / P(a)
+    llh = 0.083
+    conditional = llh * prior
+    marginal = conditional + ((1/12) * (1-prior))
+    
+    # Calculate the posterior probability using the Bayes formula
+    posterior = conditional / marginal
+    
+    # Return the posterior probability
+    return posterior
+
+# Set the initial prior probability
+prior = 0.77
+
+# Generate a list of posterior probabilities using the Bayes formula
+posterior_list = []
+for i in range(100):
+    posterior_list.append(prior)
+    posterior = bayes_formula_obedience(prior)
+    prior = posterior
+
+# Plot the posterior probabilities as a function of the iteration number
+plt.plot(range(len(posterior_list)), posterior_list)
+plt.xlabel('Iteration Number')
+plt.ylabel('Posterior Probability')
+plt.title('Bayesian Inference')
+plt.savefig(fname="update")
+plt.show()"""
 
 DEFAULT_ROLES = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 1
 

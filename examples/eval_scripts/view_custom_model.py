@@ -134,16 +134,14 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
       else: # if not focal bot 
         other_acts = [action[0] for _, action in islice(
           actions.items(), num_focal_bots)]
-        other_obs = [observation for observation in islice(
-          timestep.observation, num_focal_bots)]
         
         if len(actions[i]) == 0: # action pipeline empty
           actions[i] = bot.step(timestep_bot, 
-                              other_obs,
+                              timestep,
                               other_acts)
 
         else: # action pipeline not empty
-          bot.append_history(timestep_bot, other_obs)
+          bot.append_history(timestep_bot, timestep)
           if len(bot.history) > 1:
             bot.update_beliefs(other_acts)
             bot.th_obligations, bot.th_prohibitions = bot.threshold_rules(threshold=0.99)

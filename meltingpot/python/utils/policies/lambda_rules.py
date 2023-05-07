@@ -16,12 +16,12 @@ cleaner = ROLE_SPRITE_DICT["cleaner"]
 ################## OBLIGATIONS ################## 
 #################################################
 """
-cleaning_precon_free = "obs['TOTAL_NUM_CLEANERS'] < 1"
-cleaning_goal_free = "obs['TOTAL_NUM_CLEANERS'] >= 1"
-payment_precon_farmer = "obs['SINCE_AGENT_LAST_PAYED'] > 4"
-payment_goal_farmer = "obs['SINCE_AGENT_LAST_PAYED'] < 1"
-cleaning_precon_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] > 3"
-cleaning_goal_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] < 1"
+cleaning_precon_free = "obs['TOTAL_NUM_CLEANERS'] != 1"
+cleaning_goal_free = "obs['TOTAL_NUM_CLEANERS'] == 0"
+payment_precon_farmer = "obs['SINCE_AGENT_LAST_PAYED'] == 4"
+payment_goal_farmer = "obs['SINCE_AGENT_LAST_PAYED'] == 0"
+cleaning_precon_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] == 3"
+cleaning_goal_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
 payment_precon_cleaner = "obs['TIME_TO_GET_PAYED'] == 1"
 payment_goal_cleaner = "obs['TIME_TO_GET_PAYED'] == 0"
 
@@ -65,7 +65,7 @@ PICK_APPLE_RULES = [
 
 TERRITORY_RULES = [
   # don't go if it is foreign property and cell has apples 
-  ProhibitionRule(steal_from_forgein_cell_precon, 'MOVE_ACTION'),
+  ProhibitionRule(steal_from_forgein_cell_precon, 'MOVE_ACTION').make_str_repr(),
 ]
 
 """ 
@@ -74,26 +74,26 @@ TERRITORY_RULES = [
 ################## OBLIGATIONS ################## 
 #################################################
 """
-cleaning_precon_free_2 = "obs['TOTAL_NUM_CLEANERS'] < 2"
+cleaning_precon_free_2 = "obs['TOTAL_NUM_CLEANERS'] != 2"
 cleaning_goal_free_2 = "obs['TOTAL_NUM_CLEANERS'] >= 2"
-cleaning_precon_free_3 = "obs['TOTAL_NUM_CLEANERS'] < 3"
+cleaning_precon_free_3 = "obs['TOTAL_NUM_CLEANERS'] != 3"
 cleaning_goal_free_3 = "obs['TOTAL_NUM_CLEANERS'] >= 3"
-cleaning_precon_free_4 = "obs['TOTAL_NUM_CLEANERS'] < 4"
+cleaning_precon_free_4 = "obs['TOTAL_NUM_CLEANERS'] != 4"
 cleaning_goal_free_4 = "obs['TOTAL_NUM_CLEANERS'] >= 4"
-cleaning_precon_free_5 = "obs['TOTAL_NUM_CLEANERS'] < 5"
+cleaning_precon_free_5 = "obs['TOTAL_NUM_CLEANERS'] <= 5"
 cleaning_goal_free_5 = "obs['TOTAL_NUM_CLEANERS'] >= 5"
 
-payment_precon_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] > 5"
+payment_precon_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] == 5"
 payment_goal_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] < 5"
-payment_precon_farmer_6 = "obs['SINCE_AGENT_LAST_PAYED'] > 6"
+payment_precon_farmer_6 = "obs['SINCE_AGENT_LAST_PAYED'] == 6"
 payment_goal_farmer_6 = "obs['SINCE_AGENT_LAST_PAYED'] < 6"
-payment_precon_farmer_7 = "obs['SINCE_AGENT_LAST_PAYED'] > 7"
+payment_precon_farmer_7 = "obs['SINCE_AGENT_LAST_PAYED'] == 7"
 payment_goal_farmer_7 = "obs['SINCE_AGENT_LAST_PAYED'] < 7"
 
-cleaning_precon_cleaner_4 = "obs['SINCE_AGENT_LAST_CLEANED'] > 4"
-cleaning_goal_cleaner_2 = "obs['SINCE_AGENT_LAST_CLEANED'] < 2"
-cleaning_precon_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 5"
-cleaning_goal_cleaner_3 = "obs['SINCE_AGENT_LAST_CLEANED'] < 3"
+cleaning_precon_cleaner_4 = "obs['SINCE_AGENT_LAST_CLEANED'] == 4"
+cleaning_goal_cleaner_2 = "obs['SINCE_AGENT_LAST_CLEANED'] <= 2"
+cleaning_precon_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] == 5"
+cleaning_goal_cleaner_3 = "obs['SINCE_AGENT_LAST_CLEANED'] <= 3"
 
 payment_precon_cleaner_0 = "obs['TIME_TO_GET_PAYED'] == 0"
 payment_goal_cleaner_1 = "obs['TIME_TO_GET_PAYED'] == 1"

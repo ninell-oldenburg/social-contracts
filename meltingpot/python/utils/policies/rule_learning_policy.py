@@ -93,7 +93,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             # Compute the posterior of each rule
             self.compute_posterior(player_idx, other_actions[player_idx])
 
-        print(self.rule_beliefs)
+        # print(self.rule_beliefs)
 
     def compute_posterior(self, player_idx, player_act) -> None:
         """Writes the posterior for a rule given an observation 
@@ -122,10 +122,12 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             self.rule_beliefs[rule_idx] = posterior
     
     def comp_oblig_llh(self, player_idx, rule, action) -> float:
+
         # unpack appearance, observation, position of the player
         player_look = self.player_looks[player_idx]
-        player_history = [all_players_timesteps[player_idx] for all_players_timesteps in self.others_history]
-        past_obs = self.others_history[-2][player_idx]
+        player_history = [all_players_timesteps.observation[player_idx] for all_players_timesteps in self.others_history]
+        past_obs = self.others_history[-2].observation[player_idx]
+        past_timestep = self.get_single_timestep(self.others_history[-2], player_idx)
 
         past_pos = np.copy(past_obs['POSITION'])
         # transition to next possible observation with observed action
@@ -144,19 +146,23 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         elif rule in self.nonself_active_obligations_count[player_idx].keys():
              self.nonself_active_obligations_count[player_idx].pop(rule, None)
 
-        # Check if obligation rule is active # ADDED
-        rule_active_count = self.nonself_active_obligations_count[player_idx].get(rule, float('inf')) # ADDED
-        rule_is_active = rule_active_count <= self.max_depth # ADDED
+        # Check if obligation rule is active
+        rule_active_count = self.nonself_active_obligations_count[player_idx].get(rule, float('inf'))
+        rule_is_active = rule_active_count <= self.max_depth
 
         if rule_is_active: # Obligation is active
-            if rule.satisfied(next_obs, player_look): # Agent obeyed the obligation
-                # P(a | rule = true) = P(a | obedient = true, rule = true) P(obedient = true) + ...
-                # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)                     
-                # P(disobedient action | rule = true) = (0 * p_obey) + 1/n_actions * (1-p_obey)    
-                # Assume len(obligated_actions) = 1
-                p_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
-                return np.log(p_action)
-            else: # Agent disobeyed the obligation
+            if self.could_be_satisfied(rule, past_timestep, player_look):
+                if rule.satisfied(next_obs, player_look): # Agent obeyed the obligation
+                    # P(a | rule = true) = P(a | obedient = true, rule = true) P(obedient = true) + ...
+                    # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)                     
+                    # P(disobedient action | rule = true) = (0 * p_obey) + 1/n_actions * (1-p_obey)    
+                    # Assume len(obligated_actions) = 1
+                    p_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
+                    return np.log(p_action)
+                else: # Agent disobeyed the obligation
+                    p_action = (1-self.p_obey)/(self.num_actions)
+                    return np.log(p_action)
+            else: # Obligation is not active, or has expired
                 return np.log(1/(self.num_actions))
         else: # Obligation is not active, or has expired
             return np.log(1/(self.num_actions))
@@ -164,7 +170,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                     
     def comp_prohib_llh(self, player_idx, rule, action) -> float:
     
-        past_obs = self.others_history[-2][player_idx]
+        past_obs = self.others_history[-2].observation[player_idx]
         past_pos = np.copy(past_obs['POSITION'])
         past_obs = self.update_observation(past_obs, past_pos[0], past_pos[1])
 
@@ -172,20 +178,12 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         num_prohib_acts = len(prohib_actions)
         if rule.holds_precondition(past_obs):
             if action in prohib_actions: # violation
-                #p_disobedient_action = (1 - self.p_obey)/(self.num_actions) # ADDED
-                #return np.log(p_disobedient_action) # ADDED
                 return np.log(0)
             else: # action not prohibited
-                p_obedient_action = self.p_obey/(self.num_actions-num_prohib_acts) # EDITED
-                p_obedient_action += (1 - self.p_obey)/(self.num_actions) # ADDED
-                # p_action = 1/(self.num_actions-num_prohib_acts)
-                return np.log(p_obedient_action)
+                p_action = 1/(self.num_actions-num_prohib_acts)
+                return np.log(p_action)
         else: # precondition doesn't hold
-            p_obedient_action = self.p_obey/(self.num_actions-num_prohib_acts) # EDITED
-            p_obedient_action += (1 - self.p_obey)/(self.num_actions) # ADDED
-            # p_action = 1/(self.num_actions-num_prohib_acts)
-            return np.log(p_obedient_action)
-            # p_action = 1/(self.num_actions-num_prohib_acts)
+            p_action = 1/(self.num_actions-num_prohib_acts)
             return np.log(p_action)
     
     def get_prohib_action(self, observation, rule, cur_pos):
@@ -210,6 +208,25 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                 continue
 
         return prohib_acts
+    
+    def get_single_timestep(self, env_timestep, idx):
+        """Returns single agent timestep from environment timestep"""
+        agent_timestep = dm_env.TimeStep(
+            step_type=env_timestep.step_type,
+            reward=env_timestep.reward[idx],
+            discount=env_timestep.discount,
+            observation=env_timestep.observation[idx])
+        
+        return agent_timestep
+    
+    def could_be_satisfied(self, rule, past_timestep, player_look):
+        """Returns True is an obligation could be satisfied."""
+        for action in range(self.action_spec.num_values):
+            next_timestep = super().env_step(past_timestep, action)
+            if rule.satisfied(next_timestep.observation, player_look):
+                return True
+            
+        return False
     
     def threshold_rules(self, threshold):
         """Returns rules with probability over a certain threshold."""
@@ -240,18 +257,20 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         return obligations, prohibitions
     
-    def append_history(self, timestep, other_obs):
-        cur_obs = deepcopy(timestep.observation)
-        self.others_history.append(other_obs)
-        self.history.append(cur_obs)
+    def append_history(self, own_timestep, all_timestep):
+        """Appends timestep observation to own history
+        an current environent timestep to overall history."""
+        own_cur_obs = deepcopy(own_timestep.observation)
+        self.others_history.append(all_timestep)
+        self.history.append(own_cur_obs)
         
     def step(self,
-             timestep: dm_env.TimeStep,
-             other_obs,
+             own_timestep: dm_env.TimeStep,
+             all_timestep: dm_env.TimeStep,
              other_acts):
         """Use the learned rules to determine the actions of the agent."""
 
-        self.append_history(timestep, other_obs)
+        self.append_history(own_timestep, all_timestep)
         if len(self.history) > 1:
             self.update_beliefs(other_acts)
         self.th_obligations, self.th_prohibitions = self.threshold_rules(threshold=0.8)
@@ -280,7 +299,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         # """
 
         # use parent class to compute best step
-        return super().step(timestep)
+        return super().step(own_timestep)
     
     def get_position_list(self, observation) -> list:
         position_list = [None]*self.num_total_agents
