@@ -27,8 +27,6 @@ import os
 
 from meltingpot.python import substrate
 
-from meltingpot.python.utils.substrates import shapes
-
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
@@ -74,6 +72,7 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
                                     role=role, 
                                     player_idx=i,
                                     other_player_looks=other_player_looks,
+                                    num_focal_bots = num_focal_bots,
                                     log_output=True,
                                     selection_mode="threshold"
                                     ))
@@ -272,7 +271,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 0 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 0
+  roles = ("cleaner",) * 0 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 1
   episodes = 200
   num_iteration = 1
   setting, data_dict = main(roles=roles,
@@ -280,7 +279,7 @@ if __name__ == "__main__":
                             episodes=episodes, 
                             num_iteration=num_iteration, 
                             create_video=True,
-                            log_output=True)
+                            log_output=False)
   
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))

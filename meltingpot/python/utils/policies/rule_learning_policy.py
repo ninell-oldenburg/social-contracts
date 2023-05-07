@@ -22,6 +22,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                  env: dm_env.Environment,
                  player_idx: int,
                  other_player_looks: list,
+                 num_focal_bots: int,
                  log_output: bool,
                  look: shapes,
                  role: str = "learner",
@@ -34,7 +35,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.role = role
         self.look = look
         self.max_depth = 30
-        self.p_obey = 0.95
+        self.p_obey = 0.99
         self.log_output = log_output
         self.selection_mode = selection_mode
         self.action_spec = env.action_spec()[0]
@@ -46,7 +47,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.prohibitions = []
         self.current_obligation = None
         self.player_looks = other_player_looks
-        self.num_focal_agents = self.get_num_focal(self.player_looks)
+        self.num_focal_agents = num_focal_bots
         self.num_total_agents = len(other_player_looks)
         self.num_rules = len(self.potential_rules)
         self.rule_beliefs = np.array([(0.2)]*self.num_rules)
@@ -78,14 +79,6 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             "PAY_ACTION"
           ]
         
-    def get_num_focal(self, player_looks):
-        non_learners = 0
-        for agent_look in player_looks:
-            if agent_look != ROLE_SPRITE_DICT['learner']:
-                non_learners += 1
-
-        return non_learners
-        
     def update_beliefs(self, other_actions):
         """Update the beliefs of the rules based on the 
         observations and actions."""
@@ -93,7 +86,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             # Compute the posterior of each rule
             self.compute_posterior(player_idx, other_actions[player_idx])
 
-        # print(self.rule_beliefs)
+        print(self.rule_beliefs)
 
     def compute_posterior(self, player_idx, player_act) -> None:
         """Writes the posterior for a rule given an observation 
@@ -152,14 +145,13 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         if rule_is_active: # Obligation is active
             if self.could_be_satisfied(rule, past_timestep, player_look):
+                print('could be satisfied')
                 if rule.satisfied(next_obs, player_look): # Agent obeyed the obligation
-                    # P(a | rule = true) = P(a | obedient = true, rule = true) P(obedient = true) + ...
-                    # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)                     
-                    # P(disobedient action | rule = true) = (0 * p_obey) + 1/n_actions * (1-p_obey)    
-                    # Assume len(obligated_actions) = 1
+                    # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)                      
                     p_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
                     return np.log(p_action)
                 else: # Agent disobeyed the obligation
+                    # P(disobedient action | rule = true) = (0 * p_obey) + 1/n_actions * (1-p_obey)   
                     p_action = (1-self.p_obey)/(self.num_actions)
                     return np.log(p_action)
             else: # Obligation is not active, or has expired
@@ -257,17 +249,29 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         return obligations, prohibitions
     
-    def append_history(self, own_timestep, all_timestep):
+    def append_history(self, 
+                       own_timestep: dm_env.TimeStep,
+                       all_timestep: list[dm_env.TimeStep]):
         """Appends timestep observation to own history
         an current environent timestep to overall history."""
-        own_cur_obs = deepcopy(own_timestep.observation)
+        own_cur_obs = super().deepcopy_dict(own_timestep.observation)
+        own_cur_pos = np.copy(own_cur_obs['POSITION'])
+        own_x, own_y = own_cur_pos[0], own_cur_pos[1]
+        updated_obs = super().update_observation(own_cur_obs, own_x, own_y)
+        self.history.append(updated_obs)
+
+        for i, observation in enumerate(all_timestep.observation):
+            cur_obs = super().deepcopy_dict(observation)
+            cur_pos = np.copy(cur_obs['POSITION'])
+            x, y = cur_pos[0], cur_pos[1]
+            all_timestep.observation[i] = super().update_observation(cur_obs, x, y)
+            
         self.others_history.append(all_timestep)
-        self.history.append(own_cur_obs)
         
     def step(self,
              own_timestep: dm_env.TimeStep,
-             all_timestep: dm_env.TimeStep,
-             other_acts):
+             all_timestep: list[dm_env.TimeStep],
+             other_acts: list):
         """Use the learned rules to determine the actions of the agent."""
 
         self.append_history(own_timestep, all_timestep)

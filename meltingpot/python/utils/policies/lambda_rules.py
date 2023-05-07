@@ -18,20 +18,16 @@ cleaner = ROLE_SPRITE_DICT["cleaner"]
 """
 cleaning_precon_free = "obs['TOTAL_NUM_CLEANERS'] < 1"
 cleaning_goal_free = "obs['TOTAL_NUM_CLEANERS'] >= 1"
-payment_precon_farmer = "obs['SINCE_AGENT_LAST_PAYED'] == 4"
-payment_goal_farmer = "obs['SINCE_AGENT_LAST_PAYED'] == 0"
-cleaning_precon_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] == 3"
-cleaning_goal_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
-payment_precon_cleaner = "obs['TIME_TO_GET_PAYED'] == 1"
-payment_goal_cleaner = "obs['TIME_TO_GET_PAYED'] == 0"
+payment_precon_farmer = "obs['SINCE_AGENT_LAST_PAYED'] > 4"
+payment_goal_farmer = "obs['SINCE_AGENT_LAST_PAYED'] < 1"
+cleaning_precon_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] > 3"
+cleaning_goal_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] < 3"
 
 DEFAULT_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
   ObligationRule(cleaning_precon_free, cleaning_goal_free, free),
   # If you're in the farmer role, pay cleaner with apples
   ObligationRule(payment_precon_farmer, payment_goal_farmer, farmer),
-  # if you're a cleaner, wait until you've received a payment
-  # ObligationRule(payment_precon_cleaner, payment_goal_cleaner, cleaner),
   # If you're in the cleaner role, clean in a certain rhythm
   ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, cleaner),
 ]
@@ -74,32 +70,47 @@ TERRITORY_RULES = [
 ################## OBLIGATIONS ################## 
 #################################################
 """
-cleaning_precon_free_2 = "obs['TOTAL_NUM_CLEANERS'] != 2"
-cleaning_goal_free_2 = "obs['TOTAL_NUM_CLEANERS'] >= 2"
-cleaning_precon_free_3 = "obs['TOTAL_NUM_CLEANERS'] != 3"
-cleaning_goal_free_3 = "obs['TOTAL_NUM_CLEANERS'] >= 3"
-cleaning_precon_free_4 = "obs['TOTAL_NUM_CLEANERS'] != 4"
-cleaning_goal_free_4 = "obs['TOTAL_NUM_CLEANERS'] >= 4"
+cleaning_precon_free_2 = "obs['TOTAL_NUM_CLEANERS'] < 2"
+cleaning_goal_free_2 = "obs['TOTAL_NUM_CLEANERS'] > 2"
+cleaning_precon_free_3 = "obs['TOTAL_NUM_CLEANERS'] < 3"
+cleaning_goal_free_3 = "obs['TOTAL_NUM_CLEANERS'] > 3"
+cleaning_precon_free_4 = "obs['TOTAL_NUM_CLEANERS'] < 4"
+cleaning_goal_free_4 = "obs['TOTAL_NUM_CLEANERS'] > 4"
 cleaning_precon_free_5 = "obs['TOTAL_NUM_CLEANERS'] <= 5"
-cleaning_goal_free_5 = "obs['TOTAL_NUM_CLEANERS'] >= 5"
+cleaning_goal_free_5 = "obs['TOTAL_NUM_CLEANERS'] > 5"
 
-payment_precon_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] == 5"
+payment_precon_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] > 5"
 payment_goal_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] < 5"
-payment_precon_farmer_6 = "obs['SINCE_AGENT_LAST_PAYED'] == 6"
+payment_precon_farmer_6 = "obs['SINCE_AGENT_LAST_PAYED'] > 6"
 payment_goal_farmer_6 = "obs['SINCE_AGENT_LAST_PAYED'] < 6"
-payment_precon_farmer_7 = "obs['SINCE_AGENT_LAST_PAYED'] == 7"
+payment_precon_farmer_7 = "obs['SINCE_AGENT_LAST_PAYED'] > 7"
 payment_goal_farmer_7 = "obs['SINCE_AGENT_LAST_PAYED'] < 7"
 
-cleaning_precon_cleaner_4 = "obs['SINCE_AGENT_LAST_CLEANED'] == 4"
+cleaning_precon_cleaner_4 = "obs['SINCE_AGENT_LAST_CLEANED'] > 4"
 cleaning_goal_cleaner_2 = "obs['SINCE_AGENT_LAST_CLEANED'] <= 2"
-cleaning_precon_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] == 5"
+cleaning_precon_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 5"
 cleaning_goal_cleaner_3 = "obs['SINCE_AGENT_LAST_CLEANED'] <= 3"
 
-payment_precon_cleaner_0 = "obs['TIME_TO_GET_PAYED'] == 0"
-payment_goal_cleaner_1 = "obs['TIME_TO_GET_PAYED'] == 1"
+# Shoot if there is an apple in the current cell and the agent is ready to shoot
+shooting_precon_apple = "obs['CUR_CELL_HAS_APPLE'] and obs['READY_TO_SHOOT']"
+shooting_goal_apple = "not obs['CUR_CELL_HAS_APPLE']"
+
+# If agent has not been paid for a long time, they must ask for payment
+ask_payment_precon = "obs['SINCE_AGENT_LAST_PAYED'] > obs['TIME_TO_GET_PAYED']"
+ask_payment_goal = "obs['ALWAYS_PAYED_BY']"
+
+# If the agent has no apples in their inventory, they must search for apples
+cleaning_precon_no_apples = "obs['INVENTORY'] == 0 and obs['CUR_CELL_HAS_APPLE'] == False"
+cleaning_goal_no_apples = "obs['INVENTORY'] > 0 or obs['CUR_CELL_HAS_APPLE'] == True"
 
 POTENTIAL_OBLIGATIONS = [
-  # clean the water if less than 1 agent is cleaning
+  # Shoot if there is an apple in the current cell and the agent is ready to shoot
+  ObligationRule(shooting_precon_apple, shooting_goal_apple, free),
+  # If agent has not been paid for a long time, they must ask for payment
+  ObligationRule(ask_payment_precon, ask_payment_goal, cleaner),
+  # If the agent has no apples in their inventory, they must search for apples
+  ObligationRule(cleaning_precon_no_apples, cleaning_goal_no_apples, free),
+  # clean the water if less than X agent is cleaning
   ObligationRule(cleaning_precon_free, cleaning_goal_free, free),
   ObligationRule(cleaning_precon_free_2, cleaning_goal_free_2, free),
   ObligationRule(cleaning_precon_free_3, cleaning_goal_free_3, free),
@@ -114,9 +125,6 @@ POTENTIAL_OBLIGATIONS = [
   ObligationRule(cleaning_precon_cleaner, cleaning_goal_cleaner, cleaner),
   ObligationRule(cleaning_precon_cleaner_4, cleaning_goal_cleaner_2, cleaner),
   ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_3, cleaner),
-  # if you're a cleaner, wait until you've received a payment
-  ObligationRule(payment_precon_cleaner, payment_goal_cleaner, cleaner),
-  ObligationRule(payment_precon_cleaner_0, payment_goal_cleaner_1, cleaner),
 ]
 
 """ 
