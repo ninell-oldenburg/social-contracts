@@ -29,7 +29,6 @@ from meltingpot.python.utils.policies import policy
 from meltingpot.python.utils.substrates import shapes
 
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
-from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
 
 @dataclass(order=True)
 class PrioritizedItem:
@@ -57,7 +56,7 @@ class RuleObeyingPolicy(policy.Policy):
     self._index = player_idx
     self.role = role
     self.look = look
-    self.max_depth = 30
+    self.max_depth = 20
     self.log_output = log_output
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions

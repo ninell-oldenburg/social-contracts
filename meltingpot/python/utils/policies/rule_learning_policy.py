@@ -98,7 +98,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                 log_llh = self.comp_prohib_llh(player_idx, rule, player_act)
     
             elif isinstance(rule, ObligationRule):
-                log_llh = self.comp_oblig_llh(player_idx, rule, player_act)
+                log_llh = self.comp_oblig_llh(player_idx, rule)
                         
             # BAYESIAN UPDATING
             # P(r = 1)
@@ -113,7 +113,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
             self.rule_beliefs[rule_idx] = posterior
     
-    def comp_oblig_llh(self, player_idx: int, rule: ObligationRule, action: int) -> float:
+    def comp_oblig_llh(self, player_idx: int, rule: ObligationRule) -> float:
 
         # unpack appearance, observation, position of the player
         player_look = self.player_looks[player_idx]

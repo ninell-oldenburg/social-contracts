@@ -75,13 +75,12 @@ class ObligationRule(EnvironmentRule):
         """Returns True if a precondition holds given a certain vector of observation."""
         if self.target_look != look:
             return False
-        
-        for obs in observations:
-            if self.satisfied(obs, look):
-                return False
             
-        for obs in observations: 
+        for i, obs in enumerate(observations):
             if super().holds_precondition(obs):
+                for j in range(i, len(observations)):
+                    if self.satisfied(observations[j], look):
+                        return False
                 return True
         
         return False

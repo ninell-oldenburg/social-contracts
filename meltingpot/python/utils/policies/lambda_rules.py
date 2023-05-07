@@ -16,12 +16,12 @@ cleaner = ROLE_SPRITE_DICT["cleaner"]
 ################## OBLIGATIONS ################## 
 #################################################
 """
-cleaning_precon_free = "obs['TOTAL_NUM_CLEANERS'] < 1"
-cleaning_goal_free = "obs['TOTAL_NUM_CLEANERS'] >= 1"
+cleaning_precon_free = "obs['SINCE_AGENT_LAST_CLEANED'] > 15"
+cleaning_goal_free = "obs['SINCE_AGENT_LAST_CLEANED'] < 15"
 payment_precon_farmer = "obs['SINCE_AGENT_LAST_PAYED'] > 4"
 payment_goal_farmer = "obs['SINCE_AGENT_LAST_PAYED'] < 1"
-cleaning_precon_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] > 3"
-cleaning_goal_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] < 3"
+cleaning_precon_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] > 5"
+cleaning_goal_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] < 5"
 
 DEFAULT_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
