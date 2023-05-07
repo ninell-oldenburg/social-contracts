@@ -29,7 +29,7 @@ def get_config(name: str) -> config_dict.ConfigDict:
   return substrate_configs.get_config(name).lock()
 
 
-def build(name: str, *, roles: Sequence[str]) -> substrate.Substrate:
+def build(name: str, *, roles: Sequence[str], env_seed: int) -> substrate.Substrate:
   """Builds an instance of the specified substrate.
 
   Args:
@@ -40,7 +40,7 @@ def build(name: str, *, roles: Sequence[str]) -> substrate.Substrate:
   Returns:
     The training substrate.
   """
-  return get_factory(name).build(roles)
+  return get_factory(name).build(roles, env_seed)
 
 
 def build_from_config(

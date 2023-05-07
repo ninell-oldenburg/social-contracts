@@ -50,7 +50,7 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
   config = {'substrate': substrate_name,
             'roles': roles}
 
-  env = substrate.build(config['substrate'], roles=config['roles'])
+  env = substrate.build(config['substrate'], roles=config['roles'], env_seed=env_seed)
 
   other_player_looks = [ROLE_SPRITE_DICT[role] for role in config['roles']]
   obeyed_prohibitions, obeyed_obligations = split_rules(rules)
@@ -156,11 +156,13 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
     timestep = env.step(action_list)
     actions = update(actions)
 
+    dead_apple_ratio = timestep.observation[0]['DEAD_APPLE_RATIO'] # same for every player
     data_dict = append_to_dict(data_dict, 
                                timestep.reward, 
                                cur_beliefs, 
                                roles, 
-                               action_list)
+                               action_list,
+                               dead_apple_ratio)
 
     # Saving files in superdircetory
     filename = '../videos/screen_%04d.png' % (k)
@@ -179,7 +181,7 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
   """ Profiler Run:
   ~ python3 -m cProfile -o run1.prof -s cumtime  examples/evals/evals.py """
 
-def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions) -> dict:
+def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dead_apple_ratio) -> dict:
   for i, key in enumerate(data_dict):
     if i < 4: # player rewards
       if key in all_roles: # key 0-3 are the name of the role
@@ -187,16 +189,19 @@ def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions) -> 
         data_dict[key].append(reward_arr[j].item())
       else: data_dict[key].append(0)
 
-    elif i < 8:
+    elif i < 8: # player actions
       role = key.replace('_action', '')
       if role in all_roles:
         k = get_index(role, all_roles)
-        data_dict[key].append(actions[j])
+        data_dict[key].append(actions[k])
       else: data_dict[key].append('')
 
-    else:
-      if len(beliefs) > i-4: # without first four columns
-        data_dict[key].append(beliefs[i-4])
+    elif i == 8:
+      data_dict[key].append(dead_apple_ratio)
+
+    else: # beliefs
+      if len(beliefs) > i-9: # check if there are learner beliefs
+        data_dict[key].append(beliefs[i-9]) # get beliefs (start at indec 0)
       else: data_dict[key].append(0)
 
   return data_dict
@@ -267,7 +272,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 1
+  roles = ("cleaner",) * 0 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 0
   episodes = 200
   num_iteration = 1
   setting, data_dict = main(roles=roles,
@@ -275,7 +280,7 @@ if __name__ == "__main__":
                             episodes=episodes, 
                             num_iteration=num_iteration, 
                             create_video=True,
-                            log_output=False)
+                            log_output=True)
   
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))

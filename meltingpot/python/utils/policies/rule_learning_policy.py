@@ -33,8 +33,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self._index = player_idx
         self.role = role
         self.look = look
-        self.max_depth = 20
-        self.p_obey = 0.99
+        self.max_depth = 30
+        self.p_obey = 0.95
         self.log_output = log_output
         self.selection_mode = selection_mode
         self.action_spec = env.action_spec()[0]

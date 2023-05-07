@@ -80,7 +80,7 @@ class SubstrateFactory:
     """Returns spec of action expected from a single player."""
     return self._action_spec
 
-  def build(self, roles: Sequence[str]) -> substrate.Substrate:
+  def build(self, roles: Sequence[str], env_seed: int) -> substrate.Substrate:
     """Builds the substrate.
 
     Args:
@@ -93,4 +93,5 @@ class SubstrateFactory:
         lab2d_settings=self._lab2d_settings_builder(roles),
         individual_observations=self._individual_observations,
         global_observations=self._global_observations,
-        action_table=self._action_table)
+        action_table=self._action_table,
+        env_seed=env_seed)

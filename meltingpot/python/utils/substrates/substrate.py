@@ -105,6 +105,7 @@ def build_substrate(
     individual_observations: Collection[str],
     global_observations: Collection[str],
     action_table: Sequence[Mapping[str, int]],
+    env_seed: int,
 ) -> Substrate:
   """Builds a Melting Pot substrate.
 
@@ -121,7 +122,7 @@ def build_substrate(
   Returns:
     The constructed substrate.
   """
-  env = builder.builder(lab2d_settings)
+  env = builder.builder(lab2d_settings, env_seed=env_seed)
   env = multiplayer_wrapper.Wrapper(
       env,
       individual_observation_names=individual_observations,

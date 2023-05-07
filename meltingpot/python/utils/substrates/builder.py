@@ -143,8 +143,8 @@ def locate_and_overwrite_level_directory(
 
 def builder(
     lab2d_settings: Settings,
+    env_seed: int,
     prefab_overrides: Optional[Settings] = None,
-    env_seed: Optional[int] = None,
     **settings) -> dmlab2d.Environment:
   """Builds a Melting Pot environment.
 

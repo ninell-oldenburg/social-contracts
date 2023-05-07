@@ -10,6 +10,7 @@ class EnvironmentRule():
                 the current timestep observation
         """
         self.precondition = "lambda obs : " + precondition
+        self.precondition_formula = self.walk_lambda(ast.parse(self.precondition))
 
     def walk_lambda(self, ast_tree):
         # Wrap the lambda node in a complete expression
@@ -20,8 +21,7 @@ class EnvironmentRule():
         return types.FunctionType(code.co_consts[0], globals())
 
     def holds_precondition(self, obs):
-        precondition_formula = self.walk_lambda(ast.parse(self.precondition))
-        return precondition_formula(obs)
+        return self.precondition_formula(obs)
     
 
 class ProhibitionRule(EnvironmentRule):
@@ -39,6 +39,7 @@ class ProhibitionRule(EnvironmentRule):
         self.pure_precon = precondition
         self.precondition = "lambda obs : " + precondition
         self.prohibited_action = prohibited_action
+        self.precondition_formula = self.walk_lambda(ast.parse(self.precondition))
 
     def holds(self, obs, action):
         """Returns True if a rule holds given a certain observation."""
@@ -65,8 +66,10 @@ class ObligationRule(EnvironmentRule):
         self.pure_precon = precondition
         self.pure_goal = goal
         self.precondition = "lambda obs : " + precondition
+        self.precondition_formula = self.walk_lambda(ast.parse(self.precondition))
         self.goal = "lambda obs : " + goal
         self.target_look = target_look
+        self.goal_formula = super().walk_lambda(ast.parse(self.goal))
 
     def holds_in_history(self, observations, look):
         """Returns True if a precondition holds given a certain vector of observation."""
@@ -74,6 +77,10 @@ class ObligationRule(EnvironmentRule):
             return False
         
         for obs in observations:
+            if self.satisfied(obs, look):
+                return False
+            
+        for obs in observations: 
             if super().holds_precondition(obs):
                 return True
         
@@ -84,8 +91,7 @@ class ObligationRule(EnvironmentRule):
         if self.target_look != look:
             return False
         
-        goal_formula = super().walk_lambda(ast.parse(self.goal))
-        return goal_formula(observation)
+        return self.goal_formula(observation)
     
     def make_str_repr(self):
         return self.pure_precon + ' -> ' + self.pure_goal

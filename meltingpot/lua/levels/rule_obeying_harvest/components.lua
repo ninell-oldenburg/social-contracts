@@ -1166,6 +1166,7 @@ end
 function Surroundings:start()
   self.transform = self.gameObject:getComponent('Transform')
   self:reset()
+  self.deadAppleRatio = 0
 end
 
 function Surroundings:postStart()
@@ -1186,7 +1187,7 @@ function Surroundings:getRatioDessicatedFields()
     local underlyingGrass = appleFieldgameObject:getComponent(
       'Transform'):queryPosition('background')
     if underlyingGrass:getState() == 'dessicated' then
-      counter += 1
+      counter = counter + 1
     end 
   end
   self.deadAppleRatio = counter / apples:length()
@@ -1459,6 +1460,12 @@ function DirtSpawner:__init__(kwargs)
   self._config.delayStartOfDirtSpawning = kwargs.delayStartOfDirtSpawning
   self._dirtSpawnProbability = kwargs.dirtSpawnProbability
   self._potentialDirts = set.Set{}
+end
+
+function DirtSpawner:start()
+  self._numPlayers = self.gameObject.simulation:getNumPlayers()
+  -- set spawn probs according to number of player
+  self._dirtSpawnProbability =  self._dirtSpawnProbability * (self._numPlayers / 4)
 end
 
 function DirtSpawner:reset()

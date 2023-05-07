@@ -16,8 +16,8 @@ cleaner = ROLE_SPRITE_DICT["cleaner"]
 ################## OBLIGATIONS ################## 
 #################################################
 """
-cleaning_precon_free = "obs['TOTAL_NUM_CLEANERS'] != 1"
-cleaning_goal_free = "obs['TOTAL_NUM_CLEANERS'] == 0"
+cleaning_precon_free = "obs['TOTAL_NUM_CLEANERS'] < 1"
+cleaning_goal_free = "obs['TOTAL_NUM_CLEANERS'] >= 1"
 payment_precon_farmer = "obs['SINCE_AGENT_LAST_PAYED'] == 4"
 payment_goal_farmer = "obs['SINCE_AGENT_LAST_PAYED'] == 0"
 cleaning_precon_cleaner = "obs['SINCE_AGENT_LAST_CLEANED'] == 3"
