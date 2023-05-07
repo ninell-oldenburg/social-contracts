@@ -86,14 +86,11 @@ class ObligationRule(EnvironmentRule):
         
         return False
     
-    def holds_now(self, observation, look):
+    def holds_now(self, obs, look):
         if self.target_look != look:
             return False
 
-        if super().holds_precondition(observation):
-                return True
-
-        return False
+        return super().holds_precondition(obs)
     
     def satisfied(self, observation, look):
         """Returns True if the rule goal is satisfied."""

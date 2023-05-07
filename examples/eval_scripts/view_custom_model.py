@@ -125,30 +125,20 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
             observation=timestep.observation[i])
       
       cum_reward[i] += timestep_bot.reward
-      
-      if i < num_focal_bots:
-        if len(actions[i]) == 0: # action pipeline empty
-          actions[i] = bot.step(timestep_bot)
+      bot.update_and_append_history(timestep_bot)
 
-      else: # if not focal bot 
-        other_acts = [action[0] for _, action in islice(
-          actions.items(), num_focal_bots)]
+      if i >= num_focal_bots: # update beliefs if focal bot
+        bot.update_and_append_others_history(timestep)
+        if len(bot.others_history) > 2:
+          other_acts = [action[0] for _, action in islice(
+            actions.items(), num_focal_bots)]
+          bot.update_beliefs(other_acts)
+          bot.obligations, bot.prohibitions = bot.threshold_rules(threshold=0.75)
+          
+        cur_beliefs = bot.rule_beliefs
         
-        if len(actions[i]) == 0: # action pipeline empty
-          updated_obs = bot.update_obs_without_coordinates(timestep_bot.observation)
-          timestep_bot = timestep_bot._replace(observation=updated_obs)
-          actions[i] = bot.step(timestep_bot, 
-                              timestep,
-                              other_acts)
-
-        else: # action pipeline not empty
-          _ = bot.append_history(timestep_bot, timestep)
-          if len(bot.others_history) > 2:
-            bot.update_beliefs(other_acts)
-            bot.th_obligations, bot.th_prohibitions = bot.threshold_rules(threshold=0.99)
-            bot.obligations = bot.th_obligations
-            bot.prohibitions = bot.th_prohibitions
-          cur_beliefs = bot.rule_beliefs
+      if len(actions[i]) == 0: # action pipeline empty
+        actions[i] = bot.step(timestep_bot)
             
     if log_output:
       print(actions)
@@ -273,7 +263,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 0 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 1
+  roles = ("cleaner",) * 0 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 0
   episodes = 200
   num_iteration = 1
   setting, data_dict = main(roles=roles,
@@ -281,7 +271,7 @@ if __name__ == "__main__":
                             episodes=episodes, 
                             num_iteration=num_iteration, 
                             create_video=True,
-                            log_output=False)
+                            log_output=True)
   
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))

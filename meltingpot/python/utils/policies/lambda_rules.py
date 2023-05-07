@@ -99,17 +99,11 @@ shooting_goal_apple = "not obs['CUR_CELL_HAS_APPLE']"
 ask_payment_precon = "obs['SINCE_AGENT_LAST_PAYED'] > obs['TIME_TO_GET_PAYED']"
 ask_payment_goal = "obs['ALWAYS_PAYED_BY']"
 
-# If the agent has no apples in their inventory, they must search for apples
-cleaning_precon_no_apples = "obs['INVENTORY'] == 0 and obs['CUR_CELL_HAS_APPLE'] == False"
-cleaning_goal_no_apples = "obs['INVENTORY'] > 0 or obs['CUR_CELL_HAS_APPLE'] == True"
-
 POTENTIAL_OBLIGATIONS = [
   # Shoot if there is an apple in the current cell and the agent is ready to shoot
   ObligationRule(shooting_precon_apple, shooting_goal_apple, free),
   # If agent has not been paid for a long time, they must ask for payment
   ObligationRule(ask_payment_precon, ask_payment_goal, cleaner),
-  # If the agent has no apples in their inventory, they must search for apples
-  ObligationRule(cleaning_precon_no_apples, cleaning_goal_no_apples, free),
   # clean the water if less than X agent is cleaning
   ObligationRule(cleaning_precon_free, cleaning_goal_free, free),
   ObligationRule(cleaning_precon_free_2, cleaning_goal_free_2, free),

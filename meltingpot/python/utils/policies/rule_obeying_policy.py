@@ -63,7 +63,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.prohibitions = prohibitions
     self.obligations = obligations
     self.current_obligation = None
-    self.history = deque(maxlen=5)
+    self.history = deque(maxlen=20)
     self.payees = []
     if self.role == 'farmer':
       self.payees = None
@@ -100,7 +100,6 @@ class RuleObeyingPolicy(policy.Policy):
       End of episode defined in dm_env.TimeStep.
       """
 
-      self.history.append(timestep.observation)
       # Check if any of the obligations are active
       self.current_obligation = None
       for obligation in self.obligations:
@@ -113,19 +112,28 @@ class RuleObeyingPolicy(policy.Policy):
 
       # Select an action based on the first satisfying rule
       return self.a_star(timestep)
+  
+  def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
+    own_cur_obs = self.deepcopy_dict(timestep.observation)
+    own_cur_pos = np.copy(own_cur_obs['POSITION'])
+    own_x, own_y = own_cur_pos[0], own_cur_pos[1]
+    updated_obs = self.update_observation(own_cur_obs, own_x, own_y)
+    self.history.append(updated_obs)
 
   def maybe_collect_apple(self, observation) -> float:
     x, y = observation['POSITION'][0], observation['POSITION'][1]
     reward_map = observation['SURROUNDINGS']
+    has_apple = observation['CUR_CELL_HAS_APPLE']
     if self.exceeds_map(observation['WORLD.RGB'], x, y):
-      return 0
+      return 0, has_apple
     if reward_map[x][y] == -3:
-      return 1
-    return 0
+      return 1, False
+    return 0, has_apple
 
   def env_step(self, timestep: dm_env.TimeStep, action: int) -> dm_env.TimeStep:
       # 1. Unpack observations from timestep
       observation = self.deepcopy_dict(timestep.observation)
+      observation = self.update_obs_without_coordinates(observation)
       orientation = observation['ORIENTATION']
       cur_inventory = observation['INVENTORY']
       cur_pos = observation['POSITION']
@@ -138,7 +146,9 @@ class RuleObeyingPolicy(policy.Policy):
           # make the cleaner wait for it's paying farmer
           observation['TIME_TO_GET_PAYED'] = 0
         observation['POSITION'] = cur_pos + self.action_to_pos[orientation][action]
-        cur_inventory += self.maybe_collect_apple(observation)
+        new_inventory, has_apple = self.maybe_collect_apple(observation)
+        observation['CUR_CELL_HAS_APPLE'] = has_apple
+        cur_inventory += new_inventory
 
       elif action <= 6: # TURN ACTIONS
         observation['ORIENTATION'] = self.action_to_orientation[orientation][action-5]

@@ -7,7 +7,6 @@ import numpy as np
 from copy import deepcopy
 
 import random
-from scipy.stats import bernoulli
 
 from meltingpot.python.utils.substrates import shapes
 
@@ -35,14 +34,14 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.role = role
         self.look = look
         self.max_depth = 30
-        self.p_obey = 0.99
+        self.p_obey = 0.9
         self.log_output = log_output
         self.selection_mode = selection_mode
         self.action_spec = env.action_spec()[0]
         self.num_actions = self.action_spec.num_values
         self.potential_obligations = potential_obligations
         self.potential_prohibitions = potential_prohibitions
-        self.potential_rules = self.potential_obligations + self.potential_prohibitions
+        self.potential_rules = self.potential_obligations #+ self.potential_prohibitions
         self.obligations = []
         self.prohibitions = []
         self.current_obligation = None
@@ -118,11 +117,11 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         # unpack appearance, observation, position of the player
         player_look = self.player_looks[player_idx]
-        past_obs = self.others_history[-3].observation[player_idx]
+        player_history = [all_players_timesteps.observation[player_idx] for all_players_timesteps in self.others_history]
         next_obs = self.others_history[-1].observation[player_idx]
         past_timestep = self.get_single_timestep(self.others_history[-2], player_idx)
 
-        if rule.holds_now(past_obs, player_look):
+        if rule.holds_in_history(player_history[:-2], player_look):
             if rule not in self.nonself_active_obligations_count[player_idx].keys():
                 self.nonself_active_obligations_count[player_idx][rule] = 0
             else:
@@ -138,11 +137,11 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         if rule_is_active: # Obligation is active
             if self.could_be_satisfied(rule, past_timestep, player_look):
                 if rule.satisfied(next_obs, player_look): # Agent obeyed the obligation
-                    # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)   
+                    # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)
                     p_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
                     return np.log(p_action)
                 else: # Agent disobeyed the obligation
-                    # P(disobedient action | rule = true) = (0 * p_obey) + 1/n_actions * (1-p_obey)   
+                    # P(disobedient action | rule = true) = (0 * p_obey) + 1/n_actions * (1-p_obey)  
                     p_action = (1-self.p_obey)/(self.num_actions)
                     return np.log(p_action)
             else: # Obligation is not active, or has expired
@@ -240,16 +239,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         return obligations, prohibitions
     
-    def append_history(self, 
-                       own_timestep: dm_env.TimeStep,
+    def update_and_append_others_history(self, 
                        all_timestep: list[dm_env.TimeStep]):
-        """Appends timestep observation to own history
-        an current environent timestep to overall history."""
-        own_cur_obs = super().deepcopy_dict(own_timestep.observation)
-        own_cur_pos = np.copy(own_cur_obs['POSITION'])
-        own_x, own_y = own_cur_pos[0], own_cur_pos[1]
-        updated_obs = super().update_observation(own_cur_obs, own_x, own_y)
-        self.history.append(updated_obs)
+        """Appends timestep observation to current 
+        environent timestep to overall history."""
 
         for i, observation in enumerate(all_timestep.observation):
             cur_obs = super().deepcopy_dict(observation)
@@ -258,30 +251,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             all_timestep.observation[i] = super().update_observation(cur_obs, x, y)
 
         self.others_history.append(all_timestep)
-
-        return updated_obs
         
     def step(self,
-             own_timestep: dm_env.TimeStep,
-             all_timestep: list[dm_env.TimeStep],
-             other_acts: list):
+             timestep: dm_env.TimeStep):
         """Use the learned rules to determine the actions of the agent."""
-
-
-        updated_obs = self.append_history(own_timestep, all_timestep)
-        own_timestep._replace(observation=updated_obs)
-        if len(self.others_history) > 2:
-            self.update_beliefs(other_acts)
-        self.th_obligations, self.th_prohibitions = self.threshold_rules(threshold=0.8)
-        self.sampl_obligations, self.sampl_prohibitions = self.sample_rules()
-
-        # choose whether to use thresholded or sampled rules
-        if self.selection_mode == 'threshold':
-            self.obligations = self.th_obligations
-            self.prohibitions = self.th_prohibitions
-        else:
-            self.obligations = self.sampl_obligations
-            self.prohibitions = self.sampl_prohibitions
 
         # """
         if self.log_output:
@@ -298,7 +271,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         # """
 
         # use parent class to compute best step
-        return super().step(own_timestep)
+        return super().step(timestep)
     
     def get_position_list(self, observation) -> list:
         position_list = [None]*self.num_total_agents
