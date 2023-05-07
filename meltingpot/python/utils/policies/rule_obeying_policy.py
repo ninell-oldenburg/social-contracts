@@ -123,7 +123,7 @@ class RuleObeyingPolicy(policy.Policy):
       return 1
     return 0
 
-  def env_step(self, timestep: dm_env.TimeStep, action) -> dm_env.TimeStep:
+  def env_step(self, timestep: dm_env.TimeStep, action: int) -> dm_env.TimeStep:
       # 1. Unpack observations from timestep
       observation = self.deepcopy_dict(timestep.observation)
       orientation = observation['ORIENTATION']
@@ -311,7 +311,7 @@ class RuleObeyingPolicy(policy.Policy):
     cur_pos = np.copy(observation['POSITION'])
 
     for action in range(self.action_spec.num_values):
-      x, y = self.update_coordinates_based_on_action(action, 
+      x, y = self.update_coordinates_by_action(action, 
                                                      cur_pos,
                                                      observation)
 
@@ -328,7 +328,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     return actions
   
-  def update_coordinates_based_on_action(self, action, cur_pos, observation):
+  def update_coordinates_by_action(self, action, cur_pos, observation):
     x, y = cur_pos[0], cur_pos[1]
     orientation = observation['ORIENTATION']
     if action <= 4: # move actions
@@ -343,6 +343,11 @@ class RuleObeyingPolicy(policy.Policy):
           return False
         
     return True
+  
+  def update_obs_without_coordinates(self, obs):
+    cur_pos = np.copy(obs['POSITION'])
+    x, y = cur_pos[0], cur_pos[1]
+    return self.update_observation(obs, x, y)
 
   def update_observation(self, obs, x, y):
     """Updates the observation with requested information."""
