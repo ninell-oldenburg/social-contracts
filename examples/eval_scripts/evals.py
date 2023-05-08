@@ -67,7 +67,7 @@ for i in range(0, len(DEFAULT_RULES) + 1):
 
 start_time = time.time()
 
-stats_relevance = 1
+stats_relevance = 13
 
 print()
 print('*'*50)
@@ -81,7 +81,8 @@ for k in range(stats_relevance):
       cur_settings, cur_result = main(roles=roles, 
                                       episodes=200, 
                                       num_iteration=i, 
-                                      rules=DEFAULT_RULES, 
+                                      rules=DEFAULT_RULES,
+                                      env_seed=k,
                                       create_video=True, 
                                       log_output=False)
       cur_df = pd.DataFrame.from_dict(cur_result)
@@ -102,7 +103,8 @@ for k in range(stats_relevance):
       cur_settings, cur_result = main(roles=roles, 
                                       episodes=200, 
                                       num_iteration=i, 
-                                      rules=DEFAULT_RULES, 
+                                      rules=DEFAULT_RULES,
+                                      env_seed=k,
                                       create_video=True, 
                                       log_output=False)
       cur_df = pd.DataFrame.from_dict(cur_result)
@@ -123,6 +125,7 @@ for k in range(stats_relevance):
                                       episodes=200, 
                                       num_iteration=i, 
                                       rules=rule_set, 
+                                      env_seed=k,
                                       create_video=True, 
                                       log_output=False)
     cur_df = pd.DataFrame.from_dict(cur_result)

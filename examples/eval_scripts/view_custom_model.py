@@ -36,7 +36,7 @@ from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPo
 
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
 
-def main(roles, episodes, num_iteration, rules, create_video=True, log_output=True, env_seed=1):
+def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log_output=True):
 
   level_name = get_name_from_rules(rules)
   substrate_name = f'rule_obeying_harvest_{level_name}'
@@ -85,9 +85,11 @@ def main(roles, episodes, num_iteration, rules, create_video=True, log_output=Tr
 
   actions = {key: [] for key in range(len(bots))}
   # make headline of output dict
+  ACTION_ROLE_LIST = [key+ "_action" for key in ROLE_SPRITE_DICT.keys()]
   data_dict = {
     (key.make_str_repr() if hasattr(key, 'make_str_repr') else key): [] 
-    for key in list(ROLE_SPRITE_DICT.keys()) + POTENTIAL_PROHIBITIONS + POTENTIAL_OBLIGATIONS
+    for key in list(ROLE_SPRITE_DICT.keys()) + \
+      ACTION_ROLE_LIST + ['DESSICATED'] + POTENTIAL_PROHIBITIONS + POTENTIAL_OBLIGATIONS
   }
   cur_beliefs = [] * len(POTENTIAL_PROHIBITIONS + POTENTIAL_OBLIGATIONS)
 
@@ -266,6 +268,7 @@ if __name__ == "__main__":
   num_iteration = 1
   setting, data_dict = main(roles=roles,
                             rules=DEFAULT_RULES,
+                            env_seed=1,
                             episodes=episodes, 
                             num_iteration=num_iteration, 
                             create_video=True,

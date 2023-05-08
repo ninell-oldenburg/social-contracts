@@ -119,6 +119,7 @@ class RuleObeyingPolicy(policy.Policy):
     own_cur_pos = np.copy(own_cur_obs['POSITION'])
     own_x, own_y = own_cur_pos[0], own_cur_pos[1]
     updated_obs = self.update_observation(own_cur_obs, own_x, own_y)
+    print(updated_obs.keys())
     self.history.append(updated_obs)
 
   def maybe_collect_apple(self, observation) -> float:

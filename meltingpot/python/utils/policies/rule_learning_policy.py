@@ -51,8 +51,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.num_rules = len(self.potential_rules)
         self.rule_beliefs = np.array([(0.2)]*self.num_rules)
         self.nonself_active_obligations_count = np.array([dict() for _ in range(self.num_total_agents)])
-        self.others_history = deque(maxlen=5)
-        self.history = deque(maxlen=5)
+        self.others_history = deque(maxlen=10)
+        self.history = deque(maxlen=10)
 
         # move actions
         self.action_to_pos = [

@@ -93,17 +93,11 @@ cleaning_goal_cleaner_15 = "obs['SINCE_AGENT_LAST_CLEANED'] <= 15"
 cleaning_precon_cleaner_30 = "obs['SINCE_AGENT_LAST_CLEANED'] > 30"
 cleaning_goal_cleaner_30 = "obs['SINCE_AGENT_LAST_CLEANED'] <= 30"
 
-# Shoot if there is an apple in the current cell and the agent is ready to shoot
-shooting_precon_apple = "obs['CUR_CELL_HAS_APPLE'] and obs['READY_TO_SHOOT']"
-shooting_goal_apple = "not obs['CUR_CELL_HAS_APPLE']"
-
 # If agent has not been paid for a long time, they must ask for payment
 ask_payment_precon = "obs['SINCE_AGENT_LAST_PAYED'] > obs['TIME_TO_GET_PAYED']"
 ask_payment_goal = "obs['ALWAYS_PAYED_BY']"
 
 POTENTIAL_OBLIGATIONS = [
-  # Shoot if there is an apple in the current cell and the agent is ready to shoot
-  ObligationRule(shooting_precon_apple, shooting_goal_apple, free),
   # If agent has not been paid for a long time, they must ask for payment
   ObligationRule(ask_payment_precon, ask_payment_goal, cleaner),
    # clean the water if less than 1 agent is cleaning
