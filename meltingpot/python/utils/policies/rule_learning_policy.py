@@ -41,7 +41,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.num_actions = self.action_spec.num_values
         self.potential_obligations = potential_obligations
         self.potential_prohibitions = potential_prohibitions
-        self.potential_rules = self.potential_obligations + self.potential_prohibitions
+        self.potential_rules = self.potential_prohibitions + self.potential_obligations
         self.obligations = []
         self.prohibitions = []
         self.current_obligation = None
@@ -85,7 +85,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             # Compute the posterior of each rule
             self.compute_posterior(player_idx, other_actions[player_idx])
 
-        print(self.rule_beliefs)
+        # print(self.rule_beliefs)
 
     def compute_posterior(self, player_idx, player_act) -> None:
         """Writes the posterior for a rule given an observation 

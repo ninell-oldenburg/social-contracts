@@ -196,6 +196,9 @@ function DensityRegrow:_updateWaitState()
     self.gameObject:setState(newState)
     if newState == self._config.waitState .. '_' .. tostring(0) then
       self._underlyingGrass:setState('dessicated')
+        local globalData = self.gameObject.simulation:getSceneObject():getComponent(
+          'GlobalData')
+        globalData:setDessicated()
     else
       self._underlyingGrass:setState('grass')
     end
@@ -1167,6 +1170,15 @@ function Surroundings:start()
   self.transform = self.gameObject:getComponent('Transform')
   self:reset()
   self.deadAppleRatio = 0
+  self.numApples = 0
+  local upperLeft = {1, 1}
+  local lowerRight = {self._config.mapSize[1], self._config.mapSize[2]}
+  local objects = self.transform:queryRectangle('appleLayer', upperLeft, lowerRight)
+  for _, item in pairs(objects) do
+    if item:hasComponent('Harvestable') then
+      self.numApples = self.numApples + 1
+    end
+  end
 end
 
 function Surroundings:postStart()
@@ -1177,20 +1189,17 @@ function Surroundings:postStart()
   self:update()
 end
 
-function Surroundings:getRatioDessicatedFields()
+function Surroundings:setRatioDessicatedFields()
+  deadAppleCounter = 0
   local upperLeft = {1, 1}
   local lowerRight = {self._config.mapSize[1], self._config.mapSize[2]}
-  local objects = self.transform:queryRectangle('appleLayer', upperLeft, lowerRight)
-  local apples = self.gameObject:getComponent('apple')
-  counter = 0
-  for appleField in apples do
-    local underlyingGrass = appleFieldgameObject:getComponent(
-      'Transform'):queryPosition('background')
-    if underlyingGrass:getState() == 'dessicated' then
-      counter = counter + 1
-    end 
+  local objects = self.transform:queryRectangle('background', upperLeft, lowerRight)
+  for _, item in pairs(objects) do
+    if item:getState() == 'dessicated' then
+      deadAppleCounter = deadAppleCounter + 1
+    end
   end
-  self.deadAppleRatio = counter / apples:length()
+  self.deadAppleRatio = deadAppleCounter / self.numApples
 end
 
 function Surroundings:setDirtLocations()
@@ -1283,6 +1292,8 @@ function Surroundings:update()
   self:setDirtLocations()
   self:setPayeeLocations()
   self:setOwnLocation()
+  self:setRatioDessicatedFields()
+  --print(self.deadAppleRatio)
   -- self:setOwnLocation()
   if self._config.agentRole == "learner" then 
     self:setOtherPlayersLocation()
@@ -1510,6 +1521,7 @@ function GlobalData:reset()
   self.playersWhoCleanedThisStep = tensor.Tensor(self.numPlayers):fill(0)
   self.playersWhoAteThisStep = tensor.Tensor(self.numPlayers):fill(0)
   self.stolenRecords = tensor.DoubleTensor(self.numPlayers, self.numPlayers):fill(0)
+  self.dessicatedCounter = 0
 end
 
 function GlobalData:registerUpdaters(updaterRegistry)
@@ -1559,6 +1571,13 @@ function GlobalData:getNumCleaners()
   return self.playersWhoCleanedThisStep():sum()
 end
 
+function GlobalData:setDessicated()
+  self.dessicatedCounter = self.dessicatedCounter + 1
+end
+
+function GlobalData:getDessicated()
+  return self.dessicatedCounter
+end
 
 --[[ The RiverMonitor is a scene component that tracks the state of the river.
 

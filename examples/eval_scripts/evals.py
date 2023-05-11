@@ -108,7 +108,7 @@ for k in range(stats_relevance):
                                       create_video=True, 
                                       log_output=False)
       cur_df = pd.DataFrame.from_dict(cur_result)
-      path = f"examples/results/test/scenario{i+1}/trial{k+1}..csv"
+      path = f"examples/results/test/scenario{i+1}/trial{k+1}.csv"
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
       print(f'TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
@@ -129,7 +129,7 @@ for k in range(stats_relevance):
                                       create_video=True, 
                                       log_output=False)
     cur_df = pd.DataFrame.from_dict(cur_result)
-    path = f"examples/results/rule_trials/rule_set{rule_set_idx+1}/trial{k+1}..csv"
+    path = f"examples/results/rule_trials/scenario{rule_set_idx+1}/trial{k+1}.csv"
     cur_df.to_csv(path_or_buf=path)
     print('='*50)
     print(f'RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')

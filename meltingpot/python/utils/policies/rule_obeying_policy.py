@@ -114,12 +114,14 @@ class RuleObeyingPolicy(policy.Policy):
       # Select an action based on the first satisfying rule
       return self.a_star(timestep)
   
+  def get_dead_apples(self, timestep: dm_env.TimeStep):
+    return timestep.observation['DEAD_APPLE_RATIO']
+  
   def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
     own_cur_obs = self.deepcopy_dict(timestep.observation)
     own_cur_pos = np.copy(own_cur_obs['POSITION'])
     own_x, own_y = own_cur_pos[0], own_cur_pos[1]
     updated_obs = self.update_observation(own_cur_obs, own_x, own_y)
-    print(updated_obs.keys())
     self.history.append(updated_obs)
 
   def maybe_collect_apple(self, observation) -> float:

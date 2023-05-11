@@ -70,14 +70,12 @@ TERRITORY_RULES = [
 ################## OBLIGATIONS ################## 
 #################################################
 """
-cleaning_precon_free_total = "obs['TOTAL_NUM_CLEANERS'] < 1"
-cleaning_goal_free_total = "obs['TOTAL_NUM_CLEANERS'] > 1"
-cleaning_precon_free_5 = "obs['SINCE_AGENT_LAST_PAYED'] > 5"
-cleaning_goal_free_5 = "obs['SINCE_AGENT_LAST_PAYED'] < 5"
-cleaning_precon_free_10 = "obs['SINCE_AGENT_LAST_PAYED'] > 10"
-cleaning_goal_free_10 = "obs['SINCE_AGENT_LAST_PAYED'] < 10"
-cleaning_precon_free_15 = "obs['SINCE_AGENT_LAST_PAYED'] > 15"
-cleaning_goal_free_15 = "obs['SINCE_AGENT_LAST_PAYED'] < 15"
+cleaning_precon_free_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 4"
+cleaning_goal_free_5 = "obs['SINCE_AGENT_LAST_CLEANED'] < 4"
+cleaning_precon_free_10 = "obs['SINCE_AGENT_LAST_CLEANED'] > 9"
+cleaning_goal_free_10 = "obs['SINCE_AGENT_LAST_CLEANED'] < 9"
+cleaning_precon_free_15 = "obs['SINCE_AGENT_LAST_CLEANED'] > 14"
+cleaning_goal_free_15 = "obs['SINCE_AGENT_LAST_CLEANED'] < 14"
 
 payment_precon_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] > 5"
 payment_goal_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] < 5"
@@ -89,33 +87,26 @@ payment_goal_farmer_30 = "obs['SINCE_AGENT_LAST_PAYED'] < 30"
 cleaning_precon_cleaner_10 = "obs['SINCE_AGENT_LAST_CLEANED'] > 10"
 cleaning_goal_cleaner_10 = "obs['SINCE_AGENT_LAST_CLEANED'] < 10"
 cleaning_precon_cleaner_15 = "obs['SINCE_AGENT_LAST_CLEANED'] > 15"
-cleaning_goal_cleaner_15 = "obs['SINCE_AGENT_LAST_CLEANED'] <= 15"
-cleaning_precon_cleaner_30 = "obs['SINCE_AGENT_LAST_CLEANED'] > 30"
-cleaning_goal_cleaner_30 = "obs['SINCE_AGENT_LAST_CLEANED'] <= 30"
-
-# If agent has not been paid for a long time, they must ask for payment
-ask_payment_precon = "obs['SINCE_AGENT_LAST_PAYED'] > obs['TIME_TO_GET_PAYED']"
-ask_payment_goal = "obs['ALWAYS_PAYED_BY']"
+cleaning_goal_cleaner_15 = "obs['SINCE_AGENT_LAST_CLEANED'] < 15"
+cleaning_precon_cleaner_30 = "obs['SINCE_AGENT_LAST_CLEANED'] > 29"
+cleaning_goal_cleaner_30 = "obs['SINCE_AGENT_LAST_CLEANED'] < 29"
 
 POTENTIAL_OBLIGATIONS = [
-  # If agent has not been paid for a long time, they must ask for payment
-  ObligationRule(ask_payment_precon, ask_payment_goal, cleaner),
    # clean the water if less than 1 agent is cleaning
   ObligationRule(cleaning_precon_free_5, cleaning_goal_free_5, free),
   ObligationRule(cleaning_precon_free_10, cleaning_goal_free_10, free),
   ObligationRule(cleaning_precon_free_15, cleaning_goal_free_15, free),
   ObligationRule(cleaning_precon_free_30, cleaning_goal_free_30, free),
   # If you're in the farmer role, pay cleaner with apples
-  ObligationRule(payment_precon_farmer_5, payment_goal_farmer_5, free),
-  ObligationRule(payment_precon_farmer_10, payment_goal_farmer_10, free),
-  ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15, free),
-  ObligationRule(payment_precon_farmer_30, payment_goal_farmer_30, free),
+  ObligationRule(payment_precon_farmer_5, payment_goal_farmer_5, farmer),
+  ObligationRule(payment_precon_farmer_10, payment_goal_farmer_10, farmer),
+  ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15, farmer),
+  ObligationRule(payment_precon_farmer_30, payment_goal_farmer_30, farmer),
   # If you're in the cleaner role, clean in a certain rhythm
   ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5, cleaner),
-  ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5, free),
-  ObligationRule(cleaning_precon_cleaner_10, cleaning_goal_cleaner_10, free),
-  ObligationRule(cleaning_precon_cleaner_15, cleaning_goal_cleaner_15, free),
-  ObligationRule(cleaning_precon_cleaner_30, cleaning_goal_cleaner_30, free)
+  ObligationRule(cleaning_precon_cleaner_10, cleaning_goal_cleaner_10, cleaner),
+  ObligationRule(cleaning_precon_cleaner_15, cleaning_goal_cleaner_15, cleaner),
+  ObligationRule(cleaning_precon_cleaner_30, cleaning_goal_cleaner_30, cleaner)
 ]
 
 """ 

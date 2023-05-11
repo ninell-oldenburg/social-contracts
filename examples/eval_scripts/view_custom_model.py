@@ -82,6 +82,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
 
   timestep = env.reset()
   cum_reward = [0] * num_bots
+  dead_apple_ratio = 0.0
 
   actions = {key: [] for key in range(len(bots))}
   # make headline of output dict
@@ -136,9 +137,12 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
           bot.obligations, bot.prohibitions = bot.threshold_rules(threshold=0.75)
           
         cur_beliefs = bot.rule_beliefs
+        print(timestep_bot)
         
       if len(actions[i]) == 0: # action pipeline empty
         actions[i] = bot.step(timestep_bot)
+        
+      dead_apple_ratio = bot.get_dead_apples(timestep_bot) # same for every player
             
     if log_output:
       print(actions)
@@ -147,7 +151,6 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
     timestep = env.step(action_list)
     actions = update(actions)
 
-    dead_apple_ratio = timestep.observation[0]['DEAD_APPLE_RATIO'] # same for every player
     data_dict = append_to_dict(data_dict, 
                                timestep.reward, 
                                cur_beliefs, 
@@ -188,6 +191,7 @@ def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dea
       else: data_dict[key].append('')
 
     elif i == 8:
+      print(dead_apple_ratio)
       data_dict[key].append(dead_apple_ratio)
 
     else: # beliefs
@@ -267,12 +271,12 @@ if __name__ == "__main__":
   episodes = 200
   num_iteration = 1
   setting, data_dict = main(roles=roles,
-                            rules=DEFAULT_RULES,
+                            rules=[],
                             env_seed=1,
                             episodes=episodes, 
                             num_iteration=num_iteration, 
                             create_video=True,
-                            log_output=True)
+                            log_output=False)
   
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))

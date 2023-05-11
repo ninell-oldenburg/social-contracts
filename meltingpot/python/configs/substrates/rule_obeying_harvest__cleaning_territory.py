@@ -1164,7 +1164,7 @@ def create_avatar_object(player_idx: int,
                       },
                       {
                           "name": "DEAD_APPLE_RATIO",
-                          "type": "Int32s",
+                          "type": "Doubles",
                           "shape": [],
                           "component": "Surroundings",
                           "variable": "deadAppleRatio"
