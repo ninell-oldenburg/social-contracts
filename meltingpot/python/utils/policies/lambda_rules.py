@@ -18,8 +18,10 @@ cleaner = ROLE_SPRITE_DICT["cleaner"]
 """
 cleaning_precon_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] > 30"
 cleaning_goal_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] < 30"
+
 payment_precon_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] > 15"
 payment_goal_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] < 15"
+
 cleaning_precon_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 5"
 cleaning_goal_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] < 5"
 
@@ -45,7 +47,7 @@ CLEANING_RULES = [
 ################# PROHIBITIONS ################## 
 """
 harvest_apple_precon_standard = "obs['NUM_APPLES_AROUND'] < 3 and obs['CUR_CELL_HAS_APPLE']"
-steal_from_forgein_cell_precon = "obs['CUR_CELL_HAS_APPLE'] and not obs['AGENT_HAS_STOLEN']"
+steal_from_forgein_cell_precon = "obs['CUR_CELL_IS_FOREIGN_PROPERTY'] and not obs['AGENT_HAS_STOLEN']"
 
 DEFAULT_PROHIBITIONS = [
   # don't go if <2 apples around

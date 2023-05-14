@@ -114,9 +114,6 @@ class RuleObeyingPolicy(policy.Policy):
       # Select an action based on the first satisfying rule
       return self.a_star(timestep)
   
-  def get_dead_apples(self, timestep: dm_env.TimeStep):
-    return timestep.observation['DEAD_APPLE_RATIO']
-  
   def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
     own_cur_obs = self.deepcopy_dict(timestep.observation)
     own_cur_pos = np.copy(own_cur_obs['POSITION'])

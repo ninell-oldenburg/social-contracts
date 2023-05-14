@@ -71,7 +71,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
                                     player_idx=i,
                                     other_player_looks=other_player_looks,
                                     num_focal_bots = num_focal_bots,
-                                    log_output=True,
+                                    log_output=log_output,
                                     selection_mode="threshold"
                                     ))
       
@@ -137,12 +137,11 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
           bot.obligations, bot.prohibitions = bot.threshold_rules(threshold=0.75)
           
         cur_beliefs = bot.rule_beliefs
-        print(timestep_bot)
         
       if len(actions[i]) == 0: # action pipeline empty
         actions[i] = bot.step(timestep_bot)
         
-      dead_apple_ratio = bot.get_dead_apples(timestep_bot) # same for every player
+      dead_apple_ratio = timestep_bot.observation['DEAD_APPLE_RATIO'] # same for every player
             
     if log_output:
       print(actions)
@@ -191,7 +190,6 @@ def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dea
       else: data_dict[key].append('')
 
     elif i == 8:
-      print(dead_apple_ratio)
       data_dict[key].append(dead_apple_ratio)
 
     else: # beliefs

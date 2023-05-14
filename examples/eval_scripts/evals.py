@@ -41,7 +41,7 @@ plt.title('Bayesian Inference')
 plt.savefig(fname="update")
 plt.show()"""
 
-DEFAULT_ROLES = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 1
+DEFAULT_ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1 + ('learner',) * 1
 
 baseline_roles = ['free', 'cleaner', 'farmer', 'learner']
 BASELINE_SCENARIOS = [('free',), ('cleaner',), ('farmer',)]
@@ -69,7 +69,7 @@ start_time = time.time()
 
 stats_relevance = 13
 
-print()
+"""print()
 print('*'*50)
 print('STARTING BASELINE SCENARIOS')
 print('*'*50)
@@ -86,10 +86,10 @@ for k in range(stats_relevance):
                                       create_video=True, 
                                       log_output=False)
       cur_df = pd.DataFrame.from_dict(cur_result)
-      path = f"examples/results/base/scenario{i+1}/trial{k+1}.csv"
+      path = f'examples/results/base/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
-      print(f'BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
+      print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
 
 print()
 print('*'*50)
@@ -108,16 +108,16 @@ for k in range(stats_relevance):
                                       create_video=True, 
                                       log_output=False)
       cur_df = pd.DataFrame.from_dict(cur_result)
-      path = f"examples/results/test/scenario{i+1}/trial{k+1}.csv"
+      path = f'examples/results/test/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
-      print(f'TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
+      print(f'ITERATION {k+1} TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
 
 print()
 print('*'*50)
 print('STARTING RULE TRIALS')
 print('*'*50)
-print()
+print()"""
 
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
@@ -129,10 +129,10 @@ for k in range(stats_relevance):
                                       create_video=True, 
                                       log_output=False)
     cur_df = pd.DataFrame.from_dict(cur_result)
-    path = f"examples/results/rule_trials/scenario{rule_set_idx+1}/trial{k+1}.csv"
+    path = f'examples/results/rule_trials/scenario{rule_set_idx+1}/trial{k+1}.csv'
     cur_df.to_csv(path_or_buf=path)
     print('='*50)
-    print(f'RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
+    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
 
 # align length of df columns
 for i in range(len(RULE_COMBINATIONS)):
@@ -146,11 +146,11 @@ settings = {'BASELINE_SCENARIOS': BASELINE_SCENARIOS,
             'TEST_SCENARIOS': TEST_SCENARIOS,
             'RULE_COMBINATIONS': RULE_COMBINATIONS}
 settings_df = pd.DataFrame.from_dict(settings)
-settings_df.to_csv(path_or_buf="examples/results/settings.csv")
+settings_df.to_csv(path_or_buf='examples/results/settings.csv')
 
 seconds = time.time() - start_time
 hours = str(datetime.timedelta(seconds=seconds))
 print('*'*50)
 print('COMPLETED')
-print(f"RUNTIME --- {hours} ---")
+print(f'RUNTIME --- {hours} ---')
 print('*'*50)
