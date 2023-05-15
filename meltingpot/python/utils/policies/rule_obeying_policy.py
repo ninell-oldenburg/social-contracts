@@ -292,7 +292,7 @@ class RuleObeyingPolicy(policy.Policy):
       # usually good to moce agent 
       # when currently no plan can be found
       if cur_depth > self.max_depth: 
-        random_action_sequence = [random.randint(0, 6) for _ in range(5)]
+        random_action_sequence = [random.randint(0, 6) for _ in range(3)]
         return random_action_sequence
 
       if self.is_done(cur_timestep):

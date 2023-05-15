@@ -134,7 +134,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
           other_acts = [action[0] for _, action in islice(
             actions.items(), num_focal_bots)]
           bot.update_beliefs(other_acts)
-          bot.obligations, bot.prohibitions = bot.threshold_rules(threshold=0.75)
+          bot.obligations, bot.prohibitions = bot.threshold_rules(threshold=0.99)
           
         cur_beliefs = bot.rule_beliefs
         
@@ -269,12 +269,12 @@ if __name__ == "__main__":
   episodes = 200
   num_iteration = 1
   setting, data_dict = main(roles=roles,
-                            rules=[],
+                            rules=DEFAULT_RULES,
                             env_seed=1,
                             episodes=episodes, 
                             num_iteration=num_iteration, 
                             create_video=True,
-                            log_output=False)
+                            log_output=True)
   
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
