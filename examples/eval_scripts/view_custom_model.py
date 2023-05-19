@@ -134,7 +134,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
           other_acts = [action[0] for _, action in islice(
             actions.items(), num_focal_bots)]
           bot.update_beliefs(other_acts)
-          bot.obligations, bot.prohibitions = bot.threshold_rules(threshold=0.99)
+          bot.obligations, bot.prohibitions = bot.threshold_rules(threshold=0.80)
           
         cur_beliefs = bot.rule_beliefs
         
@@ -169,6 +169,8 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
 
   settings = get_settings(bots=bots, rules=rules)
 
+  print(data_dict)
+
   return settings, data_dict
 
   """ Profiler Run:
@@ -178,14 +180,18 @@ def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dea
   for i, key in enumerate(data_dict):
     if i < 4: # player rewards
       if key in all_roles: # key 0-3 are the name of the role
-        j = get_index(key, all_roles)
+        j = get_index(key, all_roles, skip_first=False)
         data_dict[key].append(reward_arr[j].item())
-      else: data_dict[key].append(0)
+        """if key == 'free' and all_roles.count(key) == 2:
+          j1 = get_index(key, all_roles, skip_first=True)
+          data_dict['learner'].append(reward_arr[j1].item())   """       
+      else: 
+        data_dict[key].append(0)
 
     elif i < 8: # player actions
       role = key.replace('_action', '')
       if role in all_roles:
-        k = get_index(role, all_roles)
+        k = get_index(role, all_roles, skip_first=False)
         data_dict[key].append(actions[k])
       else: data_dict[key].append('')
 
@@ -199,9 +205,12 @@ def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dea
 
   return data_dict
 
-def get_index(role, all_roles):
+def get_index(role, all_roles, skip_first: bool):
   for i, name in enumerate(all_roles):
     if name == role:
+      if skip_first == True:
+        skip_first = False
+        continue
       return i
     
 def get_name_from_rules(rules: list) -> str:

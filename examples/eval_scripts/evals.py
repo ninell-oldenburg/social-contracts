@@ -69,7 +69,7 @@ start_time = time.time()
 
 stats_relevance = 13
 
-"""print()
+print()
 print('*'*50)
 print('STARTING BASELINE SCENARIOS')
 print('*'*50)
@@ -90,7 +90,7 @@ for k in range(stats_relevance):
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
       print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
-
+"""
 print()
 print('*'*50)
 print('STARTING TEST SCENARIOS')
@@ -117,7 +117,7 @@ print()
 print('*'*50)
 print('STARTING RULE TRIALS')
 print('*'*50)
-print()"""
+print()
 
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
@@ -132,7 +132,7 @@ for k in range(stats_relevance):
     path = f'examples/results/rule_trials/scenario{rule_set_idx+1}/trial{k+1}.csv'
     cur_df.to_csv(path_or_buf=path)
     print('='*50)
-    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
+    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')"""
 
 # align length of df columns
 for i in range(len(RULE_COMBINATIONS)):
