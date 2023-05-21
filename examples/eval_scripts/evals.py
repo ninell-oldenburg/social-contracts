@@ -42,6 +42,7 @@ plt.savefig(fname="update")
 plt.show()"""
 
 DEFAULT_ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1 + ('learner',) * 1
+BASELINE_ROLES = ('free',) * 1 + ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1
 
 baseline_roles = ['free', 'cleaner', 'farmer', 'learner']
 BASELINE_SCENARIOS = [('free',), ('cleaner',), ('farmer',)]
@@ -69,11 +70,13 @@ start_time = time.time()
 
 stats_relevance = 13
 
+"""
 print()
 print('*'*50)
 print('STARTING BASELINE SCENARIOS')
 print('*'*50)
 print()
+
 
 for k in range(stats_relevance):
   for i in range(len(BASELINE_SCENARIOS)):
@@ -90,7 +93,7 @@ for k in range(stats_relevance):
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
       print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
-"""
+
 print()
 print('*'*50)
 print('STARTING TEST SCENARIOS')
@@ -112,7 +115,8 @@ for k in range(stats_relevance):
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
       print(f'ITERATION {k+1} TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
-
+"""
+      
 print()
 print('*'*50)
 print('STARTING RULE TRIALS')
@@ -121,7 +125,7 @@ print()
 
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
-    cur_settings, cur_result = main(roles=DEFAULT_ROLES, 
+    cur_settings, cur_result = main(roles=BASELINE_ROLES, 
                                       episodes=200, 
                                       num_iteration=i, 
                                       rules=rule_set, 
@@ -129,10 +133,10 @@ for k in range(stats_relevance):
                                       create_video=True, 
                                       log_output=False)
     cur_df = pd.DataFrame.from_dict(cur_result)
-    path = f'examples/results/rule_trials/scenario{rule_set_idx+1}/trial{k+1}.csv'
+    path = f'examples/results/rule_baseline/scenario{rule_set_idx+1}/trial{k+1}.csv'
     cur_df.to_csv(path_or_buf=path)
     print('='*50)
-    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')"""
+    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
 
 # align length of df columns
 for i in range(len(RULE_COMBINATIONS)):
