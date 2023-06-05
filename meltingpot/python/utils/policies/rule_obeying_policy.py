@@ -133,6 +133,9 @@ class RuleObeyingPolicy(policy.Policy):
     return None
   
   def get_payee(self):
+    """d
+    Returns the coordinates of closest payee.
+    """
     observation = self.history[0]
     cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
     radius = self.max_depth # assume larger search space
