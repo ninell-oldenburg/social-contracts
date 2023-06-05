@@ -86,7 +86,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
 
   actions = {key: [] for key in range(len(bots))}
   # make headline of output dict#
-  ROLE_LIST = ['free0', 'cleaner', 'farrmer', 'free3']
+  ROLE_LIST = ['free', 'cleaner', 'farrmer', 'learner']
   ACTION_ROLE_LIST = [key + "_action" for key in config['roles']]
   data_dict = {
     (key.make_str_repr() if hasattr(key, 'make_str_repr') else key): [] 

@@ -35,7 +35,6 @@ from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, 
 @dataclass(order=True)
 class PrioritizedItem:
     priority: float
-    priority: float
     item: Any=field(compare=False)
     
 
@@ -63,8 +62,6 @@ class RuleObeyingPolicy(policy.Policy):
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
     self.obligations = obligations
-    self.hypothetical_goal_state = None
-    self.default_heuristic_value = 10
     self.hypothetical_goal_state = None
     self.default_heuristic_value = 10
     self.current_obligation = None
@@ -109,14 +106,11 @@ class RuleObeyingPolicy(policy.Policy):
       # Check if any of the obligations are active
       self.current_obligation = None
       self.hypothetical_goal_state = None
-      self.hypothetical_goal_state = None
       for obligation in self.obligations:
          if obligation.holds_in_history(self.history, self.look):
            self.current_obligation = obligation
            self.hypothetical_goal_state = self.get_obligation_goal_state(obligation)
-           self.hypothetical_goal_state = self.get_obligation_goal_state(obligation)
            break
-
 
       if self.log_output:
         print(f"player: {self._index} current_obligation active?: {self.current_obligation != None}")
@@ -139,9 +133,6 @@ class RuleObeyingPolicy(policy.Policy):
     return None
   
   def get_payee(self):
-    """d
-    Returns the coordinates of closest payee.
-    """
     observation = self.history[0]
     cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
     radius = self.max_depth # assume larger search space
@@ -187,7 +178,6 @@ class RuleObeyingPolicy(policy.Policy):
       return self.get_punshee()
     return None
   
-
   def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
     own_cur_obs = self.deepcopy_dict(timestep.observation)
     own_cur_pos = np.copy(own_cur_obs['POSITION'])
@@ -384,46 +374,9 @@ class RuleObeyingPolicy(policy.Policy):
   
     return None
   
-  def estimate_cost_to_goal(self, state, goal_pos):
-    cur_pos = state[0]
-    # Manhattan distance
-    distance = abs(cur_pos[0] - goal_pos[0]) + abs(cur_pos[1] - goal_pos[1])
-
-    return distance
-
-  def heuristic(self, state):
-    """Calculates the heuristic for path search.
-    Args:
-      state:        current state
-      goal action:  action to be taken
-    """
-
-    if self.hypothetical_goal_state is not None:
-        # Calculate the heuristic based on the current state and the hypothetical goal state
-        # Return an estimate of the remaining cost to reach the hypothetical goal state
-        return self.estimate_cost_to_goal(state, self.hypothetical_goal_state)
-    
-    # If the hypothetical goal state is not defined, return a default heuristic value
-    return self.default_heuristic_value
-  
-  def get_closest_apple_state(self, observation):
-    """
-    Returns the coordinates of closest apple in observation radius.
-    Returns None if no apple is around.
-    """
-    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
-    radius = int((self.max_depth - 2) / 2)
-    for i in range(cur_x-radius-1, cur_x+radius):
-      for j in range(cur_y-radius-1, cur_y+radius):
-        if not self.exceeds_map(observation['WORLD.RGB'], i, j):
-          if not (i == cur_x and j == cur_y): # don't count target apple
-            if observation['SURROUNDINGS'][i][j] == -3:
-              return (i, j)
-  
-    return None
-  
   def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
     """Perform a A* search to generate plan."""
+    queue, action, came_from, g_values = PriorityQueue(), 0, {}, {}
     queue, action, came_from, g_values = PriorityQueue(), 0, {}, {}
     timestep = timestep._replace(reward=0.0)
     observation = timestep.observation
@@ -433,6 +386,12 @@ class RuleObeyingPolicy(policy.Policy):
     start_state = (tuple(observation['POSITION']), observation['ORIENTATION'], action)
     g_values[start_state] = 0
     queue.put(PrioritizedItem(0, (timestep, action))) # ordered by reward
+    start_state = (tuple(observation['POSITION']), observation['ORIENTATION'], action)
+    g_values[start_state] = 0
+    queue.put(PrioritizedItem(0, (timestep, action))) # ordered by reward
+
+    if self.hypothetical_goal_state == None:
+        self.hypothetical_goal_state = self.get_closest_apple_state(observation)
 
     if self.hypothetical_goal_state == None:
         self.hypothetical_goal_state = self.get_closest_apple_state(observation)
@@ -443,7 +402,9 @@ class RuleObeyingPolicy(policy.Policy):
       cur_pos = tuple(cur_timestep.observation['POSITION'])
       cur_orient = cur_timestep.observation['ORIENTATION']
       cur_state = (cur_pos, cur_orient, cur_action)
+      cur_state = (cur_pos, cur_orient, cur_action)
 
+      # usually good to move agent 
       # usually good to move agent 
       # when currently no plan can be found
       if g_values[cur_state] > self.max_depth: 
@@ -451,6 +412,7 @@ class RuleObeyingPolicy(policy.Policy):
         return random_action_sequence
 
       if self.is_done(cur_timestep):
+        return self.reconstruct_path(came_from, cur_state)
         return self.reconstruct_path(came_from, cur_state)
 
       # Get the list of actions that are possible and satisfy the rules
@@ -461,6 +423,15 @@ class RuleObeyingPolicy(policy.Policy):
         next_timestep = self.env_step(cur_timestep, action)
         next_pos = tuple(next_timestep.observation['POSITION'])
         next_orient = next_timestep.observation['ORIENTATION']
+        successor_state = (next_pos, next_orient, action)
+
+        # Calculate the cost to reach the successor state
+        cost_to_reach_successor = 1 - next_timestep.reward
+        successor_g_value = g_values[cur_state] + cost_to_reach_successor
+
+        if successor_state not in g_values or successor_g_value < g_values[successor_state]:
+          g_values[successor_state] = successor_g_value
+          came_from[successor_state] = cur_state
         successor_state = (next_pos, next_orient, action)
 
         # Calculate the cost to reach the successor state
@@ -503,8 +474,6 @@ class RuleObeyingPolicy(policy.Policy):
           actions.append(action)
       else:
         if prob > self.p_obey:
-          actions.append(action)
-        if prob <= self.p_obey:
           actions.append(action)
 
     return actions
