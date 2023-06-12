@@ -64,6 +64,8 @@ class RuleObeyingPolicy(policy.Policy):
     self.obligations = obligations
     self.hypothetical_goal_state = None
     self.hypothetical_goal_action = None
+    self.gamma = 0.5 # TODO learnable?
+    self.value_function = {} # value estimates for each state
     self.default_heuristic_value = 10
     self.p_obey = 0.9
     self.history = deque(maxlen=10)
@@ -405,6 +407,9 @@ class RuleObeyingPolicy(policy.Policy):
       cur_orient = cur_timestep.observation['ORIENTATION']
       cur_state = (cur_pos, cur_orient, cur_action)
 
+      if cur_state not in self.value_function:
+          self.value_function[cur_state] = -1 # Initialize value estimate for new states
+
       # usually good to move agent 
       # when currently no plan can be found
       if g_values[cur_state] > self.max_depth: 
@@ -416,6 +421,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       # Get the list of actions that are possible and satisfy the rules
       available_actions = self.available_actions(cur_timestep.observation)
+      successor_values = []
 
       for action in available_actions:
         # simulate environment for that action
@@ -423,6 +429,7 @@ class RuleObeyingPolicy(policy.Policy):
         next_pos = tuple(next_timestep.observation['POSITION'])
         next_orient = next_timestep.observation['ORIENTATION']
         successor_state = (next_pos, next_orient, action)
+        successor_values.append(self.value_function.get(successor_state, 0))
 
         # Calculate the cost to reach the successor state
         cost_to_reach_successor = 1 - next_timestep.reward
@@ -432,10 +439,17 @@ class RuleObeyingPolicy(policy.Policy):
           g_values[successor_state] = successor_g_value
           came_from[successor_state] = cur_state
 
-          priority = successor_g_value + self.heuristic(successor_state)
+          heuristic_value = self.value_function.get(cur_state, 0)
+          heuristic_cost = self.heuristic(successor_state) + heuristic_value
+          priority = successor_g_value + heuristic_cost
+
           queue.put(PrioritizedItem(priority=priority,
                                     item=(next_timestep, action))
                                     )
+          
+      expected_return = cost_to_reach_successor + self.gamma * np.max(successor_values)
+      self.value_function[cur_state] = expected_return
+
     return [0] # return noop action if path finding unsuccessful
 
   def available_actions(self, obs) -> list[int]:
