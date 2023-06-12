@@ -34,8 +34,7 @@ from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, 
 
 @dataclass(order=True)
 class PrioritizedItem:
-    priority: int
-    tie_break: float
+    priority: float
     item: Any=field(compare=False)
     
 
@@ -63,7 +62,10 @@ class RuleObeyingPolicy(policy.Policy):
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
     self.obligations = obligations
+    self.hypothetical_goal_state = None
+    self.default_heuristic_value = 10
     self.current_obligation = None
+    self.p_obey = 0.9
     self.history = deque(maxlen=10)
     self.payees = []
     if self.role == 'farmer':
@@ -103,16 +105,81 @@ class RuleObeyingPolicy(policy.Policy):
 
       # Check if any of the obligations are active
       self.current_obligation = None
+      self.hypothetical_goal_state = None
       for obligation in self.obligations:
          if obligation.holds_in_history(self.history, self.look):
            self.current_obligation = obligation
+           self.hypothetical_goal_state = self.get_obligation_goal_state(obligation)
            break
-         
+
       if self.log_output:
         print(f"player: {self._index} current_obligation active?: {self.current_obligation != None}")
 
       # Select an action based on the first satisfying rule
       return self.a_star(timestep)
+  
+  def get_riverbank(self):
+    """
+    Returns the coordinates of closest riverbank.
+    """
+    observation = self.history[0]
+    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
+    radius = self.max_depth # assume larger search space
+    for j in range(cur_y-radius-1, cur_y+radius):
+      if not self.exceeds_map(observation['WORLD.RGB'], cur_x, j):
+        if observation['SURROUNDINGS'][cur_x][j] == -2:
+          return (cur_x, j) # assume river is all along the y axis
+  
+    return None
+  
+  def get_payee(self):
+    """d
+    Returns the coordinates of closest payee.
+    """
+    observation = self.history[0]
+    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
+    radius = self.max_depth # assume larger search space
+    payees = self.get_payees(observation)
+    for i in range(cur_x-radius-1, cur_x+radius):
+      for j in range(cur_y-radius-1, cur_y+radius):
+        if not self.exceeds_map(observation['WORLD.RGB'], i, j):
+          for payee in payees:
+            if observation['SURROUNDINGS'][i][j] == payee:
+              return (i, j) # assume river is all along the y axis
+          
+    return None
+  
+  def get_punshee(self):
+    """
+    Returns the coordinates of the agent to punish.
+    """
+    # TODO
+    observation = self.history[0].observation
+    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
+    return (cur_x, cur_y)
+  
+  def get_obligation_goal(self, obligation):
+    """
+    Returns the a string with the goal of the obligation.
+    """
+    if "CLEAN" in obligation.goal:
+      return "clean"
+    if "PAY" in obligation.goal:
+      return "pay"
+    if "ZAP" in obligation.goal:
+      return "zap"
+    
+    return None
+  
+  def get_obligation_goal_state(self, obligation):
+    obligation_goal = self.get_obligation_goal(obligation)
+    if obligation_goal == "clean":
+      return self.get_riverbank()
+    elif obligation_goal == "pay":
+      return self.get_payee()
+    elif obligation_goal == "zap":
+      return self.get_punshee()
+    return None
   
   def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
     own_cur_obs = self.deepcopy_dict(timestep.observation)
@@ -272,31 +339,74 @@ class RuleObeyingPolicy(policy.Policy):
     path = np.flip(path)
     return path
   
+  def estimate_cost_to_goal(self, state, goal_pos):
+    cur_pos = state[0]
+    # Manhattan distance
+    distance = abs(cur_pos[0] - goal_pos[0]) + abs(cur_pos[1] - goal_pos[1])
+
+    return distance
+
+  def heuristic(self, state):
+    """Calculates the heuristic for path search.
+    Args:
+      state:        current state
+      goal action:  action to be taken
+    """
+
+    if self.hypothetical_goal_state is not None:
+        # Calculate the heuristic based on the current state and the hypothetical goal state
+        # Return an estimate of the remaining cost to reach the hypothetical goal state
+        return self.estimate_cost_to_goal(state, self.hypothetical_goal_state)
+    
+    # If the hypothetical goal state is not defined, return a default heuristic value
+    return self.default_heuristic_value
+  
+  def get_closest_apple_state(self, observation):
+    """
+    Returns the coordinates of closest apple in observation radius.
+    Returns None if no apple is around.
+    """
+    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
+    radius = int((self.max_depth - 2) / 2)
+    for i in range(cur_x-radius-1, cur_x+radius):
+      for j in range(cur_y-radius-1, cur_y+radius):
+        if not self.exceeds_map(observation['WORLD.RGB'], i, j):
+          if not (i == cur_x and j == cur_y): # don't count target apple
+            if observation['SURROUNDINGS'][i][j] == -3:
+              return (i, j)
+  
+    return None
+  
   def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
     """Perform a A* search to generate plan."""
-    queue, action, came_from = PriorityQueue(), 0, {}
+    queue, action, came_from, g_values = PriorityQueue(), 0, {}, {}
     timestep = timestep._replace(reward=0.0)
     observation = timestep.observation
     observation['POSITION'] = np.array([observation['POSITION'][0]-1, 
                               observation['POSITION'][1]-1]) # lua is 1-indexed
     observation['ORIENTATION'] = observation['ORIENTATION'].item()
-    queue.put(PrioritizedItem(0, 0, (timestep, action))) # ordered by reward
+    start_state = (tuple(observation['POSITION']), observation['ORIENTATION'], action)
+    g_values[start_state] = 0
+    queue.put(PrioritizedItem(0, (timestep, action))) # ordered by reward
+
+    if self.hypothetical_goal_state == None:
+        self.hypothetical_goal_state = self.get_closest_apple_state(observation)
 
     while not queue.empty():
       priority_item = queue.get()
       cur_timestep, cur_action = priority_item.item
       cur_pos = tuple(cur_timestep.observation['POSITION'])
       cur_orient = cur_timestep.observation['ORIENTATION']
-      cur_depth = priority_item.priority
+      cur_state = (cur_pos, cur_orient, cur_action)
 
-      # usually good to moce agent 
+      # usually good to move agent 
       # when currently no plan can be found
-      if cur_depth > self.max_depth: 
+      if g_values[cur_state] > self.max_depth: 
         random_action_sequence = [random.randint(0, 6) for _ in range(3)]
         return random_action_sequence
 
       if self.is_done(cur_timestep):
-        return self.reconstruct_path(came_from, (cur_pos, cur_orient, cur_action))
+        return self.reconstruct_path(came_from, cur_state)
 
       # Get the list of actions that are possible and satisfy the rules
       available_actions = self.available_actions(cur_timestep.observation)
@@ -306,17 +416,18 @@ class RuleObeyingPolicy(policy.Policy):
         next_timestep = self.env_step(cur_timestep, action)
         next_pos = tuple(next_timestep.observation['POSITION'])
         next_orient = next_timestep.observation['ORIENTATION']
-        # record path if it's new or has higer reward
-        if not (next_pos, next_orient, action) in came_from.keys() \
-          or next_timestep.reward > cur_timestep.reward:
-          new_depth = cur_depth+1
-          came_from[(next_pos, next_orient, action)] = (cur_pos, cur_orient, cur_action)
-          # make 180 degree turns possible (otherwise wouldn't get prioritized)
-          if (action == cur_action == 5) or (action == cur_action == 6):
-            new_depth = new_depth-1
+        successor_state = (next_pos, next_orient, action)
 
-          queue.put(PrioritizedItem(priority=new_depth,
-                                    tie_break=next_timestep.reward*(-1), # ascending
+        # Calculate the cost to reach the successor state
+        cost_to_reach_successor = 1 - next_timestep.reward
+        successor_g_value = g_values[cur_state] + cost_to_reach_successor
+
+        if successor_state not in g_values or successor_g_value < g_values[successor_state]:
+          g_values[successor_state] = successor_g_value
+          came_from[successor_state] = cur_state
+
+          priority = successor_g_value + self.heuristic(successor_state)
+          queue.put(PrioritizedItem(priority=priority,
                                     item=(next_timestep, action))
                                     )
     return [0] # return noop action if path finding unsuccessful
@@ -340,8 +451,13 @@ class RuleObeyingPolicy(policy.Policy):
 
       new_obs = self.update_observation(observation, x, y)
       action_name = self.get_action_name(action)
+      prob = random.random()
       if self.check_all(new_obs, action_name):
-        actions.append(action)
+        if prob <= self.p_obey:
+          actions.append(action)
+      else:
+        if prob > self.p_obey:
+          actions.append(action)
 
     return actions
   
