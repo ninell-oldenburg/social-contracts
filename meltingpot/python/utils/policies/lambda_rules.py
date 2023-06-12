@@ -1,46 +1,36 @@
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 
-from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
-
-""" 
-########### APPREARANCE DEFINTIONS ############# 
-"""
-
-free = ROLE_SPRITE_DICT["free"]
-farmer = ROLE_SPRITE_DICT["farmer"]
-cleaner = ROLE_SPRITE_DICT["cleaner"]
-
 """ 
 #################################################
 ################# DEFAULT RULES #################
 ################## OBLIGATIONS ################## 
 #################################################
 """
-cleaning_precon_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] > 30"
+cleaning_precon_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] > 30 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['free']).encode('utf-8')"
 cleaning_goal_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] < 30"
 
-payment_precon_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] > 15"
+payment_precon_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] > 15 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')"
 payment_goal_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] < 15"
 
-cleaning_precon_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 5"
+cleaning_precon_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 5 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['cleaner']).encode('utf-8')"
 cleaning_goal_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] < 5"
 
 DEFAULT_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
-  ObligationRule(cleaning_precon_free_30, cleaning_goal_free_30, free),
+  ObligationRule(cleaning_precon_free_30, cleaning_goal_free_30),
   # If you're in the farmer role, pay cleaner with apples
-  ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15, farmer),
+  ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15),
   # If you're in the cleaner role, clean in a certain rhythm
-  ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5, cleaner),
+  ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5),
 ]
 
 CLEANING_RULES = [
   # clean the water if less than 1 agent is cleaning
-  ObligationRule(cleaning_precon_free_30, cleaning_goal_free_30, free).make_str_repr(),
+  ObligationRule(cleaning_precon_free_30, cleaning_goal_free_30).make_str_repr(),
   # If you're in the farmer role, pay cleaner with apples
-  ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15, farmer).make_str_repr(),
+  ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15).make_str_repr(),
   # If you're in the cleaner role, clean in a certain rhythm
-  ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5, cleaner).make_str_repr(),
+  ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5).make_str_repr(),
 ]
 
 """ 
@@ -72,43 +62,43 @@ TERRITORY_RULES = [
 ################## OBLIGATIONS ################## 
 #################################################
 """
-cleaning_precon_free_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 4"
+cleaning_precon_free_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 4 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['free']).encode('utf-8')"
 cleaning_goal_free_5 = "obs['SINCE_AGENT_LAST_CLEANED'] < 4"
-cleaning_precon_free_10 = "obs['SINCE_AGENT_LAST_CLEANED'] > 9"
+cleaning_precon_free_10 = "obs['SINCE_AGENT_LAST_CLEANED'] > 9 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['free']).encode('utf-8')"
 cleaning_goal_free_10 = "obs['SINCE_AGENT_LAST_CLEANED'] < 9"
-cleaning_precon_free_15 = "obs['SINCE_AGENT_LAST_CLEANED'] > 14"
+cleaning_precon_free_15 = "obs['SINCE_AGENT_LAST_CLEANED'] > 14 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['free']).encode('utf-8')"
 cleaning_goal_free_15 = "obs['SINCE_AGENT_LAST_CLEANED'] < 14"
 
-payment_precon_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] > 5"
+payment_precon_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] > 5 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')"
 payment_goal_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] < 5"
-payment_precon_farmer_10 = "obs['SINCE_AGENT_LAST_PAYED'] > 10"
+payment_precon_farmer_10 = "obs['SINCE_AGENT_LAST_PAYED'] > 10 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')"
 payment_goal_farmer_10 = "obs['SINCE_AGENT_LAST_PAYED'] < 10"
-payment_precon_farmer_30 = "obs['SINCE_AGENT_LAST_PAYED'] > 30"
+payment_precon_farmer_30 = "obs['SINCE_AGENT_LAST_PAYED'] > 30 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')"
 payment_goal_farmer_30 = "obs['SINCE_AGENT_LAST_PAYED'] < 30"
 
-cleaning_precon_cleaner_10 = "obs['SINCE_AGENT_LAST_CLEANED'] > 10"
+cleaning_precon_cleaner_10 = "obs['SINCE_AGENT_LAST_CLEANED'] > 10 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['cleaner']).encode('utf-8')"
 cleaning_goal_cleaner_10 = "obs['SINCE_AGENT_LAST_CLEANED'] < 10"
-cleaning_precon_cleaner_15 = "obs['SINCE_AGENT_LAST_CLEANED'] > 15"
+cleaning_precon_cleaner_15 = "obs['SINCE_AGENT_LAST_CLEANED'] > 15 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['cleaner']).encode('utf-8')"
 cleaning_goal_cleaner_15 = "obs['SINCE_AGENT_LAST_CLEANED'] < 15"
-cleaning_precon_cleaner_30 = "obs['SINCE_AGENT_LAST_CLEANED'] > 29"
+cleaning_precon_cleaner_30 = "obs['SINCE_AGENT_LAST_CLEANED'] > 29 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['cleaner']).encode('utf-8')"
 cleaning_goal_cleaner_30 = "obs['SINCE_AGENT_LAST_CLEANED'] < 29"
 
 POTENTIAL_OBLIGATIONS = [
    # clean the water if less than 1 agent is cleaning
-  ObligationRule(cleaning_precon_free_5, cleaning_goal_free_5, free),
-  ObligationRule(cleaning_precon_free_10, cleaning_goal_free_10, free),
-  ObligationRule(cleaning_precon_free_15, cleaning_goal_free_15, free),
-  ObligationRule(cleaning_precon_free_30, cleaning_goal_free_30, free),
+  ObligationRule(cleaning_precon_free_5, cleaning_goal_free_5),
+  ObligationRule(cleaning_precon_free_10, cleaning_goal_free_10),
+  ObligationRule(cleaning_precon_free_15, cleaning_goal_free_15),
+  ObligationRule(cleaning_precon_free_30, cleaning_goal_free_30),
   # If you're in the farmer role, pay cleaner with apples
-  ObligationRule(payment_precon_farmer_5, payment_goal_farmer_5, farmer),
-  ObligationRule(payment_precon_farmer_10, payment_goal_farmer_10, farmer),
-  ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15, farmer),
-  ObligationRule(payment_precon_farmer_30, payment_goal_farmer_30, farmer),
+  ObligationRule(payment_precon_farmer_5, payment_goal_farmer_5),
+  ObligationRule(payment_precon_farmer_10, payment_goal_farmer_10),
+  ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15),
+  ObligationRule(payment_precon_farmer_30, payment_goal_farmer_30),
   # If you're in the cleaner role, clean in a certain rhythm
-  ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5, cleaner),
-  ObligationRule(cleaning_precon_cleaner_10, cleaning_goal_cleaner_10, cleaner),
-  ObligationRule(cleaning_precon_cleaner_15, cleaning_goal_cleaner_15, cleaner),
-  ObligationRule(cleaning_precon_cleaner_30, cleaning_goal_cleaner_30, cleaner)
+  ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5),
+  ObligationRule(cleaning_precon_cleaner_10, cleaning_goal_cleaner_10),
+  ObligationRule(cleaning_precon_cleaner_15, cleaning_goal_cleaner_15),
+  ObligationRule(cleaning_precon_cleaner_30, cleaning_goal_cleaner_30)
 ]
 
 """ 
@@ -171,27 +161,3 @@ POTENTIAL_PROHIBITIONS = [
   ProhibitionRule(orientation_west_precon, 'MOVE_ACTION'),
   ProhibitionRule(orientation_west_precon, 'TURN_ACTION'),
 ]
-
-"""
-OBSERVATION SPACE = [
-  'PROPERTY', 
-  'SINCE_AGENT_LAST_CLEANED', 
-  'POSITION', 
-  'SINCE_AGENT_LAST_PAYED', 
-  'AGENT_CLEANED', 
-  'TOTAL_NUM_CLEANERS', 
-  'READY_TO_SHOOT', 
-  'SURROUNDINGS', 
-  'ALWAYS_PAYING_TO', 
-  'ALWAYS_PAYED_BY', 
-  'TIME_TO_GET_PAYED', 
-  'STOLEN_RECORDS', 
-  'ORIENTATION', 
-  'INVENTORY', 
-  'WORLD.RGB',
-  'NUM_APPLES_AROUND', 
-  'CUR_CELL_HAS_APPLE', 
-  'AGENT_HAS_STOLEN',
-  'CUR_CELL_IS_FOREIGN_PROPERTY'
-  ]
- """

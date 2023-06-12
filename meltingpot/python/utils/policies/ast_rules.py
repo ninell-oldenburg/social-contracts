@@ -1,5 +1,6 @@
 import ast
 import types
+from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
 
 class EnvironmentRule():
     def __init__(self, precondition):
@@ -54,7 +55,7 @@ class ProhibitionRule(EnvironmentRule):
 class ObligationRule(EnvironmentRule):
     """Contains rules that emit a subgoal."""
 
-    def __init__(self, precondition, goal, target_look):
+    def __init__(self, precondition, goal):
         """See base class.
 
         Args:
@@ -68,34 +69,21 @@ class ObligationRule(EnvironmentRule):
         self.precondition = "lambda obs : " + precondition
         self.precondition_formula = self.walk_lambda(ast.parse(self.precondition))
         self.goal = "lambda obs : " + goal
-        self.target_look = target_look
         self.goal_formula = super().walk_lambda(ast.parse(self.goal))
 
-    def holds_in_history(self, observations, look):
+    def holds_in_history(self, observations):
         """Returns True if a precondition holds given a certain vector of observation."""
-        if self.target_look != look:
-            return False
-            
         for i, obs in enumerate(observations):
             if super().holds_precondition(obs):
                 for j in range(i, len(observations)):
-                    if self.satisfied(observations[j], look):
+                    if self.satisfied(observations[j]):
                         return False
                 return True
         
         return False
     
-    def holds_now(self, obs, look):
-        if self.target_look != look:
-            return False
-
-        return super().holds_precondition(obs)
-    
-    def satisfied(self, observation, look):
-        """Returns True if the rule goal is satisfied."""
-        if self.target_look != look:
-            return False
-                
+    def satisfied(self, observation):
+        """Returns True if the rule goal is satisfied."""    
         return self.goal_formula(observation)
     
     def make_str_repr(self):

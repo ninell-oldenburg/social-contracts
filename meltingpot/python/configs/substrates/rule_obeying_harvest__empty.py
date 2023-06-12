@@ -1019,6 +1019,7 @@ def create_avatar_object(player_idx: int,
                   "observationRadius": OBSERVATION_RADIUS,
                   "mapSize": MAP_SIZE,
                   "agentRole": role,
+                  "agentLook": ROLE_SPRITE_DICT[role],
               }
           },
           {
@@ -1094,6 +1095,13 @@ def create_avatar_object(player_idx: int,
                           "shape": [],
                           "component": "Cleaner",
                           "variable": "player_cleaned",
+                      },
+                      {
+                          "name": "AGENT_LOOK",
+                          "type": "String",
+                          "shape": [],
+                          "component": "Surroundings",
+                          "variable": "agentLook",
                       },
                       {
                           "name": "SINCE_AGENT_LAST_CLEANED",
@@ -1360,6 +1368,7 @@ def get_config():
 
       # Cumulants.
       "AGENT_CLEANED",
+      "AGENT_LOOK",
       "PROPERTY",
       "DEAD_APPLE_RATIO",
       "INVENTORY",

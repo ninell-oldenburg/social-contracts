@@ -1150,13 +1150,15 @@ function Surroundings:__init__(kwargs)
       {'name', args.default('Surroundings')},
       {'observationRadius', args.numberType},
       {'mapSize', args.tableType},
-      {'agentRole', args.stringType}
+      {'agentRole', args.stringType},
+      {'agentLook', args.tableType},
   })
   Surroundings.Base.__init__(self, kwargs)
 
   self._config.observationRadius = kwargs.observationRadius
   self._config.mapSize = kwargs.mapSize
   self._config.agentRole = kwargs.agentRole
+  self._config.agentLook = kwargs.agentLook
 end
 
 function Surroundings:reset()
@@ -1171,6 +1173,7 @@ function Surroundings:start()
   self:reset()
   self.deadAppleRatio = 0
   self.numApples = 0
+  self.agentLook = self:makeAgentLook()
   local upperLeft = {1, 1}
   local lowerRight = {self._config.mapSize[1], self._config.mapSize[2]}
   local objects = self.transform:queryRectangle('appleLayer', upperLeft, lowerRight)
@@ -1179,6 +1182,14 @@ function Surroundings:start()
       self.numApples = self.numApples + 1
     end
   end
+end
+
+function Surroundings:makeAgentLook()
+  local agentLookString = ""
+  for key, value in pairs(self._config.agentLook) do
+    agentLookString = agentLookString .. value
+  end
+  return agentLookString
 end
 
 function Surroundings:postStart()
