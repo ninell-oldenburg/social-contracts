@@ -170,8 +170,6 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
 
   settings = get_settings(bots=bots, rules=rules)
 
-  print(data_dict)
-
   return settings, data_dict
 
   """ Profiler Run:
