@@ -380,7 +380,6 @@ class RuleObeyingPolicy(policy.Policy):
   def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
     """Perform a A* search to generate plan."""
     queue, action, came_from, g_values = PriorityQueue(), 0, {}, {}
-    queue, action, came_from, g_values = PriorityQueue(), 0, {}, {}
     timestep = timestep._replace(reward=0.0)
     observation = timestep.observation
     observation['POSITION'] = np.array([observation['POSITION'][0]-1, 
@@ -389,12 +388,6 @@ class RuleObeyingPolicy(policy.Policy):
     start_state = (tuple(observation['POSITION']), observation['ORIENTATION'], action)
     g_values[start_state] = 0
     queue.put(PrioritizedItem(0, (timestep, action))) # ordered by reward
-    start_state = (tuple(observation['POSITION']), observation['ORIENTATION'], action)
-    g_values[start_state] = 0
-    queue.put(PrioritizedItem(0, (timestep, action))) # ordered by reward
-
-    if self.hypothetical_goal_state == None:
-        self.hypothetical_goal_state = self.get_closest_apple_state(observation)
 
     if self.hypothetical_goal_state == None:
         self.hypothetical_goal_state = self.get_closest_apple_state(observation)
@@ -405,9 +398,7 @@ class RuleObeyingPolicy(policy.Policy):
       cur_pos = tuple(cur_timestep.observation['POSITION'])
       cur_orient = cur_timestep.observation['ORIENTATION']
       cur_state = (cur_pos, cur_orient, cur_action)
-      cur_state = (cur_pos, cur_orient, cur_action)
 
-      # usually good to move agent 
       # usually good to move agent 
       # when currently no plan can be found
       if g_values[cur_state] > self.max_depth: 
@@ -415,7 +406,6 @@ class RuleObeyingPolicy(policy.Policy):
         return random_action_sequence
 
       if self.is_done(cur_timestep):
-        return self.reconstruct_path(came_from, cur_state)
         return self.reconstruct_path(came_from, cur_state)
 
       # Get the list of actions that are possible and satisfy the rules
@@ -426,15 +416,6 @@ class RuleObeyingPolicy(policy.Policy):
         next_timestep = self.env_step(cur_timestep, action)
         next_pos = tuple(next_timestep.observation['POSITION'])
         next_orient = next_timestep.observation['ORIENTATION']
-        successor_state = (next_pos, next_orient, action)
-
-        # Calculate the cost to reach the successor state
-        cost_to_reach_successor = 1 - next_timestep.reward
-        successor_g_value = g_values[cur_state] + cost_to_reach_successor
-
-        if successor_state not in g_values or successor_g_value < g_values[successor_state]:
-          g_values[successor_state] = successor_g_value
-          came_from[successor_state] = cur_state
         successor_state = (next_pos, next_orient, action)
 
         # Calculate the cost to reach the successor state
