@@ -86,7 +86,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
 
   actions = {key: [] for key in range(len(bots))}
   # make headline of output dict#
-  ROLE_LIST = ['free', 'cleaner', 'farrmer', 'learner']
+  ROLE_LIST = ['free', 'cleaner', 'farmer', 'learner']
   ACTION_ROLE_LIST = [key + "_action" for key in config['roles']]
   data_dict = {
     (key.make_str_repr() if hasattr(key, 'make_str_repr') else key): [] 
@@ -178,15 +178,14 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
 def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dead_apple_ratio) -> dict:
   for i, key in enumerate(data_dict):
     if i < 4: # player rewards
-      data_dict[key].append(reward_arr[i].item())
-      # if key in all_roles: # key 0-3 are the name of the role
-        #j = get_index(key, all_roles, skip_first=False)
-      # data_dict[key].append(reward_arr[i].item())
-      """if key == 'free' and all_roles.count(key) == 2:
+      if key in all_roles: # key 0-3 are the name of the role
+        j = get_index(key, all_roles, skip_first=False)
+        data_dict[key].append(reward_arr[j].item())
+        """if key == 'free' and all_roles.count(key) == 2:
           j1 = get_index(key, all_roles, skip_first=True)
           data_dict['learner'].append(reward_arr[j1].item())   """       
-      #else: 
-        #data_dict[key].append(0)
+      else: 
+        data_dict[key].append(0)
 
     elif i < 8: # player actions
       role = key.replace('_action', '')
@@ -274,7 +273,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 1
+  roles = ("cleaner",) * 0 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 0
   episodes = 200
   num_iteration = 1
   setting, data_dict = main(roles=roles,
