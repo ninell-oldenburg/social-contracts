@@ -35,6 +35,7 @@ from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, 
 @dataclass(order=True)
 class PrioritizedItem:
     priority: float
+    priority: float
     item: Any=field(compare=False)
     
 
@@ -62,6 +63,8 @@ class RuleObeyingPolicy(policy.Policy):
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
     self.obligations = obligations
+    self.hypothetical_goal_state = None
+    self.default_heuristic_value = 10
     self.hypothetical_goal_state = None
     self.default_heuristic_value = 10
     self.current_obligation = None
@@ -106,11 +109,14 @@ class RuleObeyingPolicy(policy.Policy):
       # Check if any of the obligations are active
       self.current_obligation = None
       self.hypothetical_goal_state = None
+      self.hypothetical_goal_state = None
       for obligation in self.obligations:
          if obligation.holds_in_history(self.history, self.look):
            self.current_obligation = obligation
            self.hypothetical_goal_state = self.get_obligation_goal_state(obligation)
+           self.hypothetical_goal_state = self.get_obligation_goal_state(obligation)
            break
+
 
       if self.log_output:
         print(f"player: {self._index} current_obligation active?: {self.current_obligation != None}")
@@ -181,6 +187,7 @@ class RuleObeyingPolicy(policy.Policy):
       return self.get_punshee()
     return None
   
+
   def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
     own_cur_obs = self.deepcopy_dict(timestep.observation)
     own_cur_pos = np.copy(own_cur_obs['POSITION'])
@@ -377,6 +384,44 @@ class RuleObeyingPolicy(policy.Policy):
   
     return None
   
+  def estimate_cost_to_goal(self, state, goal_pos):
+    cur_pos = state[0]
+    # Manhattan distance
+    distance = abs(cur_pos[0] - goal_pos[0]) + abs(cur_pos[1] - goal_pos[1])
+
+    return distance
+
+  def heuristic(self, state):
+    """Calculates the heuristic for path search.
+    Args:
+      state:        current state
+      goal action:  action to be taken
+    """
+
+    if self.hypothetical_goal_state is not None:
+        # Calculate the heuristic based on the current state and the hypothetical goal state
+        # Return an estimate of the remaining cost to reach the hypothetical goal state
+        return self.estimate_cost_to_goal(state, self.hypothetical_goal_state)
+    
+    # If the hypothetical goal state is not defined, return a default heuristic value
+    return self.default_heuristic_value
+  
+  def get_closest_apple_state(self, observation):
+    """
+    Returns the coordinates of closest apple in observation radius.
+    Returns None if no apple is around.
+    """
+    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
+    radius = int((self.max_depth - 2) / 2)
+    for i in range(cur_x-radius-1, cur_x+radius):
+      for j in range(cur_y-radius-1, cur_y+radius):
+        if not self.exceeds_map(observation['WORLD.RGB'], i, j):
+          if not (i == cur_x and j == cur_y): # don't count target apple
+            if observation['SURROUNDINGS'][i][j] == -3:
+              return (i, j)
+  
+    return None
+  
   def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
     """Perform a A* search to generate plan."""
     queue, action, came_from, g_values = PriorityQueue(), 0, {}, {}
@@ -452,11 +497,14 @@ class RuleObeyingPolicy(policy.Policy):
       new_obs = self.update_observation(observation, x, y)
       action_name = self.get_action_name(action)
       prob = random.random()
+      
       if self.check_all(new_obs, action_name):
         if prob <= self.p_obey:
           actions.append(action)
       else:
         if prob > self.p_obey:
+          actions.append(action)
+        if prob <= self.p_obey:
           actions.append(action)
 
     return actions
