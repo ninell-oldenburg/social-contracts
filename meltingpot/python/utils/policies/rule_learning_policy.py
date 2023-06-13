@@ -20,7 +20,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
     def __init__(self,
                  env: dm_env.Environment,
                  player_idx: int,
-                 other_player_looks: list,
+                 # other_player_looks: list,
                  num_focal_bots: int,
                  log_output: bool,
                  look: shapes,
@@ -49,7 +49,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.is_obligation_active = False
         self.gamma = 0.5 # TODO learnable?
         self.value_function = {} # value estimates for each state
-        self.player_looks = other_player_looks
+        # self.player_looks = other_player_looks
         self.num_focal_agents = num_focal_bots
         self.num_total_agents = len(other_player_looks)
         self.num_rules = len(self.potential_rules)
@@ -198,7 +198,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         return prohib_acts
     
     def get_single_timestep(self, env_timestep, idx):
-        """Returns single agent timestep from environment timestep"""
+        """Returns single agent timestep from environment timestep."""
         agent_timestep = dm_env.TimeStep(
             step_type=env_timestep.step_type,
             reward=env_timestep.reward[idx],
