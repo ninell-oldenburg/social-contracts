@@ -62,8 +62,9 @@ class RuleObeyingPolicy(policy.Policy):
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
     self.obligations = obligations
-    self.hypothetical_goal_state = None
-    self.hypothetical_goal_action = None
+    self.goal_state = None
+    self.goal_action = None
+    self.is_obligation_active = False
     self.gamma = 0.5 # TODO learnable?
     self.value_function = {} # value estimates for each state
     self.default_heuristic_value = 10
@@ -104,20 +105,27 @@ class RuleObeyingPolicy(policy.Policy):
       See base class.
       End of episode defined in dm_env.TimeStep.
       """
-
-      # Check if any of the obligations are active
-      self.hypothetical_goal_state = None
-      self.hypothetical_goal_action = None
-      for obligation in self.obligations:
-         if obligation.holds_in_history(self.history):
-           self.hypothetical_goal_state = self.get_obligation_goal_state(obligation)
-           break
-
+      self.goal_state, self.goal_action = self.get_goal_state_and_action(timestep=timestep)
+      
       if self.log_output:
-        print(f"player: {self._index} obligation active?: {self.hypothetical_goal_state != None}")
+        print(f"player: {self._index} obligation active?: {self.is_obligation_active}")
 
       # Select an action based on the first satisfying rule
       return self.a_star(timestep)
+  
+  def get_goal_state_and_action(self, timestep):
+    # Check if any of the obligations are active
+    self.is_obligation_active = False
+    for obligation in self.obligations:
+        if obligation.holds_in_history(self.history):
+          self.is_obligation_active = True
+          return self.get_obligation_goal_state_and_action(obligation)
+        else: 
+          self.is_obligation_active = False
+        
+    # if not obligation is active, go for apples
+    if self.is_obligation_active == False:
+      return self.get_closest_apple_state(timestep.observation)
   
   def get_riverbank(self):
     """
@@ -125,12 +133,14 @@ class RuleObeyingPolicy(policy.Policy):
     """
     observation = self.history[0]
     cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
-    max_radius = self.max_depth # assume larger search space
+    max_radius = self.max_depth # assume ever larger search space
     for radius in range(1, max_radius + 1):
-      for j in range(cur_y-radius-1, cur_y+radius):
-        if not self.exceeds_map(observation['WORLD.RGB'], cur_x, j):
-          if observation['SURROUNDINGS'][cur_x][j] == -2:
-            return (cur_x, j) # assume river is all along the y axis
+      for i in range(cur_x-radius-1, cur_x+radius):
+        for j in range(cur_y-radius-1, cur_y+radius):
+          if not self.exceeds_map(observation['WORLD.RGB'], i, j):
+            if not (i == cur_x and j == cur_y):
+              if observation['SURROUNDINGS'][i][j] == -1:
+                return (i, j)
   
     return None
   
@@ -140,14 +150,15 @@ class RuleObeyingPolicy(policy.Policy):
     """
     observation = self.history[0]
     cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
-    radius = self.max_depth # assume larger search space
+    max_radius = self.max_depth # assume larger search space
     payees = self.get_payees(observation)
-    for i in range(cur_x-radius-1, cur_x+radius):
-      for j in range(cur_y-radius-1, cur_y+radius):
-        if not self.exceeds_map(observation['WORLD.RGB'], i, j):
-          for payee in payees:
-            if observation['SURROUNDINGS'][i][j] == payee:
-              return (i, j) # assume river is all along the y axis
+    for radius in range(1, max_radius + 1):
+      for i in range(cur_x-radius-1, cur_x+radius):
+        for j in range(cur_y-radius-1, cur_y+radius):
+          if not self.exceeds_map(observation['WORLD.RGB'], i, j):
+            for payee in payees:
+              if observation['SURROUNDINGS'][i][j] == payee:
+                return (i, j) # assume river is all along the y axis
           
     return None
   
@@ -173,18 +184,19 @@ class RuleObeyingPolicy(policy.Policy):
     
     return None
   
-  def get_obligation_goal_state(self, obligation):
+  def get_obligation_goal_state_and_action(self, obligation):
     obligation_goal = self.get_obligation_goal(obligation)
+    action = None
     if obligation_goal == "clean":
-      self.hypothetical_goal_action = 8
-      return self.get_riverbank()
+      action = 8
+      return self.get_riverbank(), action
     elif obligation_goal == "pay":
-      self.hypothetical_goal_action = 11
-      return self.get_payee()
+      action = 11
+      return self.get_payee(), action
     elif obligation_goal == "zap":
-      self.hypothetical_goal_action = 7
-      return self.get_punshee()
-    return None
+      action = 7
+      return self.get_punshee(), action
+    return None, None
   
   def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
     own_cur_obs = self.deepcopy_dict(timestep.observation)
@@ -358,10 +370,10 @@ class RuleObeyingPolicy(policy.Policy):
       goal action:  action to be taken
     """
 
-    if self.hypothetical_goal_state is not None:
+    if self.goal_state is not None:
         # Calculate the heuristic based on the current state and the hypothetical goal state
         # Return an estimate of the remaining cost to reach the hypothetical goal state
-        return self.estimate_cost_to_goal(state, self.hypothetical_goal_state)
+        return self.estimate_cost_to_goal(state, self.goal_state)
     
     # If the hypothetical goal state is not defined, return a default heuristic value
     return self.default_heuristic_value
@@ -373,6 +385,7 @@ class RuleObeyingPolicy(policy.Policy):
     """
     cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
     max_radius = int((self.max_depth - 2) / 2)
+    action = 10
     # observe radius in ascending order
     for radius in range(1, max_radius + 1):
       for i in range(cur_x-radius-1, cur_x+radius):
@@ -380,9 +393,9 @@ class RuleObeyingPolicy(policy.Policy):
           if not self.exceeds_map(observation['WORLD.RGB'], i, j):
             if not (i == cur_x and j == cur_y): # don't count target apple
               if observation['SURROUNDINGS'][i][j] == -3:
-                return (i, j)
+                return (i, j), action
   
-    return None
+    return None, None
   
   def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
     """Perform a A* search to generate plan."""
@@ -396,10 +409,6 @@ class RuleObeyingPolicy(policy.Policy):
     g_values[start_state] = 0
     queue.put(PrioritizedItem(0, (timestep, action))) # ordered by reward
 
-    if self.hypothetical_goal_state == None:
-        self.hypothetical_goal_state = self.get_closest_apple_state(observation)
-        self.hypothetical_goal_action = 10
-
     while not queue.empty():
       priority_item = queue.get()
       cur_timestep, cur_action = priority_item.item
@@ -410,13 +419,7 @@ class RuleObeyingPolicy(policy.Policy):
       if cur_state not in self.value_function:
           self.value_function[cur_state] = -1 # Initialize value estimate for new states
 
-      # usually good to move agent 
-      # when currently no plan can be found
-      if g_values[cur_state] > self.max_depth: 
-        random_action_sequence = [random.randint(0, 6) for _ in range(3)]
-        return random_action_sequence
-
-      if self.is_done(cur_timestep, cur_action):
+      if self.is_done(cur_timestep, cur_action) or g_values[cur_state] > self.max_depth:
         return self.reconstruct_path(came_from, cur_state)
 
       # Get the list of actions that are possible and satisfy the rules
@@ -460,13 +463,10 @@ class RuleObeyingPolicy(policy.Policy):
 
     for action in range(self.action_spec.num_values):
       x, y = self.update_coordinates_by_action(action, 
-                                                     cur_pos,
-                                                     observation)
+                                              cur_pos,
+                                              observation)
 
       if self.exceeds_map(observation['WORLD.RGB'], x, y):
-        continue
-
-      if observation['SURROUNDINGS'][x][y] == -2: # non-dirt water
         continue
 
       new_obs = self.update_observation(observation, x, y)
@@ -570,8 +570,8 @@ class RuleObeyingPolicy(policy.Policy):
       return True
     else:
       cur_pos = timestep.observation['POSITION']
-      if tuple(cur_pos) == self.hypothetical_goal_state:
-        if action == self.hypothetical_goal_action:
+      if tuple(cur_pos) == self.goal_state:
+        if action == self.goal_action:
           return True
       return False
 
