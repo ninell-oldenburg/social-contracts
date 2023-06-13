@@ -146,6 +146,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def get_payee(self):
     """
+    """
     Returns the coordinates of closest payee.
     """
     observation = self.history[0]
@@ -355,6 +356,7 @@ class RuleObeyingPolicy(policy.Policy):
         break
     path = np.flip(path)
     return path[1:] # first element is always 0
+    return path[1:] # first element is always 0
   
   def estimate_cost_to_goal(self, state, goal_pos):
     cur_pos = state[0]
@@ -425,6 +427,7 @@ class RuleObeyingPolicy(policy.Policy):
       # Get the list of actions that are possible and satisfy the rules
       available_actions = self.available_actions(cur_timestep.observation)
       successor_values = []
+      successor_values = []
 
       for action in available_actions:
         # simulate environment for that action
@@ -432,6 +435,7 @@ class RuleObeyingPolicy(policy.Policy):
         next_pos = tuple(next_timestep.observation['POSITION'])
         next_orient = next_timestep.observation['ORIENTATION']
         successor_state = (next_pos, next_orient, action)
+        successor_values.append(self.value_function.get(successor_state, 0))
         successor_values.append(self.value_function.get(successor_state, 0))
 
         # Calculate the cost to reach the successor state
@@ -446,9 +450,17 @@ class RuleObeyingPolicy(policy.Policy):
           heuristic_cost = self.heuristic(successor_state) + heuristic_value
           priority = successor_g_value + heuristic_cost
 
+          heuristic_value = self.value_function.get(cur_state, 0)
+          heuristic_cost = self.heuristic(successor_state) + heuristic_value
+          priority = successor_g_value + heuristic_cost
+
           queue.put(PrioritizedItem(priority=priority,
                                     item=(next_timestep, action))
                                     )
+          
+      expected_return = cost_to_reach_successor + self.gamma * np.max(successor_values)
+      self.value_function[cur_state] = expected_return
+
           
       expected_return = cost_to_reach_successor + self.gamma * np.max(successor_values)
       self.value_function[cur_state] = expected_return
@@ -564,6 +576,7 @@ class RuleObeyingPolicy(policy.Policy):
       return True
     return False
 
+  def is_done(self, timestep: dm_env.TimeStep, action: int):
   def is_done(self, timestep: dm_env.TimeStep, action: int):
     """Check whether any of the break criteria are met."""
     if timestep.last():
