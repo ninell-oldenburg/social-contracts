@@ -44,7 +44,11 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.potential_rules = self.potential_prohibitions + self.potential_obligations
         self.obligations = []
         self.prohibitions = []
-        self.current_obligation = None
+        self.goal_state = None
+        self.goal_action = None
+        self.is_obligation_active = False
+        self.gamma = 0.5 # TODO learnable?
+        self.value_function = {} # value estimates for each state
         self.player_looks = other_player_looks
         self.num_focal_agents = num_focal_bots
         self.num_total_agents = len(other_player_looks)
@@ -116,12 +120,12 @@ class RuleLearningPolicy(RuleObeyingPolicy):
     def comp_oblig_llh(self, player_idx: int, rule: ObligationRule) -> float:
 
         # unpack appearance, observation, position of the player
-        player_look = self.player_looks[player_idx]
+        # player_look = self.player_looks[player_idx]
         player_history = [all_players_timesteps.observation[player_idx] for all_players_timesteps in self.others_history]
         next_obs = self.others_history[-1].observation[player_idx]
         past_timestep = self.get_single_timestep(self.others_history[-2], player_idx)
 
-        if rule.holds_in_history(player_history[:-2], player_look):
+        if rule.holds_in_history(player_history[:-2]):
             if rule not in self.nonself_active_obligations_count[player_idx].keys():
                 self.nonself_active_obligations_count[player_idx][rule] = 0
             else:
@@ -135,8 +139,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         rule_is_active = rule_active_count <= self.max_depth
 
         if rule_is_active: # Obligation is active
-            if self.could_be_satisfied(rule, past_timestep, player_look):
-                if rule.satisfied(next_obs, player_look): # Agent obeyed the obligation
+            if self.could_be_satisfied(rule, past_timestep):
+                if rule.satisfied(next_obs): # Agent obeyed the obligation
                     # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)
                     p_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
                     return np.log(p_action)
@@ -160,9 +164,11 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         num_prohib_acts = len(prohib_actions)
         if rule.holds_precondition(past_obs):
             if action in prohib_actions: # violation
-                return np.log(0)
+                p_action = (1-self.p_obey)/(self.num_actions)
+                return np.log(p_action)
             else: # action not prohibited
-                p_action = 1/(self.num_actions-num_prohib_acts)
+                p_action = self.p_obey + (1-self.p_obey)/(self.num_actions-num_prohib_acts)
+                # p_action = 1/(self.num_actions-num_prohib_acts)
                 return np.log(p_action)
         else: # precondition doesn't hold
             p_action = 1/(self.num_actions-num_prohib_acts)
@@ -201,11 +207,11 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         
         return agent_timestep
     
-    def could_be_satisfied(self, rule, past_timestep, player_look):
+    def could_be_satisfied(self, rule, past_timestep):
         """Returns True is an obligation could be satisfied."""
         for action in range(self.action_spec.num_values):
             next_timestep = super().env_step(past_timestep, action)
-            if rule.satisfied(next_timestep.observation, player_look):
+            if rule.satisfied(next_timestep.observation):
                 return True
             
         return False
