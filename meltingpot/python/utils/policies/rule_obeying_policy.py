@@ -146,7 +146,6 @@ class RuleObeyingPolicy(policy.Policy):
   
   def get_payee(self):
     """
-    """
     Returns the coordinates of closest payee.
     """
     observation = self.history[0]
