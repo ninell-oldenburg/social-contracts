@@ -114,6 +114,7 @@ class RuleObeyingPolicy(policy.Policy):
       return self.a_star(timestep)
   
   def get_goal_state_and_action(self, timestep):
+    """Set goal state for the heuristic computation."""
     # Check if any of the obligations are active
     self.is_obligation_active = False
     for obligation in self.obligations:
@@ -128,9 +129,7 @@ class RuleObeyingPolicy(policy.Policy):
       return self.get_closest_apple_state(timestep.observation)
   
   def get_riverbank(self):
-    """
-    Returns the coordinates of closest riverbank.
-    """
+    """Returns the coordinates of closest riverbank."""
     observation = self.history[0]
     cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
     max_radius = self.max_depth # assume ever larger search space
@@ -145,9 +144,7 @@ class RuleObeyingPolicy(policy.Policy):
     return None
   
   def get_payee(self):
-    """
-    Returns the coordinates of closest payee.
-    """
+    """Returns the coordinates of closest payee."""
     observation = self.history[0]
     cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
     max_radius = self.max_depth # assume larger search space
@@ -163,18 +160,14 @@ class RuleObeyingPolicy(policy.Policy):
     return None
   
   def get_punshee(self):
-    """
-    Returns the coordinates of the agent to punish.
-    """
+    """Returns the coordinates of the agent to punish."""
     # TODO
     observation = self.history[0].observation
     cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
     return (cur_x, cur_y)
   
   def get_obligation_goal(self, obligation):
-    """
-    Returns the a string with the goal of the obligation.
-    """
+    """Returns the a string with the goal of the obligation."""
     if "CLEAN" in obligation.goal:
       return "clean"
     if "PAY" in obligation.goal:
@@ -185,6 +178,7 @@ class RuleObeyingPolicy(policy.Policy):
     return None
   
   def get_obligation_goal_state_and_action(self, obligation):
+    """Get goal action and state for an oblgation."""
     obligation_goal = self.get_obligation_goal(obligation)
     action = None
     if obligation_goal == "clean":
@@ -199,6 +193,7 @@ class RuleObeyingPolicy(policy.Policy):
     return None, None
   
   def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
+    """Append current timestep obsetvation to observation history."""
     own_cur_obs = self.deepcopy_dict(timestep.observation)
     own_cur_pos = np.copy(own_cur_obs['POSITION'])
     own_x, own_y = own_cur_pos[0], own_cur_pos[1]
@@ -293,6 +288,7 @@ class RuleObeyingPolicy(policy.Policy):
     return reward, cur_inventory, payed_time
   
   def deepcopy_dict(self, old_obs):
+    """Own copy implementation for time efficiency."""
     new_obs = {}
     for key in old_obs:
       if isinstance(old_obs[key], np.ndarray):
@@ -346,6 +342,7 @@ class RuleObeyingPolicy(policy.Policy):
     return False
       
   def reconstruct_path(self, came_from: dict, coordinates: tuple) -> list:
+    """Reconstructs path from path dictionary."""
     path = np.array([coordinates[2]])
     while coordinates in came_from.keys():
       if not coordinates == came_from[coordinates]:
@@ -355,35 +352,24 @@ class RuleObeyingPolicy(policy.Policy):
         break
     path = np.flip(path)
     return path[1:] # first element is always 0
-    return path[1:] # first element is always 0
   
-  def estimate_cost_to_goal(self, state, goal_pos):
-    cur_pos = state[0]
-    # Manhattan distance
-    distance = abs(cur_pos[0] - goal_pos[0]) + abs(cur_pos[1] - goal_pos[1])
-
+  def estimate_cost_to_goal(self, cur_state):
+    """Calculates Manhattan Distance"""
+    cur_pos = cur_state[0]
+    distance = abs(cur_pos[0] - self.goal_state[0]) + abs(cur_pos[1] - self.goal_state[1])
     return distance
 
-  def heuristic(self, state):
-    """Calculates the heuristic for path search.
-    Args:
-      state:        current state
-      goal action:  action to be taken
-    """
+  def heuristic(self, cur_state):
+    """Calculates the heuristic for path search. """
 
     if self.goal_state is not None:
-        # Calculate the heuristic based on the current state and the hypothetical goal state
-        # Return an estimate of the remaining cost to reach the hypothetical goal state
-        return self.estimate_cost_to_goal(state, self.goal_state)
+        return self.estimate_cost_to_goal(cur_state)
     
     # If the hypothetical goal state is not defined, return a default heuristic value
     return self.default_heuristic_value
   
   def get_closest_apple_state(self, observation):
-    """
-    Returns the coordinates of closest apple in observation radius.
-    Returns None if no apple is around.
-    """
+    """Returns the coordinates of closest apple in observation radius."""
     cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
     max_radius = int((self.max_depth - 2) / 2)
     action = 10
@@ -426,7 +412,6 @@ class RuleObeyingPolicy(policy.Policy):
       # Get the list of actions that are possible and satisfy the rules
       available_actions = self.available_actions(cur_timestep.observation)
       successor_values = []
-      successor_values = []
 
       for action in available_actions:
         # simulate environment for that action
@@ -434,7 +419,6 @@ class RuleObeyingPolicy(policy.Policy):
         next_pos = tuple(next_timestep.observation['POSITION'])
         next_orient = next_timestep.observation['ORIENTATION']
         successor_state = (next_pos, next_orient, action)
-        successor_values.append(self.value_function.get(successor_state, 0))
         successor_values.append(self.value_function.get(successor_state, 0))
 
         # Calculate the cost to reach the successor state
@@ -449,18 +433,11 @@ class RuleObeyingPolicy(policy.Policy):
           heuristic_cost = self.heuristic(successor_state) + heuristic_value
           priority = successor_g_value + heuristic_cost
 
-          heuristic_value = self.value_function.get(cur_state, 0)
-          heuristic_cost = self.heuristic(successor_state) + heuristic_value
-          priority = successor_g_value + heuristic_cost
-
           queue.put(PrioritizedItem(priority=priority,
                                     item=(next_timestep, action))
                                     )
-          
-      expected_return = cost_to_reach_successor + self.gamma * np.max(successor_values)
-      self.value_function[cur_state] = expected_return
-
-          
+      
+      # fill value function after each state visit
       expected_return = cost_to_reach_successor + self.gamma * np.max(successor_values)
       self.value_function[cur_state] = expected_return
 
@@ -482,7 +459,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       new_obs = self.update_observation(observation, x, y)
       action_name = self.get_action_name(action)
-      prob = random.random()
+      prob = random.random() # probabilistic obedience
       
       if self.check_all(new_obs, action_name):
         if prob <= self.p_obey:
