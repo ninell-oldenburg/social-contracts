@@ -576,7 +576,6 @@ class RuleObeyingPolicy(policy.Policy):
     return False
 
   def is_done(self, timestep: dm_env.TimeStep, action: int):
-  def is_done(self, timestep: dm_env.TimeStep, action: int):
     """Check whether any of the break criteria are met."""
     if timestep.last():
       return True
