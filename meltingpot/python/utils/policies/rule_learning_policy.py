@@ -13,7 +13,6 @@ from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
-from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
 
 
 class RuleLearningPolicy(RuleObeyingPolicy):
@@ -51,7 +50,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.value_function = {} # value estimates for each state
         # self.player_looks = other_player_looks
         self.num_focal_agents = num_focal_bots
-        self.num_total_agents = len(other_player_looks)
+        self.num_total_agents = num_focal_bots + 1 # TODO
         self.num_rules = len(self.potential_rules)
         self.rule_beliefs = np.array([(0.2)]*self.num_rules)
         self.nonself_active_obligations_count = np.array([dict() for _ in range(self.num_total_agents)])

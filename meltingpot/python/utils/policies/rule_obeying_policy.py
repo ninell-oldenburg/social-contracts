@@ -23,13 +23,12 @@ from queue import PriorityQueue
 from collections import deque
 
 import numpy as np
-
+import itertools
 import random
+import hashlib
 
 from meltingpot.python.utils.policies import policy
-
 from meltingpot.python.utils.substrates import shapes
-
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
 
 @dataclass(order=True)
@@ -65,6 +64,13 @@ class RuleObeyingPolicy(policy.Policy):
     self.goal_state = None
     self.goal_action = None
     self.is_obligation_active = False
+    self.n_rollouts = 10
+    self.hash_table = {}
+    self.s_goal = set()
+    self.g_vals = {} # cost so far
+    self.h_vals = {}
+    self.rollout_noise = 0.0
+    self.action_noise = 0.0 # change to make probabilistic 
     self.gamma = 0.5 # TODO learnable?
     self.value_function = {} # value estimates for each state
     self.default_heuristic_value = 10
@@ -97,6 +103,17 @@ class RuleObeyingPolicy(policy.Policy):
             "EAT_ACTION",
             "PAY_ACTION"
           ]
+    
+    self.relevant_keys = [
+      'POSITION', 
+      'ORIENTATION', 
+      'NUM_APPLES_AROUND', 
+      'INVENTORY', 
+      'CUR_CELL_IS_FOREIGN_PROPERTY', 
+      'CUR_CELL_HAS_APPLE', 
+      'AGENT_CLEANED', 
+      'READY_TO_SHOOT'
+      ]
         
   def step(self, 
            timestep: dm_env.TimeStep
@@ -105,28 +122,75 @@ class RuleObeyingPolicy(policy.Policy):
       See base class.
       End of episode defined in dm_env.TimeStep.
       """
-      self.goal_state, self.goal_action = self.get_goal_state_and_action(timestep=timestep)
+
+      # TODO make it a set of goal states
+      self.s_goal = set()
+      self.set_goal_state_and_action(timestep=timestep)
+      self.came_from = {}
       
       if self.log_output:
         print(f"player: {self._index} obligation active?: {self.is_obligation_active}")
 
       # Select an action based on the first satisfying rule
-      return self.a_star(timestep)
+      return self.real_time_adaptive_astar(timestep)
   
-  def get_goal_state_and_action(self, timestep):
+  def set_goal_state_and_action(self, timestep):
     """Set goal state for the heuristic computation."""
+    position, action = None, None
     # Check if any of the obligations are active
     self.is_obligation_active = False
     for obligation in self.obligations:
         if obligation.holds_in_history(self.history):
           self.is_obligation_active = True
-          return self.get_obligation_goal_state_and_action(obligation)
+          position, action = self.set_obligation_goal_state_and_action(obligation)
         else: 
           self.is_obligation_active = False
         
     # if not obligation is active, go for apples
     if self.is_obligation_active == False:
-      return self.get_closest_apple_state(timestep.observation)
+      position, action = self.set_closest_apple_state(timestep.observation)
+      
+    self.generate_goal_states(position, action)
+    print(self.s_goal)
+    return
+    
+  def generate_goal_states(self, position, action):
+    # Define the range or possible values for other dimensions/parameters
+    # that are not known
+    orientation = range(4)
+    num_apples_around = range(8)
+    inventory = range(15)
+    cur_cell_forgein = [True, False]
+    cur_cell_has_apple = [True, False]
+    agent_cleaned = [0.0, 1.0]
+    ready_to_shoot = [0.0, 1.0]
+
+    dummy_states = set()
+
+    # Generate combinations of dummy dimensions and parameters
+    for combination in itertools.product(orientation, num_apples_around, inventory, cur_cell_forgein,
+                                               cur_cell_has_apple, agent_cleaned, ready_to_shoot):
+        # Create a dummy goal state using known position, orientation,
+        # and the varying dimensions/parameters
+        observation = {'POSITION': position,
+                      'ORIENTATION': combination[0], 
+                      'NUM_APPLES_AROUND': combination[1], 
+                      'INVENTORY': combination[2], 
+                      'CUR_CELL_IS_FOREIGN_PROPERTY': combination[3], 
+                      'CUR_CELL_HAS_APPLE': combination[4], 
+                      'AGENT_CLEANED': combination[5], 
+                      'READY_TO_SHOOT': combination[6],
+                       }
+        
+        dummy_ts = dm_env.TimeStep(step_type=dm_env.StepType.MID,
+                                  reward=0.0,
+                                  discount=1.0,
+                                  observation=observation)
+        # Hash the dummy goal state and add it to the set of goal states
+        dummy_hash = self.hash_ts_and_action(timestep=dummy_ts, action=action)
+        self.s_goal.add(dummy_hash)
+
+    return dummy_states
   
   def get_riverbank(self):
     """Returns the coordinates of closest riverbank."""
@@ -177,7 +241,7 @@ class RuleObeyingPolicy(policy.Policy):
     
     return None
   
-  def get_obligation_goal_state_and_action(self, obligation):
+  def set_obligation_goal_state_and_action(self, obligation):
     """Get goal action and state for an oblgation."""
     obligation_goal = self.get_obligation_goal(obligation)
     action = None
@@ -190,6 +254,22 @@ class RuleObeyingPolicy(policy.Policy):
     elif obligation_goal == "zap":
       action = 7
       return self.get_punshee(), action
+    return None, None
+  
+  def set_closest_apple_state(self, observation):
+    """Returns the coordinates of closest apple in observation radius."""
+    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
+    max_radius = int((self.max_depth - 2) / 2)
+    action = 10
+    # observe radius in ascending order
+    for radius in range(1, max_radius + 1):
+      for i in range(cur_x-radius-1, cur_x+radius):
+        for j in range(cur_y-radius-1, cur_y+radius):
+          if not self.exceeds_map(observation['WORLD.RGB'], i, j):
+            if not (i == cur_x and j == cur_y): # don't count target apple
+              if observation['SURROUNDINGS'][i][j] == -3:
+                return (i, j), action
+  
     return None, None
   
   def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
@@ -341,107 +421,160 @@ class RuleObeyingPolicy(policy.Policy):
 
     return False
       
-  def reconstruct_path(self, came_from: dict, coordinates: tuple) -> list:
+  def reconstruct_path(self, state: int) -> list:
     """Reconstructs path from path dictionary."""
-    path = np.array([coordinates[2]])
-    while coordinates in came_from.keys():
-      if not coordinates == came_from[coordinates]:
-        coordinates = came_from[coordinates]
-        path = np.append(path, coordinates[2])
+    _, action = self.unhash(state)
+    path = np.array([action])
+    while state in self.came_from.keys():
+      if not state == self.came_from[state]:
+        state = self.came_from[state]
+        _, action = self.unhash(state)
+        path = np.append(path, action)
       else:
         break
     path = np.flip(path)
     return path[1:] # first element is always 0
   
-  def estimate_cost_to_goal(self, cur_state):
+  def manhattan_dis(self, s_cur, s_goal):
     """Calculates Manhattan Distance"""
-    cur_pos = cur_state[0]
-    distance = abs(cur_pos[0] - self.goal_state[0]) + abs(cur_pos[1] - self.goal_state[1])
+    cur_pos = s_cur
+    goal_pos = s_goal
+    distance = abs(cur_pos[0] - goal_pos[0]) + abs(cur_pos[1] - goal_pos[1])
     return distance
 
-  def heuristic(self, cur_state):
+  def heuristic(self, s_cur):
     """Calculates the heuristic for path search. """
-
-    if self.goal_state is not None:
-        return self.estimate_cost_to_goal(cur_state)
+    if self.s_goal:
+        for s in self.s_goal:
+          ts_cur, _ = self.unhash(s_cur)
+          ts_goal, _ = self.unhash(s)
+          self.h_vals[s_cur] = self.manhattan_dis(ts_cur.observation['POSITION'], ts_goal.observation['POSITION'])
     
     # If the hypothetical goal state is not defined, return a default heuristic value
     return self.default_heuristic_value
+
+  def get_min_cost_action(self, s_cur, s_bar):
+    # TODO
+    return 3
+
+  def adjust_cost(self, state, action):
+    pass
+
+  def unhash(self, hash_val):
+    timestep = self.hash_table[hash_val][0]
+    action = self.hash_table[hash_val][1]
+    return timestep, action
   
-  def get_closest_apple_state(self, observation):
-    """Returns the coordinates of closest apple in observation radius."""
-    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
-    max_radius = int((self.max_depth - 2) / 2)
-    action = 10
-    # observe radius in ascending order
-    for radius in range(1, max_radius + 1):
-      for i in range(cur_x-radius-1, cur_x+radius):
-        for j in range(cur_y-radius-1, cur_y+radius):
-          if not self.exceeds_map(observation['WORLD.RGB'], i, j):
-            if not (i == cur_x and j == cur_y): # don't count target apple
-              if observation['SURROUNDINGS'][i][j] == -3:
-                return (i, j), action
+  def get_hash_key(self, obs, action):
+    # Convert the dictionary to a tuple of key-value pairs
+    items = tuple((key, value, action) for key, value in obs.items() if key in self.relevant_keys)
+    sorted_items = sorted(items, key=lambda x: x[0])
+    hash_key = hashlib.sha256(str(sorted_items).encode()).hexdigest() 
+    return hash_key
   
-    return None, None
+  """def make_array_hashable(self, observation):
+    hashable_elements = []
+    for array in observation.items():
+        print(type(array[1]))
+        if type(array[1]) == np.ndarray and len(array.shape) == 1:
+          # Convert each element of the array to a hashable form
+          hashable_array = tuple(array.tolist())
+          hashable_elements.append(hashable_array)
+    return tuple(hashable_elements)"""
+  
+  def hash_ts_and_action(self, timestep: dm_env.TimeStep, action: int):
+    hash_key = self.get_hash_key(timestep.observation, action)
+    self.hash_table[hash_key] = (timestep, action)
+    return hash_key
+
+  # source: http://idm-lab.org/bib/abstracts/papers/aamas06.pdf
+  def real_time_adaptive_astar(self, timestep: dm_env.TimeStep) -> list[int]:
+    timestep = timestep._replace(reward=0.0)
+    init_action = 0
+    s_cur = self.hash_ts_and_action(timestep, init_action)
+    movements = self.max_depth
+
+    while s_cur not in self.s_goal:
+      cur_ts, _ = self.unhash(s_cur)
+      s_next, s_bar = self.a_star(timestep=cur_ts) # updates g and h vals
+
+      if not s_bar: # terminal state of A*
+        return False
+      
+      for s in s_next: # update all bordering h values
+        self.h_vals[s] = self.g_vals[s_cur] + self.h_vals[s_cur] - self.g_vals[s]
+
+      while s_cur != s_bar and movements > 0:
+        action = self.get_min_cost_action(s_cur, s_bar)
+        ts_cur = self.env_step(cur_ts, action)
+        s_past = s_cur
+        s_cur = self.hash_ts_and_action(ts_cur, action)
+        self.came_from[s_cur] = s_past
+        movements -= 1
+
+        """for _ in self.adjustments:
+          for s in self.all_states:
+            for a in self.action_spec:
+              pass
+              s_hash = self.hash_ts_and_action(s, a)
+              self.c[s_hash] = self.adjust_cost(s, a)"""
+              # record adjusted costs
+
+        # TODO
+        # if (s, a) is on trajectory(s_cur, s_bar):
+          # break
+
+    print(self.reconstruct_path(s_cur))
+    return self.reconstruct_path(s_cur)
   
   def a_star(self, timestep: dm_env.TimeStep) -> list[int]:
     """Perform a A* search to generate plan."""
-    queue, action, came_from, g_values = PriorityQueue(), 0, {}, {}
+    queue, action = PriorityQueue(), 0
     timestep = timestep._replace(reward=0.0)
-    observation = timestep.observation
-    observation['POSITION'] = np.array([observation['POSITION'][0]-1, 
-                              observation['POSITION'][1]-1]) # lua is 1-indexed
-    observation['ORIENTATION'] = observation['ORIENTATION'].item()
-    start_state = (tuple(observation['POSITION']), observation['ORIENTATION'], action)
-    g_values[start_state] = 0
-    queue.put(PrioritizedItem(0, (timestep, action))) # ordered by reward
+    s_start = self.hash_ts_and_action(timestep, action)
+    self.g_vals[s_start] = 0
+    self.h_vals[s_start] = self.heuristic(s_start)
+    queue.put(PrioritizedItem(0, s_start)) # ordered by reward
+    depth = 0
 
     while not queue.empty():
       priority_item = queue.get()
-      cur_timestep, cur_action = priority_item.item
-      cur_pos = tuple(cur_timestep.observation['POSITION'])
-      cur_orient = cur_timestep.observation['ORIENTATION']
-      cur_state = (cur_pos, cur_orient, cur_action)
+      cur_timestep, cur_action = self.unhash(priority_item.item)
+      s_cur = self.hash_ts_and_action(cur_timestep, cur_action)
 
-      if cur_state not in self.value_function:
-          self.value_function[cur_state] = -1 # Initialize value estimate for new states
+      if depth >= self.max_depth:
+        break
 
-      if self.is_done(cur_timestep, cur_action) or g_values[cur_state] > self.max_depth:
-        return self.reconstruct_path(came_from, cur_state)
+      if s_cur not in self.value_function:
+          self.value_function[s_cur] = -np.inf # Initialize value estimate for new states
 
       # Get the list of actions that are possible and satisfy the rules
-      available_actions = self.available_actions(cur_timestep.observation)
-      successor_values = []
+      available = self.available_actions(cur_timestep.observation)
+      s_next = []
 
-      for action in available_actions:
+      for action in available:
         # simulate environment for that action
         next_timestep = self.env_step(cur_timestep, action)
-        next_pos = tuple(next_timestep.observation['POSITION'])
-        next_orient = next_timestep.observation['ORIENTATION']
-        successor_state = (next_pos, next_orient, action)
-        successor_values.append(self.value_function.get(successor_state, 0))
+        s_succ = self.hash_ts_and_action(next_timestep, action)
+        s_next.append(s_succ)
 
         # Calculate the cost to reach the successor state
         cost_to_reach_successor = 1 - next_timestep.reward
-        successor_g_value = g_values[cur_state] + cost_to_reach_successor
+        g_succ = self.g_vals[s_cur] + cost_to_reach_successor
 
-        if successor_state not in g_values or successor_g_value < g_values[successor_state]:
-          g_values[successor_state] = successor_g_value
-          came_from[successor_state] = cur_state
+        if s_succ not in self.g_vals or g_succ < self.g_vals[s_succ]:
+          depth += 1
+          self.g_vals[s_succ] = g_succ
+          self.h_vals[s_succ] = self.heuristic(s_succ) # shall this be updated?
+          self.came_from[s_succ] = s_cur
 
-          heuristic_value = self.value_function.get(cur_state, 0)
-          heuristic_cost = self.heuristic(successor_state) + heuristic_value
-          priority = successor_g_value + heuristic_cost
+          priority = g_succ + self.h_vals[s_succ]
 
           queue.put(PrioritizedItem(priority=priority,
-                                    item=(next_timestep, action))
-                                    )
-      
-      # fill value function after each state visit
-      expected_return = cost_to_reach_successor + self.gamma * np.max(successor_values)
-      self.value_function[cur_state] = expected_return
+                                    item=s_succ
+                                    ))
 
-    return [0] # return noop action if path finding unsuccessful
+    return s_next, s_cur # return noop action if path finding unsuccessful
 
   def available_actions(self, obs) -> list[int]:
     """Return the available actions at a given timestep."""
