@@ -527,7 +527,8 @@ class RuleObeyingPolicy(policy.Policy):
         # iter through every state left in the queue
         for s in PRIO_QUEUE.enumerate():
             # update h values of the queue with preceding g value and current h_value
-            queue_values[s] = g_table[came_from[s]] + 1 + self.h_vals[s]
+            dis = self.manhattan_dis(s, came_from[s])
+            queue_values[s] = g_table[came_from[s]] + dis + self.h_vals[s]
         min_s_queue = max(queue_values, key=queue_values.get)
         f_min = queue_values[min_s_queue]
         # update h_vals based on minimum
