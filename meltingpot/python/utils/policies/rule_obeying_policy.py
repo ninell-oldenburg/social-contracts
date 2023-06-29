@@ -35,6 +35,35 @@ from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, 
 class PrioritizedItem:
     priority: float
     item: Any=field(compare=False)
+
+class EnumPriorityQueue:
+    def __init__(self):
+        self.queue = PriorityQueue()
+        self.elements = []
+
+    def put(self, priority, item):
+        self.queue.put((priority, item))
+        self.elements.append(item)
+
+    def get(self):
+        _, item = self.queue.get()
+        self.elements.remove(item)
+        return item
+    
+    def empty(self):
+        return self.queue.empty()
+    
+    def enumerate(self):
+        return iter(self.elements)
+
+    def __contains__(self, item):
+        return item in self.elements
+
+    def __iter__(self):
+        return iter(self.elements)
+
+    def __len__(self):
+        return len(self.elements)
     
 
 class RuleObeyingPolicy(policy.Policy):
@@ -433,12 +462,12 @@ class RuleObeyingPolicy(policy.Policy):
     _, action = self.unhash(state)
     path = np.array([action])
     while state in self.came_from.keys():
-      if not state == self.came_from[state]:
-        state = self.came_from[state]
-        _, action = self.unhash(state)
-        path = np.append(path, action)
-      else:
+      if state == self.came_from[state]:
         break
+      state = self.came_from[state]
+      _, action = self.unhash(state)
+      path = np.append(path, action)
+
     path = np.flip(path)
     return path[1:] # first element is always 0
   
@@ -455,45 +484,28 @@ class RuleObeyingPolicy(policy.Policy):
         for s in self.s_goal:
           ts_cur, _ = self.unhash(s_cur)
           ts_goal, _ = self.unhash(s)
-          self.h_vals[s_cur] = self.manhattan_dis(ts_cur.observation['POSITION'], ts_goal.observation['POSITION'])
+          cur_manhattan = self.manhattan_dis(ts_cur.observation['POSITION'], ts_goal.observation['POSITION'])
+          if not s_cur in self.h_vals.keys() or cur_manhattan < self.h_vals[s_cur]:
+            return cur_manhattan
     
     # If the hypothetical goal state is not defined, return a default heuristic value
     return self.default_heuristic_value
-
-  def get_min_cost_action(self, s_cur, s_bar):
-    min_cost = float('inf')
-    min_action = None
-
-    # Iterate through all possible actions
-    for action in range(self.action_spec.num_values):
-        # Calculate the cost for the current action
-        cost = self.calculate_cost(s_cur, s_bar, action)
-
-        # Update minimum cost and corresponding action if applicable
-        if cost < min_cost:
-            min_cost = cost
-            min_action = action
-
-    return min_action
   
-  def calculate_cost(self, s_cur, s_bar, action):
+  def cost(self, s_cur, s_bar, action):
     cost = 0
     ts_cur, _ = self.unhash(s_cur)
     ts_goal, _ = self.unhash(s_bar)
     distance = self.manhattan_dis(ts_cur.observation['POSITION'], ts_goal.observation['POSITION'])
     cost += distance
 
+    # check for prohibitions
     available = self.available_actions(ts_cur.observation)
-
     if action in available:
       cost += 1
     else:
       cost += 10
 
     return cost
-
-  def adjust_cost(self, state, action):
-    pass
 
   def unhash(self, hash_val):
     timestep = self.hash_table[hash_val][0]
@@ -504,7 +516,6 @@ class RuleObeyingPolicy(policy.Policy):
     # Convert the dictionary to a tuple of key-value pairs
     items = tuple((key, value, action) for key, value in obs.items() if key in self.relevant_keys)
     sorted_items = sorted(items, key=lambda x: x[0])
-    print(sorted_items)
     hash_key = hashlib.sha256(str(sorted_items).encode()).hexdigest() 
     return hash_key
   
@@ -513,17 +524,55 @@ class RuleObeyingPolicy(policy.Policy):
     self.hash_table[hash_key] = (timestep, action)
     return hash_key
   
-  def cal_h_value(self, OPEN, CLOSED, g_table, PARENT):
-        v_open = {}
-        h_value = {}
-        for (_, s) in OPEN.enumerate():
-            v_open[s] = g_table[PARENT[s]] + 1 + self.h_vals[s]
-        s_open = min(v_open, key=v_open.get)
-        f_min = v_open[s_open]
-        for x in CLOSED: # only visits 
-            h_value[x] = f_min - g_table[x]
+  def cal_h_value(self, PRIO_QUEUE, S_VISITED, g_table, came_from):
+        queue_values = {}
+        # iter through every state left in the queue
+        for s in PRIO_QUEUE.enumerate():
+            # update h values of the queue with preceding g value and current h_value
+            queue_values[s] = g_table[came_from[s]] + 1 + self.h_vals[s]
+        min_s_queue = max(queue_values, key=queue_values.get)
+        f_min = queue_values[min_s_queue]
+        # update h_vals based on minimum
+        for s in S_VISITED: # only visits 
+            self.h_vals[s] = f_min - g_table[s]
 
-        return s_open, h_value
+        return min_s_queue
+  
+  def get_neighbors(self, s):
+    neighbors = []
+    cur_ts, _ = self.unhash(s)
+    for action in range(self.action_spec.num_values):
+      neighbors_ts = self.env_step(cur_ts, action)
+      s_next = self.hash_ts_and_action(neighbors_ts, action)
+      neighbors.append(s_next)
+
+    return neighbors
+  
+  def update_s_cur(self, s_cur, s_next, came_from):
+    _, action = self.unhash(s_next)
+    path = np.array([action])
+    s_key = None
+
+    while s_next in came_from.keys():
+      h_list = {}
+      s_neighbors = self.get_neighbors(s_next)
+
+      for s_n in s_neighbors:
+        if s_n in self.h_vals.keys():
+          h_list[s_n] = self.h_vals[s_n]
+
+      if not len(h_list.keys()) == 0:
+        s_key = min(h_list, key=h_list.get)  # move to the node with min h_value
+      else: 
+        s_key = s_next
+
+      s_next = came_from[s_key]
+      _, action = self.unhash(s_cur)
+      path = np.append(path, action)
+      
+      if s_next == s_cur:
+        path = np.flip(path)
+        return s_next, path[1:] # first element is always 0
 
   # source: http://idm-lab.org/bib/abstracts/papers/aamas06.pdf
   # inspiration: https://github.com/zhm-real/PathPlanning/blob/master/Search_based_Planning/Search_2D/RTAAStar.py#L42
@@ -531,72 +580,73 @@ class RuleObeyingPolicy(policy.Policy):
     timestep = timestep._replace(reward=0.0)
     init_action = 0
     s_cur = self.hash_ts_and_action(timestep, init_action)
+    count_searches = 0
 
     while s_cur not in self.s_goal:
-      OPEN, CLOSED, g_vals = self.a_star(s_cur)
+      PRIO_QUEUE, S_VISITED, g_vals, came_from = self.a_star(s_cur)
 
-      if OPEN: # terminal state of A*
-        self.path.append(CLOSED)
-        break
+      if PRIO_QUEUE == True: # terminal state of A*
+        return self.reconstruct_path(S_VISITED)
 
-      # s_next is the next cheapest node, h_vals the heuristics
-      s_next, h_vals = self.cal_h_value(OPEN, CLOSED, g_vals)
+      # s_next is the next cheapest node
+      s_next = self.cal_h_value(PRIO_QUEUE, S_VISITED, g_vals, came_from)
+      s_cur, path_k = self.update_s_cur(s_cur, s_next, came_from)
 
-      for x in h_vals:
-        self.h_table[x] = h_vals[x]
-
-      s_cur, path_k = self.extract_path_in_CLOSE(s_cur, s_next, h_vals)
-      self.path.append(path_k)
-
-    return self.reconstruct_path(s_cur)
+      if count_searches >= self.max_searches:
+        return path_k
+      
+      count_searches += 1
+    
+    print(path_k)
+    return
   
   def a_star(self, s_start: int) -> list[int]:
     """Perform a A* search to generate plan."""
-    QUEUE, action, CLOSED = PriorityQueue(), 0, []
-    QUEUE.put(PrioritizedItem(0, s_start)) # ordered by reward
+    PRIO_QUEUE, S_ORDERED, action = EnumPriorityQueue(), [], 0
+    PRIO_QUEUE.put(0, s_start) # ordered by reward
+    self.h_vals[s_start] = self.heuristic(s_start)
     came_from = {s_start: s_start}
     g_table = {s_start: 0}
-    for s_goal in self.s_goal: # g_vals for a*
+    for s_goal in self.s_goal: # g_vals for current goals
       g_table[s_goal] = float("inf")
     depth = 0
 
-    while not QUEUE.empty():
+    while not PRIO_QUEUE.empty():
       depth += 1
-      priority_item = QUEUE.get()
-      s_cur = priority_item.item
+      priority_item = PRIO_QUEUE.get()
+      s_cur = priority_item
+      S_ORDERED.append(s_cur)
       cur_timestep, _ = self.unhash(s_cur)
 
       if s_cur in self.s_goal:
-        self.visited.append(CLOSED)
         OPEN = True
-        CLOSED = self.reconstruct_path(s_cur)
-        return OPEN, CLOSED, []
+        S_ORDERED = self.reconstruct_path(s_cur)
+        return OPEN, S_ORDERED, [], came_from
       
       if depth >= self.max_depth:
-        return False
+        return PRIO_QUEUE, S_ORDERED, g_table, came_from
 
       for action in range(self.action_spec.num_values):
         # simulate environment for that action
         next_timestep = self.env_step(cur_timestep, action)
         s_next = self.hash_ts_and_action(next_timestep, action)
 
-        if s_next not in CLOSED:
-          new_cost = g_table[s_cur] + self.cost(s_cur, s_next)
+        if s_next not in S_ORDERED: # has not been visited yet
+          new_cost = g_table[s_cur] + self.cost(s_cur, s_next, action)
           if s_next not in g_table:
             g_table[s_next] = float("inf")
-          if new_cost < g_table[s_next]:  # conditions for updating Cost
+          if new_cost < g_table[s_next]:  # conditions for updating cost
             g_table[s_next] = new_cost
             came_from[s_next] = s_cur
 
-          priority = g_table[s_next] + self.h_table[s_next]
-          QUEUE.put(PrioritizedItem(priority=priority, item=s_next))
+          self.h_vals[s_next] = self.heuristic(s_next)
+          priority = g_table[s_next] + self.h_vals[s_next]
+          PRIO_QUEUE.put(priority=priority, item=s_next)
 
       if depth >= self.max_depth:
         break
 
-    self.visited.append(CLOSED)  # visited nodes in each iteration
-
-    return QUEUE, CLOSED, g_table, came_from # return noop action if path finding unsuccessful
+    return PRIO_QUEUE, S_ORDERED, g_table, came_from
 
   def available_actions(self, obs) -> list[int]:
     """Return the available actions at a given timestep."""
