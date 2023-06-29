@@ -163,9 +163,7 @@ class RuleObeyingPolicy(policy.Policy):
         print(f"player: {self._index} obligation active?: {self.is_obligation_active}")
   
       # find path
-      self.real_time_adaptive_astar(timestep)
-
-      return True 
+      return self.real_time_adaptive_astar(timestep)
   
   def set_goal_state_and_action(self, timestep):
     """Set goal state for the heuristic computation."""
@@ -551,7 +549,6 @@ class RuleObeyingPolicy(policy.Policy):
   def update_s_cur(self, s_cur, s_next, came_from):
     _, action = self.unhash(s_next)
     path = np.array([action])
-    s_key = None
 
     while s_next in came_from.keys():
       h_list = {}
@@ -561,12 +558,13 @@ class RuleObeyingPolicy(policy.Policy):
         if s_n in self.h_vals.keys():
           h_list[s_n] = self.h_vals[s_n]
 
-      if not len(h_list.keys()) == 0:
+      """if not len(h_list.keys()) == 0:
         s_key = min(h_list, key=h_list.get)  # move to the node with min h_value
       else: 
-        s_key = s_next
+        s_key = s_next"""
 
-      s_next = came_from[s_key]
+      s_next = came_from[s_next]
+      print(s_next)
       _, action = self.unhash(s_cur)
       path = np.append(path, action)
       
@@ -575,7 +573,7 @@ class RuleObeyingPolicy(policy.Policy):
         return s_next, path[1:] # first element is always 0
 
   # source: http://idm-lab.org/bib/abstracts/papers/aamas06.pdf
-  # inspiration: https://github.com/zhm-real/PathPlanning/blob/master/Search_based_Planning/Search_2D/RTAAStar.py#L42
+  # used a lot from: https://github.com/zhm-real/PathPlanning/blob/master/Search_based_Planning/Search_2D/RTAAStar.py#L42
   def real_time_adaptive_astar(self, timestep: dm_env.TimeStep) -> list[int]:
     timestep = timestep._replace(reward=0.0)
     init_action = 0
@@ -592,12 +590,15 @@ class RuleObeyingPolicy(policy.Policy):
       s_next = self.cal_h_value(PRIO_QUEUE, S_VISITED, g_vals, came_from)
       s_cur, path_k = self.update_s_cur(s_cur, s_next, came_from)
 
-      if count_searches >= self.max_searches:
+      print('path_k')
+      print(path_k)
+
+      if count_searches >= self.n_rollouts:
+        print('return')
         return path_k
       
       count_searches += 1
     
-    print(path_k)
     return
   
   def a_star(self, s_start: int) -> list[int]:
@@ -613,8 +614,8 @@ class RuleObeyingPolicy(policy.Policy):
 
     while not PRIO_QUEUE.empty():
       depth += 1
-      priority_item = PRIO_QUEUE.get()
-      s_cur = priority_item
+      s_cur = PRIO_QUEUE.get()
+      print(s_cur)
       S_ORDERED.append(s_cur)
       cur_timestep, _ = self.unhash(s_cur)
 
@@ -624,6 +625,7 @@ class RuleObeyingPolicy(policy.Policy):
         return OPEN, S_ORDERED, [], came_from
       
       if depth >= self.max_depth:
+        print('max depth reached')
         return PRIO_QUEUE, S_ORDERED, g_table, came_from
 
       for action in range(self.action_spec.num_values):
