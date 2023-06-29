@@ -529,7 +529,7 @@ class RuleObeyingPolicy(policy.Policy):
             # update h values of the queue with preceding g value and current h_value
             dis = self.manhattan_dis(s, came_from[s])
             queue_values[s] = g_table[came_from[s]] + dis + self.h_vals[s]
-        min_s_queue = max(queue_values, key=queue_values.get)
+        min_s_queue = min(queue_values, key=queue_values.get)
         f_min = queue_values[min_s_queue]
         # update h_vals based on minimum
         for s in S_VISITED: # only visits 
