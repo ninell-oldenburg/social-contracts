@@ -85,7 +85,7 @@ class RuleObeyingPolicy(policy.Policy):
     self._index = player_idx
     self.role = role
     self.look = look
-    self.max_depth = 22
+    self.max_depth = 75
     self.log_output = log_output
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
@@ -551,20 +551,15 @@ class RuleObeyingPolicy(policy.Policy):
     path = np.array([action])
 
     while s_next in came_from.keys():
-      h_list = {}
-      s_neighbors = self.get_neighbors(s_next)
 
+      # TODO: make the actions h_value relevant
+      """h_list = {}
+      s_neighbors = self.get_neighbors(s_next)
       for s_n in s_neighbors:
         if s_n in self.h_vals.keys():
-          h_list[s_n] = self.h_vals[s_n]
-
-      """if not len(h_list.keys()) == 0:
-        s_key = min(h_list, key=h_list.get)  # move to the node with min h_value
-      else: 
-        s_key = s_next"""
+          h_list[s_n] = self.h_vals[s_n]"""
 
       s_next = came_from[s_next]
-      print(s_next)
       _, action = self.unhash(s_cur)
       path = np.append(path, action)
       
@@ -590,11 +585,7 @@ class RuleObeyingPolicy(policy.Policy):
       s_next = self.cal_h_value(PRIO_QUEUE, S_VISITED, g_vals, came_from)
       s_cur, path_k = self.update_s_cur(s_cur, s_next, came_from)
 
-      print('path_k')
-      print(path_k)
-
       if count_searches >= self.n_rollouts:
-        print('return')
         return path_k
       
       count_searches += 1
@@ -615,7 +606,6 @@ class RuleObeyingPolicy(policy.Policy):
     while not PRIO_QUEUE.empty():
       depth += 1
       s_cur = PRIO_QUEUE.get()
-      print(s_cur)
       S_ORDERED.append(s_cur)
       cur_timestep, _ = self.unhash(s_cur)
 
@@ -625,7 +615,6 @@ class RuleObeyingPolicy(policy.Policy):
         return OPEN, S_ORDERED, [], came_from
       
       if depth >= self.max_depth:
-        print('max depth reached')
         return PRIO_QUEUE, S_ORDERED, g_table, came_from
 
       for action in range(self.action_spec.num_values):
@@ -666,13 +655,8 @@ class RuleObeyingPolicy(policy.Policy):
 
       new_obs = self.update_observation(observation, x, y)
       action_name = self.get_action_name(action)
-      prob = random.random() # probabilistic obedience
       
       if self.check_all(new_obs, action_name):
-        if prob <= self.p_obey:
-          actions.append(action)
-      else:
-        if prob > self.p_obey:
           actions.append(action)
 
     return actions
