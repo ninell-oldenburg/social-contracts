@@ -573,7 +573,7 @@ class RuleObeyingPolicy(policy.Policy):
     timestep = timestep._replace(reward=0.0)
     init_action = 0
     s_cur = self.hash_ts_and_action(timestep, init_action)
-    count_searches = 0
+    n_rollouts = 0
 
     while s_cur not in self.s_goal:
       PRIO_QUEUE, S_VISITED, g_vals, came_from = self.a_star(s_cur)
@@ -585,7 +585,7 @@ class RuleObeyingPolicy(policy.Policy):
       s_next = self.cal_h_value(PRIO_QUEUE, S_VISITED, g_vals, came_from)
       s_cur, path_k = self.update_s_cur(s_cur, s_next, came_from)
 
-      if count_searches >= self.n_rollouts:
+      if n_rollouts >= self.n_rollouts:
         return path_k
       
       count_searches += 1
