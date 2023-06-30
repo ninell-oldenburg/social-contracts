@@ -37,33 +37,48 @@ class PrioritizedItem:
     item: Any=field(compare=False)
 
 class EnumPriorityQueue:
-    def __init__(self):
-        self.queue = PriorityQueue()
-        self.elements = []
+  def __init__(self):
+    self.queue = PriorityQueue()
+    self.elements = []
 
-    def put(self, priority, item):
-        self.queue.put((priority, item))
-        self.elements.append(item)
+  def put(self, priority, item):
+    self.queue.put((priority, item))
+    self.elements.append(item)
 
-    def get(self):
-        _, item = self.queue.get()
-        self.elements.remove(item)
-        return item
+  def get(self):
+    _, item = self.queue.get()
+    self.elements.remove(item)
+    return item
+
+  def empty(self):
+    return self.queue.empty()
+  
+  def enumerate(self):
+    return iter(self.elements)
+
+  def __contains__(self, item):
+    return item in self.elements
+
+  def __iter__(self):
+    return iter(self.elements)
+
+  def __len__(self):
+    return len(self.elements)
     
-    def empty(self):
-        return self.queue.empty()
-    
-    def enumerate(self):
-        return iter(self.elements)
+class AgentTimestep():
+  def __init__(self) -> None:
+    self.reward = 0
+    self.observation = {}
 
-    def __contains__(self, item):
-        return item in self.elements
-
-    def __iter__(self):
-        return iter(self.elements)
-
-    def __len__(self):
-        return len(self.elements)
+  def get_obs(self):
+    return self.observation
+  
+  def get_r(self):
+    return self.reward
+  
+  def add_obs(self, obs_name: str, obs_val) -> None:
+    self.observation[obs_name] = obs_val
+    return
     
 
 class RuleObeyingPolicy(policy.Policy):
@@ -90,24 +105,23 @@ class RuleObeyingPolicy(policy.Policy):
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
     self.obligations = obligations
-    self.goal_state = None
-    self.goal_action = None
     self.is_obligation_active = False
+    self.compliance_cost = 1
+    self.violation_cost = 10
     self.n_rollouts = 10
     self.hash_table = {}
-    self.s_goal = set()
-    self.g_vals = {} # cost so far
     self.h_vals = {}
     self.rollout_noise = 0.0
     self.action_noise = 0.0 # change to make probabilistic 
-    self.gamma = 0.5 # TODO learnable?
-    self.value_function = {} # value estimates for each state
     self.default_heuristic_value = 10
-    self.p_obey = 0.9
     self.history = deque(maxlen=10)
     self.payees = []
     if self.role == 'farmer':
       self.payees = None
+
+    self.policy_table = {'None': {}} # nested policy dict
+    for obligation in self.obligations:
+      self.policy_table[obligation] = {}
 
     # move actions
     self.action_to_pos = [
@@ -136,8 +150,9 @@ class RuleObeyingPolicy(policy.Policy):
     self.relevant_keys = [
       'POSITION', 
       'ORIENTATION', 
-      'NUM_APPLES_AROUND', 
-      'INVENTORY', 
+      'NUM_APPLES_AROUND', # bit vector
+      # position of other agents
+      'INVENTORY', # bit vector
       'CUR_CELL_IS_FOREIGN_PROPERTY', 
       'CUR_CELL_HAS_APPLE', 
       'AGENT_CLEANED', 
@@ -152,159 +167,53 @@ class RuleObeyingPolicy(policy.Policy):
       End of episode defined in dm_env.TimeStep.
       """
 
-      # empty prior gaoal state set
-      self.s_goal = set()
-      # set new goal states
-      self.set_goal_state_and_action(timestep=timestep)
-      # empty path finding dict
-      self.came_from = {}
+      ts_cur = self.add_non_physical_info(timestep=timestep)
+      s_cur = self.hash_ts_and_action(timestep=ts_cur)
+
+      # Check if any of the obligations are active
+      self.current_obligation = None
+      for obligation in self.obligations:
+         if obligation.holds_in_history(self.history, self.look):
+           self.current_obligation = obligation
+           break
       
       if self.log_output:
         print(f"player: {self._index} obligation active?: {self.is_obligation_active}")
-  
-      # find path
-      return self.real_time_adaptive_astar(timestep)
-  
-  def set_goal_state_and_action(self, timestep):
-    """Set goal state for the heuristic computation."""
-    position, action = None, None
 
-    # check if any of the obligations are active
-    self.is_obligation_active = False
-    for obligation in self.obligations:
-        if obligation.holds_in_history(self.history):
-          self.is_obligation_active = True
-          # TODO make this a list of positions!
-          position, action = self.set_obligation_goal_state_and_action(obligation)
-        else: 
-          self.is_obligation_active = False
-        
-    # if not obligation is active, go for apples
-    if self.is_obligation_active == False:
-      position, action = self.set_closest_apple_state(timestep.observation)
+      if not self.has_policy(s_cur):
+        self.rtdp(s_cur)
       
-    # generate dummy goal states (over a wide range of observations)
-    self.generate_goal_states(position, action)
-    return
-    
-  def generate_goal_states(self, position, action):
-    """Function to generate range or possible parameters for goal states."""
+      return self.f_action_val(s_cur)
+  
+  def add_non_physical_info(self, timestep: dm_env.TimeStep):
+    ts = AgentTimestep()
 
-    # define dimensions
-    orientation = range(4)
-    num_apples_around = range(8)
-    inventory = range(15)
-    cur_cell_forgein = [True, False]
-    cur_cell_has_apple = [True, False]
-    agent_cleaned = [0.0, 1.0]
-    ready_to_shoot = [0.0, 1.0]
+    for obs_name, obs_val in timestep.observation.iteritems():
+      ts.add_obs(obs_name=obs_name, obs_val=obs_val)
 
-    # Generate combinations of dummy dimensions and parameters
-    for combination in itertools.product(orientation, num_apples_around, inventory, cur_cell_forgein,
-                                               cur_cell_has_apple, agent_cleaned, ready_to_shoot):
-        
+    ts.obs = self.update_obs_without_coordinates(ts.observation)
+    return ts
+  
+  def update_obs_without_coordinates(self, obs):
+    cur_pos = np.copy(obs['POSITION'])
+    x, y = cur_pos[0], cur_pos[1]
+    return self.update_observation(obs, x, y)
 
-        observation = {'POSITION': np.array(list(position),  dtype=np.int32),
-                      'ORIENTATION': combination[0], 
-                      'NUM_APPLES_AROUND': combination[1], 
-                      'INVENTORY': combination[2], 
-                      'CUR_CELL_IS_FOREIGN_PROPERTY': combination[3], 
-                      'CUR_CELL_HAS_APPLE': combination[4], 
-                      'AGENT_CLEANED': combination[5], 
-                      'READY_TO_SHOOT': combination[6],
-                       }
-        
-        dummy_ts = dm_env.TimeStep(step_type=dm_env.StepType.MID,
-                                  reward=0.0,
-                                  discount=1.0,
-                                  observation=observation)
-        
-        # Hash the dummy goal state and add it to the set of goal states
-        dummy_hash = self.hash_ts_and_action(timestep=dummy_ts, action=action)
-        self.s_goal.add(dummy_hash)
+  def update_observation(self, obs, x, y):
+    """Updates the observation with requested information."""
+    obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
+    obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -3 else False
+    self.make_territory_observation(obs, x, y)
 
-    return
-  
-  def get_riverbank(self):
-    """Returns the coordinates of closest riverbank."""
-    observation = self.history[0]
-    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
-    max_radius = self.max_depth # assume ever larger search space
-    for radius in range(1, max_radius + 1):
-      for i in range(cur_x-radius-1, cur_x+radius):
-        for j in range(cur_y-radius-1, cur_y+radius):
-          if not self.exceeds_map(observation['WORLD.RGB'], i, j):
-            if not (i == cur_x and j == cur_y):
-              if observation['SURROUNDINGS'][i][j] == -1:
-                return (i, j)
-  
-    return None
-  
-  def get_payee(self):
-    """Returns the coordinates of closest payee."""
-    observation = self.history[0]
-    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
-    max_radius = self.max_depth # assume larger search space
-    payees = self.get_payees(observation)
-    for radius in range(1, max_radius + 1):
-      for i in range(cur_x-radius-1, cur_x+radius):
-        for j in range(cur_y-radius-1, cur_y+radius):
-          if not self.exceeds_map(observation['WORLD.RGB'], i, j):
-            for payee in payees:
-              if observation['SURROUNDINGS'][i][j] == payee:
-                return (i, j) # assume river is all along the y axis
-          
-    return None
-  
-  def get_punshee(self):
-    """Returns the coordinates of the agent to punish."""
-    # TODO
-    observation = self.history[0].observation
-    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
-    return (cur_x, cur_y)
-  
-  def get_obligation_goal(self, obligation):
-    """Returns the a string with the goal of the obligation."""
-    if "CLEAN" in obligation.goal:
-      return "clean"
-    if "PAY" in obligation.goal:
-      return "pay"
-    if "ZAP" in obligation.goal:
-      return "zap"
-    
-    return None
-  
-  def set_obligation_goal_state_and_action(self, obligation):
-    """Get goal action and state for an oblgation."""
-    obligation_goal = self.get_obligation_goal(obligation)
-    action = None
-    if obligation_goal == "clean":
-      action = 8
-      return self.get_riverbank(), action
-    elif obligation_goal == "pay":
-      action = 11
-      return self.get_payee(), action
-    elif obligation_goal == "zap":
-      action = 7
-      return self.get_punshee(), action
-    
-    return None, None
-  
-  def set_closest_apple_state(self, observation):
-    """Returns the coordinates of closest apple in observation radius."""
-    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
-    max_radius = int((self.max_depth - 2) / 2)
-    action = 10
-    # observe radius in ascending order
-    for radius in range(1, max_radius + 1):
-      for i in range(cur_x-radius-1, cur_x+radius):
-        for j in range(cur_y-radius-1, cur_y+radius):
-          if not self.exceeds_map(observation['WORLD.RGB'], i, j):
-            if not (i == cur_x and j == cur_y): # don't count target apple
-              if observation['SURROUNDINGS'][i][j] == -3:
-                return (i, j), action
-  
-    return None, None
+    return obs
+
+  def f_action_val(self, state: str) -> list:
+    # rule_set = self.policy_table[self.active_rules]
+    if self.current_obligation != None:
+      condition_dict = self.policy_table[self.current_obligation]
+    else: # no obligations active
+      condition_dict = self.policy_table['None']
+    return np.argmax(condition_dict(state))
   
   def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
     """Append current timestep obsetvation to observation history."""
@@ -499,9 +408,9 @@ class RuleObeyingPolicy(policy.Policy):
     # check for prohibitions
     available = self.available_actions(ts_cur.observation)
     if action in available:
-      cost += 1
+      cost += self.compliance_cost
     else:
-      cost += 10
+      cost += self.violation_vost
 
     return cost
 
@@ -593,6 +502,9 @@ class RuleObeyingPolicy(policy.Policy):
     
     return
   
+  def rtdp(self, state: str):
+    pass
+  
   def a_star(self, s_start: int) -> list[int]:
     """Perform a A* search to generate plan."""
     PRIO_QUEUE, S_ORDERED, action = EnumPriorityQueue(), [], 0
@@ -610,7 +522,7 @@ class RuleObeyingPolicy(policy.Policy):
       S_ORDERED.append(s_cur)
       cur_timestep, _ = self.unhash(s_cur)
 
-      if s_cur in self.s_goal:
+      if self.is_goal(s_cur):
         OPEN = True
         S_ORDERED = self.reconstruct_path(s_cur)
         return OPEN, S_ORDERED, [], came_from
@@ -639,6 +551,18 @@ class RuleObeyingPolicy(policy.Policy):
         break
 
     return PRIO_QUEUE, S_ORDERED, g_table, came_from
+  
+  def intersection(self, lst1, lst2):
+    out = [value for value in lst1 if value in lst2]
+    return out
+  
+  def available_actions_history(self):
+    action_list = self.available_actions(self.history[0])
+    for obs in self.history[1:]:
+      new_list = self.available_actions(obs)
+      action_list = self.intersection(new_list, action_list)
+      
+    return action_list
 
   def available_actions(self, obs) -> list[int]:
     """Return the available actions at a given timestep."""
@@ -660,7 +584,7 @@ class RuleObeyingPolicy(policy.Policy):
       if self.check_all(new_obs, action_name):
           actions.append(action)
 
-    return actions
+    return actions    
   
   def update_coordinates_by_action(self, action, cur_pos, observation):
     x, y = cur_pos[0], cur_pos[1]
@@ -677,19 +601,7 @@ class RuleObeyingPolicy(policy.Policy):
           return False
         
     return True
-  
-  def update_obs_without_coordinates(self, obs):
-    cur_pos = np.copy(obs['POSITION'])
-    x, y = cur_pos[0], cur_pos[1]
-    return self.update_observation(obs, x, y)
 
-  def update_observation(self, obs, x, y):
-    """Updates the observation with requested information."""
-    obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
-    obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -3 else False
-    self.make_territory_observation(obs, x, y)
-
-    return obs
   
   def get_action_name(self, action):
     """Add bool values for taken action to the observation dict."""
@@ -744,16 +656,17 @@ class RuleObeyingPolicy(policy.Policy):
       return True
     return False
 
-  def is_done(self, timestep: dm_env.TimeStep, action: int):
+  def is_done(self, state: str):
     """Check whether any of the break criteria are met."""
+    timestep, action = self.unhash(state)
     if timestep.last():
       return True
-    else:
-      cur_pos = timestep.observation['POSITION']
-      if tuple(cur_pos) == self.goal_state:
-        if action == self.goal_action:
-          return True
-      return False
+    elif self.current_obligation != None:
+      return self.current_obligation.satisfied(
+        timestep.observation, self.look)
+    elif timestep.reward >= 1.0:
+      return True
+    return False
 
   def initial_state(self) -> policy.State:
     """See base class."""
