@@ -139,17 +139,8 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
         cur_beliefs = bot.rule_beliefs
         
       if len(actions[i]) == 0: # action pipeline empty
+        print('BOT STEP')
         actions[i] = bot.step(timestep_bot)
-
-      # replanning
-      if len(actions[i]) / 3 == 0:
-        if bot.goal_state != bot.get_goal_state_and_action(timestep_bot)[0]:
-          print('current bot goal state')
-          print(bot.goal_state)
-          print('other bot goal state')
-          print(bot.get_goal_state_and_action(timestep_bot)[0])
-          print('we replan')
-          actions[i] = bot.step(timestep_bot)
         
       dead_apple_ratio = timestep_bot.observation['DEAD_APPLE_RATIO'] # same for every player
             
@@ -158,6 +149,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
 
     action_list = [int(item[0]) for item in actions.values()]
     timestep = env.step(action_list)
+    print('TIMESTEP ACTION')
     actions = update(actions)
 
     data_dict = append_to_dict(data_dict, 
