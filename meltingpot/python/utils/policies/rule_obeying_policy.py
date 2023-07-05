@@ -505,7 +505,7 @@ class RuleObeyingPolicy(policy.Policy):
               if observation['SURROUNDINGS'][i][j] == -3:
                 if not (i, j) in goal_pos:
                   goal_pos.append((i, j))
-                if len(goal_pos) > 20: # return when there are 5 goals
+                if len(goal_pos) > 10: # return when there are 10 goals
                   return goal_pos
 
     return goal_pos
