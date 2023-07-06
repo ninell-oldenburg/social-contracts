@@ -7,6 +7,19 @@ calling the class:
 x = AgentTimestep()
 x.transfer_values(old_timestep)
 x.add_non_physical_info(cur_timesteps)
+
+TODO:
+First AgentTimestep:
+    Needs:
+        property map, 
+        normal map, 
+        paying assignments (could be an array), 
+        index, 
+        look
+
+    Updates: 
+        map, 
+        action_table
 """
 
 class AgentTimestep():
@@ -20,12 +33,14 @@ class AgentTimestep():
         self.reward = 0
         self.observation = {}
         self.parent_observation = {}
+        self.index = None
 
     def get_obs(self):
         return self.observation
   
     def transfer_values(self, other_timestep):
         self.parent_observation = other_timestep.observation
+        self.index = other_timestep.index
   
     def get_r(self):
         return self.reward
@@ -55,30 +70,41 @@ class AgentTimestep():
 
     def make_action_observations(self, timestep: dm_env.TimeStep, x: int, y: int) -> None:
         """Compute everything that can be inferred from the action table."""
-        self.observation['SINCE_AGENT_CLEANED_LAST'] = self.parent_observation['SINGLE_AGENT_CLEANED_LAST'] + 1
-        self.observation['SINCE_AGENT_PAYED_LAST'] = self.parent_observation['SINGLE_AGENT_CLEANED_LAST'] + 1
+        self.observation['SINCE_AGENT_LAST_CLEANED'] = self.parent_observation['SINCE_AGENT_LAST_CLEANED'] + 1
+        self.observation['SINCE_AGENT_LAST_PAYED'] = self.parent_observation['SINCE_AGENT_LAST_PAYED'] + 1
         self.observation['TOTAL_NUM_CLEANERS'] = action_table[:][0].count(8)
         self.observation['STOLEN_RECORDS'] = self.parent_observation['STOLEN_RECORDS']
         self.observation['AGENT_HAS_STOLEN'] = False
+        self.observation['INVENTORY'] = self.parent_observation['INVENTORY']
         
         num_agents = timestep.observation['ACTION_TABLE'].size()[0]
         action_table = timestep.observation['ACTION_TABLE']
         for agent in range(num_agents):
             agent_action = action_table[agent][0]
 
-            if agent == self.agent_num:
-                if agent_action == 8:
+            if agent_action == 9: # claim
+                self.observation['PROPERTY'][x][y] = agent
+
+            if agent == self.index:
+                if agent_action == 8: # clean
                     self.observation['SINGLE_AGENT_CLEANED_LAST'] = 0
 
-                if agent_action == 11:
+                if agent_action == 10: # eat
+                    self.observation['INVENTORY'] -= 1
+
+                if agent_action == 11: # pay
                     self.observation['SINGLE_AGENT_PAYED_LAST'] = 0
+                    self.observation['INVENTORY'] -= 1
 
             if agent_action in [1, 2, 3, 4]:
                 if self.observation['CUR_CELL_HAS_APPLE'] == True:
+                    self.observation['INVENTORY'] += 1 # picked up apple
+
                     if self.observation['CUR_CELL_IS_FOREIGN_PROPERTY'] == True:
                         self.observation['AGENT_HAS_STOLEN'] = True
                         stolen_from = self.observation['PROPERTY'][x][y]
-                        self.observation['STOLEN_RECORDS'][self.index][stolen_from] = 1
+                        self.observation['STOLEN_RECORDS'][agent][stolen_from] = 1
+                
         
     def get_apples(self):
         """Returns the sum of apples around a certain position."""
