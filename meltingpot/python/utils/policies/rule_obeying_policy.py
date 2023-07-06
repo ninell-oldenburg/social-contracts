@@ -18,14 +18,12 @@ import dm_env
 from dataclasses import dataclass, field
 from typing import Any
 
-from queue import PriorityQueue
-
 from collections import deque
 
 import numpy as np
-import itertools
-import random
 import hashlib
+
+import random
 
 from meltingpot.python.utils.policies import policy
 from meltingpot.python.utils.substrates import shapes
@@ -209,6 +207,9 @@ class RuleObeyingPolicy(policy.Policy):
       goal = 'apple'
       goal_pos = self.get_closest_apple(ts_cur)
 
+    if not type(goal_pos) == list:
+      goal_pos = [goal_pos]
+    
     return goal, goal_pos
 
   def set_goal_pos(self, ts_cur: AgentTimestep) -> None:
@@ -263,12 +264,21 @@ class RuleObeyingPolicy(policy.Policy):
     print('we do optimal path search')
     path = np.array([])
     ts_cur = self.unhash(state)
+    iterations = 0
     while not self.is_done(ts_cur):
+      if iterations > self.max_depth:
+        return [self.fallback_policy(ts_cur.observation)]
+      iterations += 1
       action = self.get_best_action(ts_cur)  # Get the next action
       path = np.append(path, action)  # Append action to the path list
       ts_next = self.env_step(ts_cur, action)
       ts_cur = ts_next
     return path
+  
+  def fallback_policy(self, ts_cur):
+    """Returns a random, non-violating action."""
+    available = self.available_actions(ts_cur)
+    return random.choice(available)
   
   def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
     """Append current timestep obsetvation to observation history."""
@@ -505,7 +515,7 @@ class RuleObeyingPolicy(policy.Policy):
               if observation['SURROUNDINGS'][i][j] == -3:
                 if not (i, j) in goal_pos:
                   goal_pos.append((i, j))
-                if len(goal_pos) > 10: # return when there are 10 goals
+                if len(goal_pos) > 6: # return when there are 10 goals
                   return goal_pos
 
     return goal_pos
@@ -526,7 +536,11 @@ class RuleObeyingPolicy(policy.Policy):
   def heuristic(self, ts_cur: AgentTimestep) -> list:
     """Calculates the heuristic for path search. """
     dis_lst = []
+    if type(self.goal_pos) != tuple:
+      print(self.goal_pos)
     for goal_pos in self.goal_pos:
+      if type(goal_pos) == np.int32:
+        print(goal_pos)
       dis_lst.append(self.manhattan_dis(ts_cur.observation['POSITION'], goal_pos))
     return dis_lst
   
@@ -689,18 +703,18 @@ class RuleObeyingPolicy(policy.Policy):
   def get_best_action(self, timestep: AgentTimestep) -> int:
     size = self.action_spec.num_values
     value = float('-inf')
-    # value_goal = tuple
     Q = np.full(size, value)
-    # G = np.full(size, value_goal)
     for action in range(self.action_spec.num_values):
       s_hash = self.hash_ts_and_action(timestep, action)
       for goal_pos in self.goal_pos:
         if s_hash in self.V[self.goal][goal_pos].keys():
           if self.V[self.goal][goal_pos][s_hash] > Q[action]:
             Q[action] = self.V[self.goal][goal_pos][s_hash]
-            # G[action] = goal_pos
 
-    return np.argmax(Q[1:]) + 1 # NO NULL ACTIONS
+    if np.max(Q[1:]) != float('-inf'):
+      return np.argmax(Q[1:]) + 1 # NO NULL ACTIONS
+    
+    return self.fallback_policy(timestep.observation)
 
   def update(self, state: str):
     """Updates state-action pair value function 
