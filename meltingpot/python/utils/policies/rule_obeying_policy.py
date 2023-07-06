@@ -178,14 +178,11 @@ class RuleObeyingPolicy(policy.Policy):
            break
          
       self.set_goal_pos(ts_cur)
-      print(ts_cur.observation['POSITION'])
-      print(self.goal_pos)
       
       if self.log_output:
         print(f"player: {self._index} obligation active?: {self.is_obligation_active}")
 
       if not self.has_policy(ts_cur):
-        print('we do rtdp')
         self.rtdp(s_cur)
 
       # check for goal
@@ -257,8 +254,6 @@ class RuleObeyingPolicy(policy.Policy):
     return obs
 
   def get_optimal_path(self, state: str) -> list:
-    # TODO condition on active set of rules
-    print('we do optimal path search')
     path = np.array([])
     ts_cur = self.unhash(state)
     iterations = 0
@@ -533,11 +528,7 @@ class RuleObeyingPolicy(policy.Policy):
   def heuristic(self, ts_cur: AgentTimestep) -> list:
     """Calculates the heuristic for path search. """
     dis_lst = []
-    if type(self.goal_pos) != tuple:
-      print(self.goal_pos)
     for goal_pos in self.goal_pos:
-      if type(goal_pos) == np.int32:
-        print(goal_pos)
       dis_lst.append(self.manhattan_dis(ts_cur.observation['POSITION'], goal_pos))
     return dis_lst
   
