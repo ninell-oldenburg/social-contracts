@@ -110,18 +110,16 @@ class RuleObeyingPolicy(policy.Policy):
     self.prohibitions = prohibitions
     self.obligations = obligations
     self.is_obligation_active = False
-    self.compliance_cost = 1
-    self.violation_cost = 10
+    self.compliance_cost = 0.1
+    self.violation_cost = 1
     self.n_rollouts = 10
     self.hash_table = {}
     # self.h_vals = {}
-    self.rollout_noise = 0.0
-    self.action_noise = 0.0 # change to make probabilistic 
-    self.default_heuristic_value = 10
     self.history = deque(maxlen=10)
     self.payees = []
     if self.role == 'farmer':
       self.payees = None
+    # TODO condition on set of active rules
     self.V = {'apple': {}, 'clean': {}, 'pay': {}, 'zap': {}} # nested policy dict
     self.goal_pos = None
     self.goal = None
@@ -158,8 +156,7 @@ class RuleObeyingPolicy(policy.Policy):
       'INVENTORY', # bit vector
       'CUR_CELL_IS_FOREIGN_PROPERTY', 
       'CUR_CELL_HAS_APPLE', 
-      'AGENT_CLEANED', 
-      'READY_TO_SHOOT'
+      'AGENT_CLEANED'
       ]
         
   def step(self, 
