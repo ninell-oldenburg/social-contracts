@@ -23,7 +23,7 @@ from collections import deque
 import numpy as np
 import hashlib
 
-import random
+from bitarray import bitarray
 
 from meltingpot.python.utils.policies import policy
 from meltingpot.python.utils.substrates import shapes
@@ -112,12 +112,12 @@ class RuleObeyingPolicy(policy.Policy):
     self.obligations = obligations
 
     # HYPERPARAMETER
-    self.max_depth = 50
+    self.max_depth = 30
     self.compliance_cost = 0.1
     self.violation_cost = 0.3
     self.n_steps = 5
     self.gamma = 0.99
-    self.n_rollouts = 10
+    self.n_rollouts = 5
     self.manhattan_scaler = 0.0
     self.initial_exp_r_cum = [30] * self.action_spec.num_values
     
@@ -158,14 +158,13 @@ class RuleObeyingPolicy(policy.Policy):
           ]
     
     self.relevant_keys = [
-      # 'POSITION', 
-      'ORIENTATION', 
-      # 'NUM_APPLES_AROUND', # TODO: bit vector
+      'POSITION', 
+      'ORIENTATION', # TODO: bit vector
+      'NUM_APPLES_AROUND', # TODO: bit vector
       # position of other agents
       'INVENTORY', # TODO: bit vector
       'CUR_CELL_IS_FOREIGN_PROPERTY', 
-      'SURROUNDINGS',
-      # 'CUR_CELL_HAS_APPLE', 
+      'CUR_CELL_HAS_APPLE', 
       'AGENT_CLEANED'
       ]
         
@@ -551,9 +550,9 @@ class RuleObeyingPolicy(policy.Policy):
     # Convert the dictionary to a tuple of key-value pairs
     items = tuple((key, value) for key, value in obs.items() if key in self.relevant_keys)
     sorted_items = sorted(items, key=lambda x: x[0])
-    reward_item = list(tuple(('REWARD', reward)))
-    sorted_items = sorted_items + reward_item
-    hash_key = hashlib.sha256(str(sorted_items).encode()).hexdigest() 
+    # items = [value[1] for value in sorted_items]
+    items = sorted_items + [bitarray(reward)]
+    hash_key = hashlib.sha256(str(items).encode()).hexdigest() 
     return hash_key
   
   """def hash_ts_and_action(self, timestep: dm_env.TimeStep, action: int):
@@ -662,8 +661,11 @@ class RuleObeyingPolicy(policy.Policy):
   
   def get_best_act(self, ts_cur: AgentTimestep) -> int:
     hash = self.hash_ts(ts_cur)
-    Q = self.V[self.goal][hash]
-    return np.argmax(Q[1:]) + 1 # no null action
+    if hash in self.V[self.goal].keys():
+      return np.argmax(self.V[self.goal][hash][1:]) + 1 # no null action
+    else:
+      best_act, _ = self.update(ts_cur)
+      return best_act
 
   def update(self, ts_cur: AgentTimestep) -> int:
     """Updates state-action pair value function 
@@ -699,12 +701,6 @@ class RuleObeyingPolicy(policy.Policy):
     argmax = np.argmax(Q[1:]) + 1
     del visited[argmax]
     return argmax, set(visited)
-      
-  def get_reward(self, ts_cur: AgentTimestep) -> float:
-    immediate_reward = ts_cur.reward
-    s_cur = self.hash_ts(ts_cur)
-    expected_cum_reward = self.V[self.goal][s_cur]
-    return expected_cum_reward
   
   """def a_star(self, s_start: int) -> list[int]:
     # Perform a A* search to generate plan.
