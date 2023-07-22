@@ -113,13 +113,13 @@ class RuleObeyingPolicy(policy.Policy):
 
     # HYPERPARAMETER
     self.max_depth = 50
-    self.compliance_cost = 1
-    self.violation_cost = 5
+    self.compliance_cost = 0.1
+    self.violation_cost = 0.3
     self.n_steps = 5
-    self.gamma = 0.1
+    self.gamma = 0.99
     self.n_rollouts = 10
     self.manhattan_scaler = 0.0
-    self.initial_exp_r_cum = 30
+    self.initial_exp_r_cum = [30] * self.action_spec.num_values
     
     # GLOBAL INITILIZATIONS
     self.history = deque(maxlen=10)
@@ -158,13 +158,14 @@ class RuleObeyingPolicy(policy.Policy):
           ]
     
     self.relevant_keys = [
-      'POSITION', 
+      # 'POSITION', 
       'ORIENTATION', 
-      'NUM_APPLES_AROUND', # bit vector
+      # 'NUM_APPLES_AROUND', # TODO: bit vector
       # position of other agents
-      'INVENTORY', # bit vector
+      'INVENTORY', # TODO: bit vector
       'CUR_CELL_IS_FOREIGN_PROPERTY', 
-      'CUR_CELL_HAS_APPLE', 
+      'SURROUNDINGS',
+      # 'CUR_CELL_HAS_APPLE', 
       'AGENT_CLEANED'
       ]
         
@@ -278,8 +279,16 @@ class RuleObeyingPolicy(policy.Policy):
     if self.exceeds_map(observation['WORLD.RGB'], x, y):
       return 0, has_apple
     if reward_map[x][y] == -3:
+      observation['SURROUNDINGS'][x][y] = 0
       return 1, False
     return 0, has_apple
+  
+  def update_surroundings(self, cur_pos, new_pos, observation):
+      x, y = new_pos[0], new_pos[1]
+      if not self.exceeds_map(observation['WORLD.RGB'], x, y):
+        if not self.exceeds_map(observation['WORLD.RGB'], cur_pos[0], cur_pos[1]):
+          observation['SURROUNDINGS'][cur_pos[0]][cur_pos[1]] = 0
+          observation['SURROUNDINGS'][x][y] = 1
 
   def env_step(self, timestep: AgentTimestep, action: int) -> AgentTimestep:
       # 1. Unpack observations from timestep
@@ -297,10 +306,12 @@ class RuleObeyingPolicy(policy.Policy):
         if action == 0 and self.role == 'cleaner':
           # make the cleaner wait for it's paying farmer
           observation['TIME_TO_GET_PAYED'] = 0
-        observation['POSITION'] = cur_pos + self.action_to_pos[orientation][action]
+        new_pos = cur_pos + self.action_to_pos[orientation][action]
+        observation['POSITION'] = new_pos
         new_inventory, has_apple = self.maybe_collect_apple(observation)
         observation['CUR_CELL_HAS_APPLE'] = has_apple
         cur_inventory += new_inventory
+        self.update_surroundings(cur_pos, new_pos, observation)
 
       elif action <= 6: # TURN ACTIONS
         observation['ORIENTATION'] = self.action_to_orientation[orientation][action-5]
@@ -536,10 +547,12 @@ class RuleObeyingPolicy(policy.Policy):
     hash_key = hashlib.sha256(str(sorted_items).encode()).hexdigest() 
     return hash_key"""
   
-  def get_ts_hash_key(self, obs):
+  def get_ts_hash_key(self, obs, reward):
     # Convert the dictionary to a tuple of key-value pairs
     items = tuple((key, value) for key, value in obs.items() if key in self.relevant_keys)
     sorted_items = sorted(items, key=lambda x: x[0])
+    reward_item = list(tuple(('REWARD', reward)))
+    sorted_items = sorted_items + reward_item
     hash_key = hashlib.sha256(str(sorted_items).encode()).hexdigest() 
     return hash_key
   
@@ -551,7 +564,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def hash_ts(self, timestep: dm_env.TimeStep):
     """Encodes the state, action pairs and saves them in a hash table."""
-    hash_key = self.get_ts_hash_key(timestep.observation)
+    hash_key = self.get_ts_hash_key(timestep.observation, timestep.reward)
     self.hash_table[hash_key] = (timestep)
     return hash_key
   
@@ -631,18 +644,25 @@ class RuleObeyingPolicy(policy.Policy):
     # Perform greedy value iteration
     visited = set()
     for _ in range(self.n_rollouts):
+      print()
+      print('NEW ROLLOUT')
+      print()
       ts_cur = ts_start
       for _ in range(self.max_depth):
-        visited.add(ts_cur) # needed for post-rollout update
         # greedy rollout giving the next best action
-        best_act = self.update(ts_cur)
+        best_act, cur_visited = self.update(ts_cur)
+        # add post-rollout nodes
+        visited.update(cur_visited)
         # taking nest best action
         ts_cur = self.env_step(ts_cur, best_act)
 
     # post-rollout update
     while len(visited) > 0:
+      print('post_rollout')
       ts_cur = visited.pop()
-      _ = self.update(ts_cur)
+      if "f8b20d841532734757657bc34803cee7dddce3208db24e677a13ade1f4836373" == self.hash_ts(ts_cur):
+        print('CRITICAL POST-ROLLOUT KEY FOUND')
+      _, _ = self.update(ts_cur)
 
     return
   
@@ -652,16 +672,24 @@ class RuleObeyingPolicy(policy.Policy):
   
   def get_best_act(self, ts_cur: AgentTimestep) -> int:
     size = self.action_spec.num_values
-    value = 0
-    Q = np.full(size, value)
+    value = float("-inf")
+    # Q = np.full(size, value)
+    H = [''] * size
 
-    for act in range(self.action_spec.num_values):
+    hash = self.hash_ts(ts_cur)
+    Q = self.V[self.goal][hash]
+    return np.argmax(Q[1:]) + 1
+    """for act in range(self.action_spec.num_values):
       ts_next = self.env_step(ts_cur, act)
       s_next = self.hash_ts(ts_next)
 
       if s_next in self.V[self.goal].keys():
         Q[act] = self.V[self.goal][s_next]
+        H[act] = s_next"""
 
+    argmax = np.argmax(Q[1:]) + 1
+    print(H[argmax])
+    print(Q[argmax])
     return np.argmax(Q[1:]) + 1
     return self.random_max(Q[1:])
 
@@ -671,17 +699,31 @@ class RuleObeyingPolicy(policy.Policy):
     size = self.action_spec.num_values 
     value = 0.0
     Q = np.full(size, value)
+    visited = list()
 
     # TODO: change to available_action_history()
     available = self.available_actions(ts_cur.observation)
     s_cur = self.hash_ts(ts_cur)
+    print()
+    print(ts_cur.observation['POSITION'])
+    print('current inventory: ' + str(ts_cur.observation['INVENTORY']))
+    print('apple field: ' + str(ts_cur.observation['CUR_CELL_HAS_APPLE']))
+    print(ts_cur.observation['SURROUNDINGS'])
+    print('current hashkey: ' + str(s_cur))
 
     if s_cur not in self.V[self.goal].keys():
         self.V[self.goal][s_cur] = self.initial_exp_r_cum # 100 apples maximum
+
+    print('ACTIONS')
     
     for act in range(self.action_spec.num_values):
+      print('action: ' + str(act))
       ts_next = self.env_step(ts_cur, act)
+      visited.append(ts_next)
       s_next = self.hash_ts(ts_next)
+      print('inventory: ' + str(ts_next.observation['INVENTORY']))
+      print('apple field: ' + str(ts_next.observation['CUR_CELL_HAS_APPLE']))
+      print('next hashkey: ' + str(s_next))
 
       if s_next not in self.V[self.goal].keys():
         self.V[self.goal][s_next] = self.initial_exp_r_cum # 100 apples maximum
@@ -690,11 +732,19 @@ class RuleObeyingPolicy(policy.Policy):
       if act not in available:
         cost = self.violation_cost # rule violation
 
-      r_next = ts_next.reward + self.V[self.goal][s_next]
-      Q[act] = r_next - (cost * self.gamma)
+      r_next = ts_next.reward * 1.1 + max(self.V[self.goal][s_next]) * self.gamma
+      Q[act] = r_next - cost
+      print('reward: ' + str(ts_next.reward) + ', V: ' + str(max(self.V[self.goal][s_next])) + ', Q: ' + str(Q[act]))
 
-    self.V[self.goal][s_cur] = max(Q)
-    return np.argmax(Q[1:]) + 1
+    print(Q)
+    self.V[self.goal][s_cur] = Q
+    argmax = np.argmax(Q[1:]) + 1
+    for key in visited:
+      if "f8b20d841532734757657bc34803cee7dddce3208db24e677a13ade1f4836373" == self.hash_ts(key):
+        print('CRITICAL KEY FOUND')
+
+    del visited[argmax]
+    return argmax, set(visited)
     return self.random_max(Q)
   
   def random_max(self, Q: list) -> int:
