@@ -644,9 +644,6 @@ class RuleObeyingPolicy(policy.Policy):
     # Perform greedy value iteration
     visited = set()
     for _ in range(self.n_rollouts):
-      print()
-      print('NEW ROLLOUT')
-      print()
       ts_cur = ts_start
       for _ in range(self.max_depth):
         # greedy rollout giving the next best action
@@ -658,40 +655,15 @@ class RuleObeyingPolicy(policy.Policy):
 
     # post-rollout update
     while len(visited) > 0:
-      print('post_rollout')
       ts_cur = visited.pop()
-      if "f8b20d841532734757657bc34803cee7dddce3208db24e677a13ade1f4836373" == self.hash_ts(ts_cur):
-        print('CRITICAL POST-ROLLOUT KEY FOUND')
       _, _ = self.update(ts_cur)
 
     return
   
-  """def get_action(self, state: int) -> int:
-    _, action = self.unhash(state)
-    return action"""
-  
   def get_best_act(self, ts_cur: AgentTimestep) -> int:
-    size = self.action_spec.num_values
-    value = float("-inf")
-    # Q = np.full(size, value)
-    H = [''] * size
-
     hash = self.hash_ts(ts_cur)
     Q = self.V[self.goal][hash]
-    return np.argmax(Q[1:]) + 1
-    """for act in range(self.action_spec.num_values):
-      ts_next = self.env_step(ts_cur, act)
-      s_next = self.hash_ts(ts_next)
-
-      if s_next in self.V[self.goal].keys():
-        Q[act] = self.V[self.goal][s_next]
-        H[act] = s_next"""
-
-    argmax = np.argmax(Q[1:]) + 1
-    print(H[argmax])
-    print(Q[argmax])
-    return np.argmax(Q[1:]) + 1
-    return self.random_max(Q[1:])
+    return np.argmax(Q[1:]) + 1 # no null action
 
   def update(self, ts_cur: AgentTimestep) -> int:
     """Updates state-action pair value function 
@@ -704,26 +676,14 @@ class RuleObeyingPolicy(policy.Policy):
     # TODO: change to available_action_history()
     available = self.available_actions(ts_cur.observation)
     s_cur = self.hash_ts(ts_cur)
-    print()
-    print(ts_cur.observation['POSITION'])
-    print('current inventory: ' + str(ts_cur.observation['INVENTORY']))
-    print('apple field: ' + str(ts_cur.observation['CUR_CELL_HAS_APPLE']))
-    print(ts_cur.observation['SURROUNDINGS'])
-    print('current hashkey: ' + str(s_cur))
 
     if s_cur not in self.V[self.goal].keys():
         self.V[self.goal][s_cur] = self.initial_exp_r_cum # 100 apples maximum
-
-    print('ACTIONS')
     
     for act in range(self.action_spec.num_values):
-      print('action: ' + str(act))
       ts_next = self.env_step(ts_cur, act)
       visited.append(ts_next)
       s_next = self.hash_ts(ts_next)
-      print('inventory: ' + str(ts_next.observation['INVENTORY']))
-      print('apple field: ' + str(ts_next.observation['CUR_CELL_HAS_APPLE']))
-      print('next hashkey: ' + str(s_next))
 
       if s_next not in self.V[self.goal].keys():
         self.V[self.goal][s_next] = self.initial_exp_r_cum # 100 apples maximum
@@ -734,24 +694,11 @@ class RuleObeyingPolicy(policy.Policy):
 
       r_next = ts_next.reward * 1.1 + max(self.V[self.goal][s_next]) * self.gamma
       Q[act] = r_next - cost
-      print('reward: ' + str(ts_next.reward) + ', V: ' + str(max(self.V[self.goal][s_next])) + ', Q: ' + str(Q[act]))
 
-    print(Q)
     self.V[self.goal][s_cur] = Q
     argmax = np.argmax(Q[1:]) + 1
-    for key in visited:
-      if "f8b20d841532734757657bc34803cee7dddce3208db24e677a13ade1f4836373" == self.hash_ts(key):
-        print('CRITICAL KEY FOUND')
-
     del visited[argmax]
     return argmax, set(visited)
-    return self.random_max(Q)
-  
-  def random_max(self, Q: list) -> int:
-    """Returns any of the max values if there is more than one."""
-    max_indices = np.where(Q == max(Q))[0]
-    return max_indices[0]
-    return random.choice(max_indices)
       
   def get_reward(self, ts_cur: AgentTimestep) -> float:
     immediate_reward = ts_cur.reward
