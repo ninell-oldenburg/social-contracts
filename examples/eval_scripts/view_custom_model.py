@@ -47,7 +47,6 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
 
   env = substrate.build(config['substrate'], roles=config['roles'], env_seed=env_seed)
 
-  other_player_looks = [ROLE_SPRITE_DICT[role] for role in config['roles']]
   obeyed_prohibitions, obeyed_obligations = split_rules(rules)
 
   bots = []

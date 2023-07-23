@@ -22,6 +22,7 @@ from collections import deque
 
 import numpy as np
 import hashlib
+import pickle
 
 from bitarray import bitarray
 
@@ -132,6 +133,8 @@ class RuleObeyingPolicy(policy.Policy):
     self.goal = None
     self.is_obligation_active = False
     self.hash_table = {}
+    self.x_max = 15
+    self.y_max = 15
 
     # move actions
     self.action_to_pos = [
@@ -176,6 +179,9 @@ class RuleObeyingPolicy(policy.Policy):
       End of episode defined in dm_env.TimeStep.
       """
 
+      self.x_max = len(timestep.observation['WORLD.RGB'][1]) / 8
+      self.y_max = len(timestep.observation['WORLD.RGB'][0]) / 8
+
       ts_cur = self.add_non_physical_info(timestep=timestep)
       self.ts_start = ts_cur
 
@@ -207,10 +213,6 @@ class RuleObeyingPolicy(policy.Policy):
     if self.current_obligation != None:
       goal = self.get_cur_obl()
       #goal_pos = self.get_obl_position(self.goal, ts_cur)
-
-    else:
-      goal = 'apple'
-      #goal_pos = self.get_closest_apple(ts_cur)
     
     return goal"""
   
@@ -226,17 +228,17 @@ class RuleObeyingPolicy(policy.Policy):
     for obs_name, obs_val in timestep.observation.items():
       ts.add_obs(obs_name=obs_name, obs_val=obs_val)
 
-    ts.obs = self.update_obs_without_coordinates(ts.observation)
     # not sure whether to subtract 1 or not
-    ts.obs['POSITION'][0] = ts.obs['POSITION'][0]-1 
-    ts.obs['POSITION'][1] = ts.obs['POSITION'][1]-1
+    ts.observation['POSITION'][0] = ts.observation['POSITION'][0]-1
+    ts.observation['POSITION'][1] = ts.observation['POSITION'][1]-1
+    ts.obs = self.update_obs_without_coordinates(ts.observation)
 
     return ts
   
   def update_obs_without_coordinates(self, obs) -> dict:
     cur_pos = np.copy(obs['POSITION'])
     x, y = cur_pos[0], cur_pos[1]
-    if not self.exceeds_map(obs['WORLD.RGB'], x, y):
+    if not self.exceeds_map(x, y):
       return self.update_observation(obs, x, y)
     return obs
 
@@ -245,7 +247,7 @@ class RuleObeyingPolicy(policy.Policy):
     obs['POSITION'][0], obs['POSITION'][1] = x, y
     for i in range(x-1, x+2):
       for j in range(y-1, y+2):
-        if not self.exceeds_map(obs['WORLD.RGB'], i, j):
+        if not self.exceeds_map(i, j):
           obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
           obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -3 else False
           self.make_territory_observation(obs, x, y)
@@ -275,7 +277,7 @@ class RuleObeyingPolicy(policy.Policy):
     x, y = observation['POSITION'][0], observation['POSITION'][1]
     reward_map = observation['SURROUNDINGS']
     has_apple = observation['CUR_CELL_HAS_APPLE']
-    if self.exceeds_map(observation['WORLD.RGB'], x, y):
+    if self.exceeds_map(x, y):
       return 0, has_apple
     if reward_map[x][y] == -3:
       observation['SURROUNDINGS'][x][y] = 0
@@ -284,8 +286,8 @@ class RuleObeyingPolicy(policy.Policy):
   
   def update_surroundings(self, cur_pos, new_pos, observation):
       x, y = new_pos[0], new_pos[1]
-      if not self.exceeds_map(observation['WORLD.RGB'], x, y):
-        if not self.exceeds_map(observation['WORLD.RGB'], cur_pos[0], cur_pos[1]):
+      if not self.exceeds_map(x, y):
+        if not self.exceeds_map(cur_pos[0], cur_pos[1]):
           observation['SURROUNDINGS'][cur_pos[0]][cur_pos[1]] = 0
           observation['SURROUNDINGS'][x][y] = 1
 
@@ -342,7 +344,7 @@ class RuleObeyingPolicy(policy.Policy):
     num_cleaners = observation['TOTAL_NUM_CLEANERS']
     if not self.role == 'farmer':
       # if facing north and is at water
-      if not self.exceeds_map(observation['WORLD.RGB'], x, y):
+      if not self.exceeds_map(x, y):
         if observation['ORIENTATION'] == 0 \
           and observation['SURROUNDINGS'][x][y] == -1:
           last_cleaned_time = 0
@@ -403,7 +405,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     for i in range(x_start, x_stop):
       for j in range(y_start, y_stop):
-        if not self.exceeds_map(observation['WORLD.RGB'], i, j):
+        if not self.exceeds_map(i, j):
           if observation['SURROUNDINGS'][i][j] == payee:
             return self.is_facing_agent(observation, (i, j))
     return False
@@ -436,9 +438,6 @@ class RuleObeyingPolicy(policy.Policy):
 
     path = np.flip(path)
     return path[1:] # first element is always 0"""
-  
-  def manhattan_dis(self, pos_cur, pos_goal):
-    return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1])
         
   """def get_riverbank(self, ts_cur: AgentTimestep) -> tuple:
     Returns the coordinates of closest riverbank.
@@ -446,7 +445,7 @@ class RuleObeyingPolicy(policy.Policy):
     cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
     radius = self.max_depth # assume larger search space
     for j in range(cur_y-radius-1, cur_y+radius):
-      if not self.exceeds_map(observation['WORLD.RGB'], cur_x, j):
+      if not self.exceeds_map(cur_x, j):
         if observation['SURROUNDINGS'][cur_x][j] == -2:
           return (cur_x, j) # assume river is all along the y axis
   
@@ -460,7 +459,7 @@ class RuleObeyingPolicy(policy.Policy):
     payees = self.get_payees(observation)
     for i in range(cur_x-radius-1, cur_x+radius):
       for j in range(cur_y-radius-1, cur_y+radius):
-        if not self.exceeds_map(observation['WORLD.RGB'], i, j):
+        if not self.exceeds_map(i, j):
           for payee in payees:
             if observation['SURROUNDINGS'][i][j] == payee:
               return (i, j) # assume river is all along the y axis
@@ -483,7 +482,7 @@ class RuleObeyingPolicy(policy.Policy):
     for radius in range(int((self.max_depth - 2) / 2)):
       for i in range(cur_x-radius-1, cur_x+radius):
         for j in range(cur_y-radius-1, cur_y+radius):
-          if not self.exceeds_map(observation['WORLD.RGB'], i, j):
+          if not self.exceeds_map(i, j):
             if not (i == cur_x and j == cur_y): # don't count target apple
               if observation['SURROUNDINGS'][i][j] == -3:
                 if not (i, j) in goal_pos:
@@ -506,60 +505,15 @@ class RuleObeyingPolicy(policy.Policy):
     
     return None
 
-  def get_discount(self, ts_cur: AgentTimestep) -> float:
-    """Calculates the heuristic for path search. """
-    pos_start = self.ts_start.observation['POSITION']
-    pos_cur = ts_cur.observation['POSITION']
-    man_dis = self.manhattan_dis(pos_start, pos_cur)
-    return man_dis * self.manhattan_scaler
-  
-  """def cost(self, s_cur, s_bar, action):
-    cost = 0
-    ts_cur, _ = self.unhash(s_cur)
-    ts_goal, _ = self.unhash(s_bar)
-    distance = self.manhattan_dis(ts_cur.observation['POSITION'], ts_goal.observation['POSITION'])
-    cost += distance
-
-    # check for prohibitions
-    available = self.available_actions(ts_cur.observation)
-    if action in available:
-      cost += self.compliance_cost
-    else:
-      cost += self.violation_vost
-
-    return cost"""
-
-  """def unhash(self, hash_val):
-    Returns hash values of a hash key.
-    if type(self.hash_table[hash_val]) == AgentTimestep:
-      timestep = self.hash_table[hash_val]
-      return timestep
-    else:
-      timestep = self.hash_table[hash_val][0]
-      action = self.hash_table[hash_val][1]
-      return timestep, action"""
-  
-  """def get_ts_action_hash_key(self, obs, action):
-    # Convert the dictionary to a tuple of key-value pairs
-    items = tuple((key, value, action) for key, value in obs.items() if key in self.relevant_keys)
-    sorted_items = sorted(items, key=lambda x: x[0])
-    hash_key = hashlib.sha256(str(sorted_items).encode()).hexdigest() 
-    return hash_key"""
-  
   def get_ts_hash_key(self, obs, reward):
     # Convert the dictionary to a tuple of key-value pairs
     items = tuple((key, value) for key, value in obs.items() if key in self.relevant_keys)
     sorted_items = sorted(items, key=lambda x: x[0])
     # items = [value[1] for value in sorted_items]
     items = sorted_items + [bitarray(reward)]
-    hash_key = hashlib.sha256(str(items).encode()).hexdigest() 
+    list_bytes = pickle.dumps(items)
+    hash_key = hashlib.sha256(list_bytes).hexdigest() 
     return hash_key
-  
-  """def hash_ts_and_action(self, timestep: dm_env.TimeStep, action: int):
-    Encodes the state, action pairs and saves them in a hash table.
-    hash_key = self.get_ts_action_hash_key(timestep.observation, action)
-    self.hash_table[hash_key] = (timestep, action)
-    return hash_key"""
   
   def hash_ts(self, timestep: dm_env.TimeStep):
     """Encodes the state, action pairs and saves them in a hash table."""
@@ -567,21 +521,6 @@ class RuleObeyingPolicy(policy.Policy):
     self.hash_table[hash_key] = (timestep)
     return hash_key
   
-  """def cal_h_value(self, PRIO_QUEUE, S_VISITED, g_table, came_from):
-        queue_values = {}
-        # iter through every state left in the queue
-        for s in PRIO_QUEUE.enumerate():
-            # update h values of the queue with preceding g value and current h_value
-            dis = self.manhattan_dis(s, came_from[s])
-            queue_values[s] = g_table[came_from[s]] + dis + self.h_vals[s]
-        min_s_queue = min(queue_values, key=queue_values.get)
-        f_min = queue_values[min_s_queue]
-        # update h_vals based on minimum
-        for s in S_VISITED: # only visits 
-            self.h_vals[s] = f_min - g_table[s]
-
-        return min_s_queue
-  """
   """def get_neighbors(self, s):
     neighbors = []
     cur_ts, _ = self.unhash(s)
@@ -772,7 +711,7 @@ class RuleObeyingPolicy(policy.Policy):
                                               cur_pos,
                                               observation)
 
-      if self.exceeds_map(observation['WORLD.RGB'], x, y):
+      if self.exceeds_map(x, y):
         continue
 
       new_obs = self.update_observation(observation, x, y)
@@ -808,18 +747,17 @@ class RuleObeyingPolicy(policy.Policy):
       return "TURN_ACTION"
     else:
       return self.action_to_name[action-7]
-  
+    
   def get_apples(self, observation, x, y):
     """Returns the sum of apples around a certain position."""
-    sum = 0
-    for i in range(x-1, x+2):
-      for j in range(y-1, y+2):
-        if not self.exceeds_map(observation['WORLD.RGB'], i, j):
-          if not (i == x and j == y): # don't count target apple
-            if observation['SURROUNDINGS'][i][j] == -3:
-              sum += 1
-    
-    return sum
+    surroundings = observation['SURROUNDINGS']
+    x_min, x_max = max(0, x - 1), min(len(surroundings), x + 2)
+    y_min, y_max = max(0, y - 1), min(len(surroundings[0]), y + 2)
+
+    apple_mask = (surroundings[x_min:x_max, y_min:y_max] == -3)
+    apple_count = np.count_nonzero(apple_mask)
+
+    return apple_count
     
   def make_territory_observation(self, observation, x, y):
     """
@@ -841,13 +779,11 @@ class RuleObeyingPolicy(policy.Policy):
       # free or own property
       observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = False
 
-  def exceeds_map(self, world_rgb, x, y):
+  def exceeds_map(self, x, y):
     """Returns True if current cell index exceeds game map."""
-    x_max = world_rgb.shape[1] / 8
-    y_max = world_rgb.shape[0] / 8
-    if x < 0 or x >= x_max-1:
+    if x < 0 or x >= self.x_max-1:
       return True
-    if y < 0 or y >= y_max-1:
+    if y < 0 or y >= self.y_max-1:
       return True
     return False
 
