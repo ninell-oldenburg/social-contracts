@@ -24,8 +24,6 @@ import numpy as np
 import hashlib
 import pickle
 
-from bitarray import bitarray
-
 from meltingpot.python.utils.policies import policy
 from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
@@ -34,35 +32,6 @@ from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, 
 class PrioritizedItem:
     priority: float
     item: Any=field(compare=False)
-
-"""class EnumPriorityQueue:
-  def __init__(self):
-    self.queue = PriorityQueue()
-    self.elements = []
-
-  def put(self, priority, item):
-    self.queue.put((priority, item))
-    self.elements.append(item)
-
-  def get(self):
-    _, item = self.queue.get()
-    self.elements.remove(item)
-    return item
-
-  def empty(self):
-    return self.queue.empty()
-  
-  def enumerate(self):
-    return iter(self.elements)
-
-  def __contains__(self, item):
-    return item in self.elements
-
-  def __iter__(self):
-    return iter(self.elements)
-
-  def __len__(self):
-    return len(self.elements)"""
     
 class AgentTimestep():
   def __init__(self) -> None:
@@ -113,26 +82,25 @@ class RuleObeyingPolicy(policy.Policy):
     self.obligations = obligations
 
     # HYPERPARAMETER
-    self.max_depth = 30
+    self.max_depth = 40
     self.compliance_cost = 0.1
     self.violation_cost = 0.3
     self.n_steps = 5
     self.gamma = 0.99
-    self.n_rollouts = 5
-    self.manhattan_scaler = 0.0
+    self.n_rollouts = 20
+    self.obligation_reward = 2
     self.initial_exp_r_cum = [30] * self.action_spec.num_values
     
     # GLOBAL INITILIZATIONS
     self.history = deque(maxlen=10)
     self.payees = []
+    self.hash_table = {}
     if self.role == 'farmer':
       self.payees = None
     # TODO condition on set of active rules
     self.V = {'apple': {}, 'clean': {}, 'pay': {}, 'zap': {}} # nested policy dict
     self.ts_start = None
     self.goal = None
-    self.is_obligation_active = False
-    self.hash_table = {}
     self.x_max = 15
     self.y_max = 15
 
@@ -195,7 +163,7 @@ class RuleObeyingPolicy(policy.Policy):
       self.set_goal()
                
       if self.log_output:
-        print(f"player: {self._index} obligation active?: {self.is_obligation_active}")
+        print(f"player: {self._index} obligation active?: {self.current_obligation != None}")
 
       if not self.has_policy(ts_cur):
         self.rtdp(ts_cur)
@@ -207,14 +175,6 @@ class RuleObeyingPolicy(policy.Policy):
       self.goal = self.get_cur_obl()
     else:
       self.goal = 'apple'
-  
-  """def get_goal_pos(self, ts_cur: AgentTimestep):
-    goal = None
-    if self.current_obligation != None:
-      goal = self.get_cur_obl()
-      #goal_pos = self.get_obl_position(self.goal, ts_cur)
-    
-    return goal"""
   
   def has_policy(self, ts_cur: AgentTimestep) -> bool:
     s_next = self.hash_ts(ts_cur)
@@ -344,7 +304,7 @@ class RuleObeyingPolicy(policy.Policy):
       # if facing north and is at water
       if not self.exceeds_map(x, y):
         if observation['ORIENTATION'] == 0 \
-          and observation['SURROUNDINGS'][x][y] == -1:
+          and observation['SURROUNDINGS'][x-1][y] == -1:
           last_cleaned_time = 0
           num_cleaners = 1
 
@@ -508,8 +468,7 @@ class RuleObeyingPolicy(policy.Policy):
     items = tuple((key, value) for key, value in obs.items() if key in self.relevant_keys)
     sorted_items = sorted(items, key=lambda x: x[0])
     # items = [value[1] for value in sorted_items]
-    items = sorted_items + [bitarray(reward)]
-    list_bytes = pickle.dumps(items)
+    list_bytes = pickle.dumps(sorted_items + [reward])
     hash_key = hashlib.sha256(list_bytes).hexdigest() 
     return hash_key
   
@@ -631,13 +590,24 @@ class RuleObeyingPolicy(policy.Policy):
       if act not in available:
         cost = self.violation_cost # rule violation
 
-      r_next = ts_next.reward * 1.1 + max(self.V[self.goal][s_next]) * self.gamma
+      r_next = self.get_reward(ts_next, s_next)
       Q[act] = r_next - cost
 
     self.V[self.goal][s_cur] = Q
     argmax = np.argmax(Q[1:]) + 1
     del visited[argmax]
     return argmax, set(visited)
+  
+  def get_reward(self, ts_next: AgentTimestep, s_next: str) -> float:
+    r_forward = max(self.V[self.goal][s_next]) * self.gamma
+    r_cur = ts_next.reward * 1.1
+
+    if self.current_obligation != None:
+      r_cur = 0
+      if self.current_obligation.satisfied(ts_next.observation):
+        r_cur = self.obligation_reward
+
+    return r_forward + r_cur
   
   """def a_star(self, s_start: int) -> list[int]:
     # Perform a A* search to generate plan.

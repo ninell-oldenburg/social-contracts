@@ -81,8 +81,8 @@ class ObligationRule(EnvironmentRule):
         
         return False
     
-    def satisfied(self, observation):
-        """Returns True if the rule goal is satisfied."""    
+    def satisfied(self, observation: dict) -> bool:
+        """Returns True if the rule goal is satisfied."""
         return self.goal_formula(observation)
     
     def make_str_repr(self):
