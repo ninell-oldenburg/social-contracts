@@ -162,10 +162,10 @@ class RuleObeyingPolicy(policy.Policy):
     
     self.relevant_keys = [
       'POSITION', 
-      'ORIENTATION', # TODO: bit vector
-      'NUM_APPLES_AROUND', # TODO: bit vector
+      'ORIENTATION',
+      'NUM_APPLES_AROUND',
       # position of other agents
-      'INVENTORY', # TODO: bit vector
+      'INVENTORY',
       'CUR_CELL_IS_FOREIGN_PROPERTY', 
       'CUR_CELL_HAS_APPLE', 
       'AGENT_CLEANED'
@@ -225,7 +225,8 @@ class RuleObeyingPolicy(policy.Policy):
   def add_non_physical_info(self, timestep: dm_env.TimeStep) -> AgentTimestep:
     ts = AgentTimestep()
     ts.step_type = timestep.step_type
-    for obs_name, obs_val in timestep.observation.items():
+    dict_observation = self.deepcopy_dict(timestep.observation)
+    for obs_name, obs_val in dict_observation.items():
       ts.add_obs(obs_name=obs_name, obs_val=obs_val)
 
     # not sure whether to subtract 1 or not
@@ -267,11 +268,8 @@ class RuleObeyingPolicy(policy.Policy):
   
   def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
     """Append current timestep obsetvation to observation history."""
-    own_cur_obs = self.deepcopy_dict(timestep.observation)
-    own_cur_pos = np.copy(own_cur_obs['POSITION'])
-    own_x, own_y = own_cur_pos[0]-1, own_cur_pos[1]-1
-    updated_obs = self.update_observation(own_cur_obs, own_x, own_y)
-    self.history.append(updated_obs)
+    ts_cur = self.add_non_physical_info(timestep)
+    self.history.append(ts_cur.observation)
 
   def maybe_collect_apple(self, observation) -> float:
     x, y = observation['POSITION'][0], observation['POSITION'][1]
