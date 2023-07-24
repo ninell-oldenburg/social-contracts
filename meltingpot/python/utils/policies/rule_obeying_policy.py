@@ -82,18 +82,19 @@ class RuleObeyingPolicy(policy.Policy):
     self.obligations = obligations
 
     # HYPERPARAMETER
-    self.max_depth = 40
+    self.max_depth = 20
     self.compliance_cost = 0.1
     self.violation_cost = 0.3
     self.n_steps = 5
-    self.gamma = 0.99
-    self.n_rollouts = 20
-    self.obligation_reward = 2
+    self.gamma = 0.98
+    self.n_rollouts = 10
+    self.obligation_reward = 1
     self.initial_exp_r_cum = [30] * self.action_spec.num_values
     
     # GLOBAL INITILIZATIONS
     self.history = deque(maxlen=10)
     self.payees = []
+    self.agents_to_zap = []
     self.hash_table = {}
     if self.role == 'farmer':
       self.payees = None
@@ -103,6 +104,11 @@ class RuleObeyingPolicy(policy.Policy):
     self.goal = None
     self.x_max = 15
     self.y_max = 15
+
+    # non-physical info
+    self.last_zapped = 0
+    self.last_payed = 0
+    self.last_cleaned = 0
 
     # move actions
     self.action_to_pos = [
@@ -132,7 +138,7 @@ class RuleObeyingPolicy(policy.Policy):
       'POSITION', 
       'ORIENTATION',
       'NUM_APPLES_AROUND',
-      # position of other agents
+      'POSITION_OTHERS',
       'INVENTORY',
       'CUR_CELL_IS_FOREIGN_PROPERTY', 
       'CUR_CELL_HAS_APPLE', 
@@ -205,16 +211,36 @@ class RuleObeyingPolicy(policy.Policy):
 
   def update_observation(self, obs, x, y) -> dict:
     """Updates the observation with requested information."""
-    obs['POSITION'][0], obs['POSITION'][1] = x, y
-    for i in range(x-1, x+2):
+    # obs['POSITION'][0], obs['POSITION'][1] = x, y
+    """for i in range(x-1, x+2):
       for j in range(y-1, y+2):
-        if not self.exceeds_map(i, j):
-          obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
-          obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -3 else False
-          self.make_territory_observation(obs, x, y)
-          break
+        if not self.exceeds_map(i, j):"""
+    obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
+    obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -3 else False
+    self.make_territory_observation(obs, x, y)
+    obs['POSITION_OTHERS'] = self.get_others(obs)
+    self.update_last_actions(obs)
+    # break
 
     return obs
+  
+  def update_last_actions(self, obs: dict) -> None:
+    """Updates the "last done x" section"""
+    self.last_zapped += 1
+    self.last_cleaned += 1
+    self.last_payed += 1
+    obs['SINCE_AGENT_LAST_ZAPPED'] = self.last_zapped
+    obs['SINCE_AGENT_LAST_CLEANED'] = self.last_cleaned
+    obs['SINCE_AGENT_LAST_PAYED'] = self.last_payed
+  
+  def get_others(self, observation: dict) -> list:
+    """Returns the indices of all players in a 2D array."""
+    surroundings = observation['SURROUNDINGS']
+    positive_values_mask = (surroundings > 0)
+    positive_values = surroundings[positive_values_mask]
+    sorted_indices = np.argsort(positive_values)
+    sorted_positive_indices = np.argwhere(positive_values_mask)[sorted_indices]
+    return [(index[0], index[1]) for index in sorted_positive_indices]
 
   def get_optimal_path(self, ts_cur: AgentTimestep) -> list:
     path = np.array([])
@@ -251,6 +277,7 @@ class RuleObeyingPolicy(policy.Policy):
 
   def env_step(self, timestep: AgentTimestep, action: int) -> AgentTimestep:
       # 1. Unpack observations from timestep
+      # TODO: this can be made faster, I believe
       observation = self.deepcopy_dict(timestep.observation)
       observation = self.update_obs_without_coordinates(observation)
       next_timestep = AgentTimestep()
@@ -280,6 +307,9 @@ class RuleObeyingPolicy(policy.Policy):
         x, y = cur_pos[0], cur_pos[1]
         action_name = self.action_to_name[action-7]
 
+        if action_name == "ZAP_ACTION":
+          observation['SINCE_AGENT_LAST_ZAPPED'] = self.compute_zap(observation, x, y)
+
         if action_name == 'CLEAN_ACTION':
           last_cleaned_time, num_cleaners = self.compute_clean(observation, x, y)
           observation['SINCE_AGENT_LAST_CLEANED'] = last_cleaned_time
@@ -296,6 +326,15 @@ class RuleObeyingPolicy(policy.Policy):
       next_timestep.observation = observation
 
       return next_timestep
+  
+  def compute_zap(self, observation, x, y):
+    last_zap_time = observation['SINCE_AGENT_LAST_ZAPPED']
+    if not self.exceeds_map(x, y):
+      for zap_agent in self.agents_to_zap:
+        if self.is_close_to_agent(observation, zap_agent):
+          last_zap_time = 0
+
+    return last_zap_time
 
   def compute_clean(self, observation, x, y):
     last_cleaned_time = observation['SINCE_AGENT_LAST_CLEANED']
@@ -328,22 +367,6 @@ class RuleObeyingPolicy(policy.Policy):
               payed_time = 0
 
     return reward, cur_inventory, payed_time
-  
-  def deepcopy_dict(self, old_obs):
-    """Own copy implementation for time efficiency."""
-    new_obs = {}
-    for key in old_obs:
-      if isinstance(old_obs[key], np.ndarray):
-        if old_obs[key].shape == ():
-          new_obs[key] = old_obs[key].item()
-        elif old_obs[key].shape == (1,):
-          new_obs[key] = old_obs[key][0] # unpack numpy array
-        else:
-          new_obs[key] = np.copy(old_obs[key])
-      else:
-        new_obs[key] = old_obs[key]
-
-    return new_obs
 
   def get_payees(self, observation):
     payees = []
@@ -382,6 +405,22 @@ class RuleObeyingPolicy(policy.Policy):
       return True
 
     return False
+  
+  def deepcopy_dict(self, old_obs):
+    """Own copy implementation for time efficiency."""
+    new_obs = {}
+    for key in old_obs:
+      if isinstance(old_obs[key], np.ndarray):
+        if old_obs[key].shape == ():
+          new_obs[key] = old_obs[key].item()
+        elif old_obs[key].shape == (1,):
+          new_obs[key] = old_obs[key][0] # unpack numpy array
+        else:
+          new_obs[key] = np.copy(old_obs[key])
+      else:
+        new_obs[key] = old_obs[key]
+
+    return new_obs
       
   """def reconstruct_path(self, state: int) -> list:
     # Reconstructs path from path dictionary.
@@ -593,6 +632,10 @@ class RuleObeyingPolicy(policy.Policy):
       r_next = self.get_reward(ts_next, s_next)
       Q[act] = r_next - cost
 
+    if self.current_obligation != None:
+      if self.current_obligation.pure_precon ==  "obs['SINCE_AGENT_LAST_PAYED'] > 15 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')":
+        print(Q)
+
     self.V[self.goal][s_cur] = Q
     argmax = np.argmax(Q[1:]) + 1
     del visited[argmax]
@@ -605,7 +648,9 @@ class RuleObeyingPolicy(policy.Policy):
     if self.current_obligation != None:
       r_cur = 0
       if self.current_obligation.satisfied(ts_next.observation):
-        r_cur = self.obligation_reward
+        if self.current_obligation.pure_precon ==  "obs['SINCE_AGENT_LAST_PAYED'] > 15 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')":
+          print('farmer satisfaction')
+        r_cur = self.obligation_reward * 1.1
 
     return r_forward + r_cur
   
