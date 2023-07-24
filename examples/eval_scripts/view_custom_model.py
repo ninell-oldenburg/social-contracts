@@ -82,7 +82,8 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
   cum_reward = [0] * num_bots
   dead_apple_ratio = 0.0
 
-  actions = {key: [] for key in range(len(bots))}
+  actions = {key: [0] for key in range(len(bots))}
+  action_list = [0] * len(bots)
   # make headline of output dict#
   ROLE_LIST = ['free', 'cleaner', 'farmer', 'learner']
   ACTION_ROLE_LIST = [key + "_action" for key in config['roles']]
@@ -125,7 +126,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
             observation=timestep.observation[i])
       
       cum_reward[i] += timestep_bot.reward
-      bot.update_and_append_history(timestep_bot)
+      bot.update_and_append_history(timestep_bot, action_list)
 
       if i >= num_focal_bots: # update beliefs if focal bot
         bot.update_and_append_others_history(timestep)

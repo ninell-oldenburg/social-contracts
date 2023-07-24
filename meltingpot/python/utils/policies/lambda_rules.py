@@ -15,6 +15,9 @@ payment_goal_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] < 15"
 cleaning_precon_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 5 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['cleaner']).encode('utf-8')"
 cleaning_goal_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] < 5"
 
+zap_precondition = "len(obs['RIOTS']) > 0"
+zap_goal = "len(obs['RIOTS']) == 0"
+
 DEFAULT_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
   ObligationRule(cleaning_precon_free_30, cleaning_goal_free_30),
@@ -22,6 +25,8 @@ DEFAULT_OBLIGATIONS = [
   ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15),
   # If you're in the cleaner role, clean in a certain rhythm
   ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5),
+  # If you recognize that someone violated a rule, zap them
+  ObligationRule(zap_precondition, zap_goal)
 ]
 
 CLEANING_RULES = [

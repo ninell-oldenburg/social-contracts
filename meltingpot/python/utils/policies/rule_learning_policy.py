@@ -43,11 +43,36 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         self.potential_rules = self.potential_prohibitions + self.potential_obligations
         self.obligations = []
         self.prohibitions = []
-        self.goal_state = None
-        self.goal_action = None
-        self.is_obligation_active = False
-        self.gamma = 0.5 # TODO learnable?
-        self.value_function = {} # value estimates for each state
+
+        # HYPERPARAMETER
+        self.max_depth = 20
+        self.compliance_cost = 0.1
+        self.violation_cost = 0.3
+        self.n_steps = 5
+        self.gamma = 0.98
+        self.n_rollouts = 10
+        self.obligation_reward = 1
+        self.initial_exp_r_cum = [30] * self.action_spec.num_values
+        
+        # GLOBAL INITILIZATIONS
+        self.history = deque(maxlen=10)
+        self.payees = []
+        self.riots = []
+        self.hash_table = {}
+        if self.role == 'farmer':
+            self.payees = None
+        # TODO condition on set of active rules
+        self.V = {'apple': {}, 'clean': {}, 'pay': {}, 'zap': {}} # nested policy dict
+        self.ts_start = None
+        self.goal = None
+        self.x_max = 15
+        self.y_max = 15
+
+        # non-physical info
+        self.last_zapped = 0
+        self.last_payed = 0
+        self.last_cleaned = 0
+
         # self.player_looks = other_player_looks
         self.num_focal_agents = num_focal_bots
         self.num_total_agents = num_focal_bots + 1 # TODO
@@ -146,13 +171,18 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                 else: # Agent disobeyed the obligation
                     # P(disobedient action | rule = true) = (0 * p_obey) + 1/n_actions * (1-p_obey)  
                     p_action = (1-self.p_obey)/(self.num_actions)
+                    # note rule violationg
+                    self.maybe_mark_riot(player_idx, rule)
                     return np.log(p_action)
             else: # Obligation is not active, or has expired
                 return np.log(1/(self.num_actions))
         else: # Obligation is not active, or has expired
             return np.log(1/(self.num_actions))
+        
+    def maybe_mark_riot(self, player_idx, rule):
+        if rule in self.obligations or rule in self.prohibitions:
+            self.riots.append(player_idx)
 
-                    
     def comp_prohib_llh(self, player_idx, rule, action) -> float:
     
         past_obs = self.others_history[-2].observation[player_idx]

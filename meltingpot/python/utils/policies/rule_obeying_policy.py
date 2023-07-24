@@ -94,7 +94,7 @@ class RuleObeyingPolicy(policy.Policy):
     # GLOBAL INITILIZATIONS
     self.history = deque(maxlen=10)
     self.payees = []
-    self.agents_to_zap = []
+    self.riots = []
     self.hash_table = {}
     if self.role == 'farmer':
       self.payees = None
@@ -146,7 +146,8 @@ class RuleObeyingPolicy(policy.Policy):
       ]
         
   def step(self, 
-           timestep: dm_env.TimeStep
+           timestep: dm_env.TimeStep,
+           actions: list
            ) -> list:
       """
       See base class.
@@ -156,7 +157,7 @@ class RuleObeyingPolicy(policy.Policy):
       self.x_max = len(timestep.observation['WORLD.RGB'][1]) / 8
       self.y_max = len(timestep.observation['WORLD.RGB'][0]) / 8
 
-      ts_cur = self.add_non_physical_info(timestep=timestep)
+      ts_cur = self.add_non_physical_info(timestep=timestep, actions=actions)
       self.ts_start = ts_cur
 
       # Check if any of the obligations are active
@@ -188,7 +189,7 @@ class RuleObeyingPolicy(policy.Policy):
       return True
     return False
   
-  def add_non_physical_info(self, timestep: dm_env.TimeStep) -> AgentTimestep:
+  def add_non_physical_info(self, timestep: dm_env.TimeStep, actions: list) -> AgentTimestep:
     ts = AgentTimestep()
     ts.step_type = timestep.step_type
     dict_observation = self.deepcopy_dict(timestep.observation)
@@ -199,10 +200,28 @@ class RuleObeyingPolicy(policy.Policy):
     ts.observation['POSITION'][0] = ts.observation['POSITION'][0]-1
     ts.observation['POSITION'][1] = ts.observation['POSITION'][1]-1
     ts.obs = self.update_obs_without_coordinates(ts.observation)
+    self.update_last_actions(ts.obs, actions[self._index])
+    ts.obs['RIOTS'] = self.update_riots(actions, ts.obs)
 
     return ts
   
-  def update_obs_without_coordinates(self, obs) -> dict:
+  def update_riots(self, actions: list, obs: dict) -> list:
+    for i, action in enumerate(actions):
+      if action == 7:
+        player_who_zapped = i
+        zapped_agents = self.get_zapped_agent(player_who_zapped, obs)
+        self.riots = self.riots.remove(zapped_agents)
+
+  def get_zapped_agent(self, player_who_zapped, obs):
+    x, y = obs['POSITION_OTHERS'][player_who_zapped][0], obs['POSITION_OTHERS'][player_who_zapped][1]
+    for i in range(x-1, x+2):
+      for j in range(y-1, y+2):
+        if not self.exceeds_map(i, j):
+          if obs['SURROUNDINGS'][i][j] > 0:
+            if not obs['SURROUNDINGS'][i][j] == player_who_zapped:
+              return obs['SURROUNDINGS'][i][j]
+  
+  def update_obs_without_coordinates(self, obs: dict) -> dict:
     cur_pos = np.copy(obs['POSITION'])
     x, y = cur_pos[0], cur_pos[1]
     if not self.exceeds_map(x, y):
@@ -219,16 +238,26 @@ class RuleObeyingPolicy(policy.Policy):
     obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -3 else False
     self.make_territory_observation(obs, x, y)
     obs['POSITION_OTHERS'] = self.get_others(obs)
-    self.update_last_actions(obs)
     # break
 
     return obs
   
-  def update_last_actions(self, obs: dict) -> None:
+  def update_last_actions(self, obs: dict, action: int) -> None:
     """Updates the "last done x" section"""
-    self.last_zapped += 1
-    self.last_cleaned += 1
-    self.last_payed += 1
+    # Create a dictionary to store the counters for each action
+    last_counters = {
+        7: 'last_zapped',
+        8: 'last_cleaned',
+        11: 'last_payed'
+    }
+
+    for counter_name in last_counters.values():
+        setattr(self, counter_name, getattr(self, counter_name) + 1)
+
+    if action in last_counters:
+      setattr(self, last_counters[action], 0)
+
+    # Update the observations with the updated counters
     obs['SINCE_AGENT_LAST_ZAPPED'] = self.last_zapped
     obs['SINCE_AGENT_LAST_CLEANED'] = self.last_cleaned
     obs['SINCE_AGENT_LAST_PAYED'] = self.last_payed
@@ -252,9 +281,9 @@ class RuleObeyingPolicy(policy.Policy):
 
     return path
   
-  def update_and_append_history(self, timestep: dm_env.TimeStep) -> None:
+  def update_and_append_history(self, timestep: dm_env.TimeStep, action: int) -> None:
     """Append current timestep obsetvation to observation history."""
-    ts_cur = self.add_non_physical_info(timestep)
+    ts_cur = self.add_non_physical_info(timestep, action)
     self.history.append(ts_cur.observation)
 
   def maybe_collect_apple(self, observation) -> float:
@@ -308,7 +337,9 @@ class RuleObeyingPolicy(policy.Policy):
         action_name = self.action_to_name[action-7]
 
         if action_name == "ZAP_ACTION":
-          observation['SINCE_AGENT_LAST_ZAPPED'] = self.compute_zap(observation, x, y)
+          zap_time, riots = self.compute_zap(observation, x, y)
+          observation['SINCE_AGENT_LAST_ZAPPED'] = zap_time
+          observation['RIOTS'] = riots
 
         if action_name == 'CLEAN_ACTION':
           last_cleaned_time, num_cleaners = self.compute_clean(observation, x, y)
@@ -328,13 +359,15 @@ class RuleObeyingPolicy(policy.Policy):
       return next_timestep
   
   def compute_zap(self, observation, x, y):
-    last_zap_time = observation['SINCE_AGENT_LAST_ZAPPED']
+    last_zapped = observation['SINCE_AGENT_LAST_ZAPPED']
+    riots = observation['RIOTS']
     if not self.exceeds_map(x, y):
-      for zap_agent in self.agents_to_zap:
-        if self.is_close_to_agent(observation, zap_agent):
-          last_zap_time = 0
+      for riot in riots:
+        if self.is_close_to_agent(observation, riot):
+          last_zapped = 0
+          riots = riots.remove(riot)
 
-    return last_zap_time
+    return last_zapped, riots
 
   def compute_clean(self, observation, x, y):
     last_cleaned_time = observation['SINCE_AGENT_LAST_CLEANED']
