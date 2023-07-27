@@ -83,11 +83,13 @@ class RuleObeyingPolicy(policy.Policy):
     self.goal = None
     self.x_max = 15
     self.y_max = 15
+    self.old_pos = None
 
     # non-physical info
     self.last_zapped = 0
     self.last_payed = 0
     self.last_cleaned = 0
+    self.old_pos = None
 
     # move actions
     self.action_to_pos = [
@@ -119,6 +121,7 @@ class RuleObeyingPolicy(policy.Policy):
       'NUM_APPLES_AROUND',
       'POSITION_OTHERS',
       'INVENTORY',
+      'SINCE_AGENT_LAST_CLEANED',
       'CUR_CELL_IS_FOREIGN_PROPERTY', 
       'CUR_CELL_HAS_APPLE', 
       'AGENT_CLEANED'
@@ -179,9 +182,12 @@ class RuleObeyingPolicy(policy.Policy):
     # not sure whether to subtract 1 or not
     ts.observation['POSITION'][0] = ts.observation['POSITION'][0]-1
     ts.observation['POSITION'][1] = ts.observation['POSITION'][1]-1
-    ts.obs = self.update_obs_without_coordinates(ts.observation)
-    self.update_last_actions(ts.obs, actions[self._index])
-    ts.obs['RIOTS'] = self.update_riots(actions, ts.obs)
+    new_pos = ts.observation['POSITION']
+    self.update_last_actions(ts.observation, actions[self._index])
+    self.update_surroundings(new_pos, ts.observation)
+    ts.observation = self.update_obs_without_coordinates(ts.observation)
+    
+    ts.observation['RIOTS'] = self.update_riots(actions, ts.observation)
 
     return ts
   
@@ -280,20 +286,28 @@ class RuleObeyingPolicy(policy.Policy):
       return 1, False
     return 0, has_apple
   
-  def update_surroundings(self, cur_pos, new_pos, observation):
+  def update_surroundings(self, new_pos, observation):
       x, y = new_pos[0], new_pos[1]
+      cur_pos = list(zip(*np.where(observation['SURROUNDINGS'] == self._index+1)))
       if not self.exceeds_map(x, y):
-        if not self.exceeds_map(cur_pos[0], cur_pos[1]):
-          observation['SURROUNDINGS'][cur_pos[0]][cur_pos[1]] = 0
+        if not self.exceeds_map(x, y):
+          observation['SURROUNDINGS'][cur_pos[0][0]][cur_pos[0][1]] = 0
           observation['SURROUNDINGS'][x][y] = 1
+
+  def increase_action_steps(self, observation: dict) -> None:
+      observation['SINCE_AGENT_LAST_ZAPPED'] = observation['SINCE_AGENT_LAST_ZAPPED'] + 1
+      observation['SINCE_AGENT_LAST_CLEANED'] = observation['SINCE_AGENT_LAST_CLEANED'] + 1 
+      observation['SINCE_AGENT_LAST_PAYED'] = observation['SINCE_AGENT_LAST_PAYED'] + 1
 
   def env_step(self, timestep: AgentTimestep, action: int) -> AgentTimestep:
       # 1. Unpack observations from timestep
       # TODO: this can be made faster, I believe
       observation = self.deepcopy_dict(timestep.observation)
       observation = self.update_obs_without_coordinates(observation)
+      self.increase_action_steps(observation)
       next_timestep = AgentTimestep()
       orientation = observation['ORIENTATION']
+      observation['AGENT_CLEANED'] = False
       cur_inventory = observation['INVENTORY']
       cur_pos = observation['POSITION']
       reward = 0
@@ -309,7 +323,7 @@ class RuleObeyingPolicy(policy.Policy):
         new_inventory, has_apple = self.maybe_collect_apple(observation)
         observation['CUR_CELL_HAS_APPLE'] = has_apple
         cur_inventory += new_inventory
-        self.update_surroundings(cur_pos, new_pos, observation)
+        self.update_surroundings(new_pos, observation)
 
       elif action <= 6: # TURN ACTIONS
         observation['ORIENTATION'] = self.action_to_orientation[orientation][action-5]
@@ -327,6 +341,7 @@ class RuleObeyingPolicy(policy.Policy):
         if action_name == 'CLEAN_ACTION':
           last_cleaned_time, num_cleaners = self.compute_clean(observation, x, y)
           observation['SINCE_AGENT_LAST_CLEANED'] = last_cleaned_time
+          observation['AGENT_CLEANED'] = True
           observation['TOTAL_NUM_CLEANERS'] = num_cleaners
 
         if cur_inventory > 0: # EAT AND PAY
@@ -359,7 +374,7 @@ class RuleObeyingPolicy(policy.Policy):
       # if facing north and is at water
       if not self.exceeds_map(x, y):
         if observation['ORIENTATION'] == 0 \
-          and observation['SURROUNDINGS'][x-1][y] == -1:
+          and observation['SURROUNDINGS'][x][y-1] == -1:
           last_cleaned_time = 0
           num_cleaners = 1
 
@@ -613,6 +628,12 @@ class RuleObeyingPolicy(policy.Policy):
   def get_best_act(self, ts_cur: AgentTimestep) -> int:
     hash = self.hash_ts(ts_cur)
     if hash in self.V[self.goal].keys():
+      for act in range(self.action_spec.num_values):
+        ts_next = self.env_step(ts_cur, act)
+        if self.current_obligation != None:
+          if self.current_obligation.satisfied(ts_next.observation):
+            print('can be fulfilled!')
+      print(self.V[self.goal][hash])
       return np.argmax(self.V[self.goal][hash][1:]) + 1 # no null action
     else:
       best_act, _ = self.update(ts_cur)
@@ -622,8 +643,7 @@ class RuleObeyingPolicy(policy.Policy):
     """Updates state-action pair value function 
     and returns the best action based on that."""
     size = self.action_spec.num_values 
-    value = 0.0
-    Q = np.full(size, value)
+    Q = np.full(size, -1.0)
     visited = list()
 
     # TODO: change to available_action_history()
@@ -631,20 +651,22 @@ class RuleObeyingPolicy(policy.Policy):
     s_cur = self.hash_ts(ts_cur)
 
     if s_cur not in self.V[self.goal].keys():
-        self.V[self.goal][s_cur] = self.initial_exp_r_cum # 100 apples maximum
+        self.V[self.goal][s_cur] = np.ones(size) # 100 apples maximum
     
-    for act in range(self.action_spec.num_values):
+    for act in range(size):
       ts_next = self.env_step(ts_cur, act)
+
+      pos = ts_next.observation['POSITION']
+      if self.exceeds_map(pos[0], pos[1]):
+        continue
+
       visited.append(ts_next)
       s_next = self.hash_ts(ts_next)
 
       if s_next not in self.V[self.goal].keys():
-        self.V[self.goal][s_next] = self.initial_exp_r_cum # 100 apples maximum
+        self.V[self.goal][s_next] = np.ones(size) # 100 apples maximum
 
-      cost = self.compliance_cost
-      if act not in available:
-        cost = self.violation_cost # rule violation
-
+      cost = self.compliance_cost if act in available else self.violation_cost # rule violation
       r_next = self.get_reward(ts_next, s_next)
       Q[act] = r_next - cost
 
@@ -660,7 +682,7 @@ class RuleObeyingPolicy(policy.Policy):
     if self.current_obligation != None:
       r_cur = 0
       if self.current_obligation.satisfied(ts_next.observation):
-        r_cur = self.obligation_reward * 1.1
+        r_cur = self.obligation_reward * 2
 
     return r_forward + r_cur
   
