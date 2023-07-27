@@ -52,11 +52,12 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.threshold = threshold
 
         # HYPERPARAMETER
-        self.max_depth = 20
+        self.max_depth = 30
         self.compliance_cost = 0.1
         self.violation_cost = 0.3
         self.n_steps = 5
-        self.gamma = 0.98
+        self.step_counter = 0
+        self.gamma = 0.1
         self.n_rollouts = 10
         self.obligation_reward = 1.0
         self.initial_exp_r_cum = [30] * self.action_spec.num_values
@@ -80,6 +81,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.last_zapped = 0
         self.last_payed = 0
         self.last_cleaned = 0
+        self.old_pos = None
 
         # self.player_looks = other_player_looks
         self.num_rules = len(self.potential_rules)
@@ -117,26 +119,27 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'ORIENTATION',
             'NUM_APPLES_AROUND',
             'POSITION_OTHERS',
+            'SINCE_AGENT_LAST_CLEANED',
+            'SINCE_AGENT_LAST_ZAPPED',
+            'SINCE_AGENT_LAST_PAYED',
             'INVENTORY',
             'CUR_CELL_IS_FOREIGN_PROPERTY', 
             'CUR_CELL_HAS_APPLE', 
             'AGENT_CLEANED'
         ]
     
-    def step(self, 
-           timestep: dm_env.TimeStep,
-           actions: list
-           ) -> list:
+    def step(self) -> list:
         """
         See base class.
         End of episode defined in dm_env.TimeStep.
         """
 
-        self.x_max = len(timestep.observation[self._index]['WORLD.RGB'][1]) / 8
-        self.y_max = len(timestep.observation[self._index]['WORLD.RGB'][0]) / 8
+        self.x_max = len(self.history[-1][self._index].observation['WORLD.RGB'][1]) / 8
+        self.y_max = len(self.history[-1][self._index].observation['WORLD.RGB'][0]) / 8
 
-        ts_cur = self.add_non_physical_info(timestep=timestep, actions=actions, idx=self._index)
+        ts_cur = self.history[-1][self._index]
         self.ts_start = ts_cur
+        self.ts_start.observation = self.deepcopy_dict(ts_cur.observation)
 
         # Check if any of the obligations are active
         self.current_obligation = None
@@ -151,11 +154,13 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         if self.log_output:
             print(f"player: {self._index} obligation active?: {self.current_obligation != None}")
 
-        if not self.has_policy(ts_cur):
+        if self.step_counter >= self.n_steps:
+            self.rtdp(ts_cur)
+
+        if not self.has_policy(self.ts_start):
             self.rtdp(ts_cur)
         
-        # return [self.get_best_act(ts_cur)]
-        return self.get_optimal_path(ts_cur)
+        return self.get_best_act(self.ts_start)
     
     def append_to_history(self, timestep_list: list) -> None:
         """Apoends a list of timesteps to the agent's history"""
