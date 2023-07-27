@@ -13,7 +13,7 @@ payment_precon_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] > 15 and obs['AGENT_LO
 payment_goal_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] < 15"
 
 cleaning_precon_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 5 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['cleaner']).encode('utf-8')"
-cleaning_goal_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] < 5"
+cleaning_goal_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
 
 zap_precondition = "len(obs['RIOTS']) > 0"
 zap_goal = "len(obs['RIOTS']) == 0"
