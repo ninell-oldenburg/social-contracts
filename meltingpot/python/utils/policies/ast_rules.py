@@ -56,7 +56,7 @@ class ObligationRule(EnvironmentRule):
 
     def __init__(self, precondition, goal):
         """See base class.
-
+        
         Args:
             precondition: only checks for an environment state.
             goal: environment state to be achieved by the rule.
