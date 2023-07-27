@@ -12,6 +12,7 @@ from meltingpot.python.utils.substrates import shapes
 
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
+from meltingpot.python.utils.policies.agent_timestep import AgentTimestep
 from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
 
 
@@ -29,20 +30,17 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                  selection_mode: str = "threshold",
                  ) -> None:
         
+        # CALLING PARAMETERS
         self._index = player_idx
         self.role = role
         self.look = look
-        self.max_depth = 22
-        self.p_obey = 0.9
         self.log_output = log_output
-        self.selection_mode = selection_mode
         self.action_spec = env.action_spec()[0]
+        self.selection_mode = selection_mode
         self.num_actions = self.action_spec.num_values
         self.potential_obligations = potential_obligations
         self.potential_prohibitions = potential_prohibitions
         self.potential_rules = self.potential_prohibitions + self.potential_obligations
-        self.obligations = []
-        self.prohibitions = []
 
         # HYPERPARAMETER
         self.max_depth = 20
@@ -56,6 +54,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         
         # GLOBAL INITILIZATIONS
         self.history = deque(maxlen=10)
+        self.obligations = []
+        self.prohibitions = []
         self.payees = []
         self.riots = []
         self.hash_table = {}
@@ -171,17 +171,11 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                 else: # Agent disobeyed the obligation
                     # P(disobedient action | rule = true) = (0 * p_obey) + 1/n_actions * (1-p_obey)  
                     p_action = (1-self.p_obey)/(self.num_actions)
-                    # note rule violationg
-                    self.maybe_mark_riot(player_idx, rule)
                     return np.log(p_action)
             else: # Obligation is not active, or has expired
                 return np.log(1/(self.num_actions))
         else: # Obligation is not active, or has expired
             return np.log(1/(self.num_actions))
-        
-    def maybe_mark_riot(self, player_idx, rule):
-        if rule in self.obligations or rule in self.prohibitions:
-            self.riots.append(player_idx)
 
     def comp_prohib_llh(self, player_idx, rule, action) -> float:
     
@@ -245,12 +239,12 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             
         return False
     
-    def threshold_rules(self, threshold):
+    def threshold_rules(self):
         """Returns rules with probability over a certain threshold."""
         obligations = []
         prohibitions = []
         for i, belief in enumerate(self.rule_beliefs):
-            if belief > threshold:
+            if belief >= self.threshold:
                 rule = deepcopy(self.potential_rules[i])
                 if isinstance(rule, ObligationRule):
                     obligations.append(rule)

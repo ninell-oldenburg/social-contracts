@@ -31,6 +31,7 @@ from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, 
 from meltingpot.python.utils.policies.lambda_rules import CLEANING_RULES, PICK_APPLE_RULES, TERRITORY_RULES
 from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
+from meltingpot.python.utils.policies.rule_adjusting_agent import RuleAdjustingPolicy
 from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
 
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
@@ -40,7 +41,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
   level_name = get_name_from_rules(rules)
   substrate_name = f'rule_obeying_harvest_{level_name}'
   num_bots = len(roles)
-  num_focal_bots = num_bots - roles.count("learner")
+  # num_focal_bots = num_bots - roles.count("learner")
 
   config = {'substrate': substrate_name,
             'roles': roles}
@@ -53,17 +54,21 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
   role_str = ''
   for i in range(len(roles)):
     role = config['roles'][i]
-    if i < num_focal_bots:
-      bots.append(RuleObeyingPolicy(env=env, 
+    """if i < num_focal_bots:"""
+    bots.append(RuleAdjustingPolicy(env=env, 
+                                    player_idx=i,
+                                    log_output=log_output,
                                     look=ROLE_SPRITE_DICT[role],
                                     role=role, 
-                                    log_output=log_output,
-                                    player_idx=i,
-                                    prohibitions=obeyed_prohibitions,
-                                    obligations=obeyed_obligations,
+                                    num_players=num_bots,
+                                    potential_obligations=POTENTIAL_OBLIGATIONS,
+                                    potential_prohibitions=POTENTIAL_PROHIBITIONS,
+                                    active_prohibitions=DEFAULT_PROHIBITIONS,
+                                    active_obligations=DEFAULT_OBLIGATIONS,
+                                    selection_mode="threshold"
                                     ))
-    else:
-      bots.append(RuleLearningPolicy(env=env, 
+    """else:
+    bots.append(RuleLearningPolicy(env=env, 
                                     look=ROLE_SPRITE_DICT[role],
                                     role=role, 
                                     player_idx=i,
@@ -71,7 +76,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
                                     num_focal_bots = num_focal_bots,
                                     log_output=log_output,
                                     selection_mode="threshold"
-                                    ))
+                                    ))"""
       
   for role in set(roles):
     role_str += role # video name
@@ -118,16 +123,24 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
     pygame.display.update()
     clock.tick(fps)
 
+    example_bot = bots[0]
+    timestep_list = [example_bot.add_non_physical_info(timestep, action_list, i) for i in range(len(bots))]
+
     for i, bot in enumerate(bots):
+      # TODO make everything AgentTimestep() from scratch
       timestep_bot = dm_env.TimeStep(
             step_type=timestep.step_type,
             reward=timestep.reward[i],
             discount=timestep.discount,
             observation=timestep.observation[i])
-      
+            
       cum_reward[i] += timestep_bot.reward
-      bot.update_and_append_history(timestep_bot, action_list)
+      bot.append_to_history(timestep_list)
+      #bot.update_beliefs(action_list)
+      bot.obligations, bot.prohibitions = bot.threshold_rules()
 
+      """
+      FOLLOWING VERSION IS FOR DISTINCTION BETWEEN DIFFERENT TYPES OF BOTS
       if i >= num_focal_bots: # update beliefs if focal bot
         bot.update_and_append_others_history(timestep)
         if len(bot.others_history) > 2:
@@ -137,10 +150,11 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
           bot.obligations, bot.prohibitions = bot.threshold_rules(threshold=0.80)
           
         cur_beliefs = bot.rule_beliefs
+        """
         
       if len(actions[i]) == 0: # action pipeline empty
         print('BOT STEP')
-        actions[i] = bot.step(timestep_bot)
+        actions[i] = bot.step(timestep, action_list)
         
       dead_apple_ratio = timestep_bot.observation['DEAD_APPLE_RATIO'] # same for every player
             

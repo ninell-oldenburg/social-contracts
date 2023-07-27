@@ -26,34 +26,13 @@ import pickle
 
 from meltingpot.python.utils.policies import policy
 from meltingpot.python.utils.substrates import shapes
+from meltingpot.python.utils.policies.agent_timestep import AgentTimestep
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
 
 @dataclass(order=True)
 class PrioritizedItem:
     priority: float
-    item: Any=field(compare=False)
-    
-class AgentTimestep():
-  def __init__(self) -> None:
-    self.step_type = None
-    self.reward = 0
-    self.observation = {}
-
-  def get_obs(self):
-    return self.observation
-  
-  def get_r(self):
-    return self.reward
-  
-  def add_obs(self, obs_name: str, obs_val) -> None:
-    self.observation[obs_name] = obs_val
-    return
-  
-  def last(self):
-    if self.step_type == dm_env.StepType.LAST:
-      return True
-    return False
-    
+    item: Any=field(compare=False) 
 
 class RuleObeyingPolicy(policy.Policy):
   """A puppet policy controlled by ertain environment rules."""
@@ -85,9 +64,9 @@ class RuleObeyingPolicy(policy.Policy):
     self.max_depth = 20
     self.compliance_cost = 0.1
     self.violation_cost = 0.3
-    self.n_steps = 5
+    self.n_steps = 10
     self.gamma = 0.98
-    self.n_rollouts = 10
+    self.n_rollouts = 8
     self.obligation_reward = 1
     self.initial_exp_r_cum = [30] * self.action_spec.num_values
     
@@ -157,7 +136,7 @@ class RuleObeyingPolicy(policy.Policy):
       self.x_max = len(timestep.observation['WORLD.RGB'][1]) / 8
       self.y_max = len(timestep.observation['WORLD.RGB'][0]) / 8
 
-      ts_cur = self.add_non_physical_info(timestep=timestep, actions=actions)
+      ts_cur = self.add_non_physical_info(timestep=timestep, actions=actions, idx=self._index)
       self.ts_start = ts_cur
 
       # Check if any of the obligations are active
@@ -175,6 +154,7 @@ class RuleObeyingPolicy(policy.Policy):
       if not self.has_policy(ts_cur):
         self.rtdp(ts_cur)
       
+      # return [self.get_best_act(ts_cur)]
       return self.get_optimal_path(ts_cur)
   
   def set_goal(self) -> None:
@@ -189,10 +169,10 @@ class RuleObeyingPolicy(policy.Policy):
       return True
     return False
   
-  def add_non_physical_info(self, timestep: dm_env.TimeStep, actions: list) -> AgentTimestep:
+  def add_non_physical_info(self, timestep: dm_env.TimeStep, actions: list, idx: int) -> AgentTimestep:
     ts = AgentTimestep()
     ts.step_type = timestep.step_type
-    dict_observation = self.deepcopy_dict(timestep.observation)
+    dict_observation = self.deepcopy_dict(timestep.observation[idx])
     for obs_name, obs_val in dict_observation.items():
       ts.add_obs(obs_name=obs_name, obs_val=obs_val)
 
@@ -209,16 +189,19 @@ class RuleObeyingPolicy(policy.Policy):
     for i, action in enumerate(actions):
       if action == 7:
         player_who_zapped = i
-        zapped_agents = self.get_zapped_agent(player_who_zapped, obs)
-        self.riots = self.riots.remove(zapped_agents)
+        zapped_agent = self.get_zapped_agent(player_who_zapped, obs)
+        if zapped_agent in self.riots:
+          self.riots = self.riots.remove(zapped_agent)
+    
+    return self.riots
 
-  def get_zapped_agent(self, player_who_zapped, obs):
+  def get_zapped_agent(self, player_who_zapped: int, obs: dict) -> int:
     x, y = obs['POSITION_OTHERS'][player_who_zapped][0], obs['POSITION_OTHERS'][player_who_zapped][1]
     for i in range(x-1, x+2):
       for j in range(y-1, y+2):
         if not self.exceeds_map(i, j):
           if obs['SURROUNDINGS'][i][j] > 0:
-            if not obs['SURROUNDINGS'][i][j] == player_who_zapped:
+            if obs['SURROUNDINGS'][i][j] != player_who_zapped:
               return obs['SURROUNDINGS'][i][j]
   
   def update_obs_without_coordinates(self, obs: dict) -> dict:
@@ -281,9 +264,9 @@ class RuleObeyingPolicy(policy.Policy):
 
     return path
   
-  def update_and_append_history(self, timestep: dm_env.TimeStep, action: int) -> None:
+  def update_and_append_history(self, timestep: dm_env.TimeStep, actions: list) -> None:
     """Append current timestep obsetvation to observation history."""
-    ts_cur = self.add_non_physical_info(timestep, action)
+    ts_cur = self.add_non_physical_info(timestep, actions, self._index)
     self.history.append(ts_cur.observation)
 
   def maybe_collect_apple(self, observation) -> float:
@@ -665,10 +648,6 @@ class RuleObeyingPolicy(policy.Policy):
       r_next = self.get_reward(ts_next, s_next)
       Q[act] = r_next - cost
 
-    if self.current_obligation != None:
-      if self.current_obligation.pure_precon ==  "obs['SINCE_AGENT_LAST_PAYED'] > 15 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')":
-        print(Q)
-
     self.V[self.goal][s_cur] = Q
     argmax = np.argmax(Q[1:]) + 1
     del visited[argmax]
@@ -681,8 +660,6 @@ class RuleObeyingPolicy(policy.Policy):
     if self.current_obligation != None:
       r_cur = 0
       if self.current_obligation.satisfied(ts_next.observation):
-        if self.current_obligation.pure_precon ==  "obs['SINCE_AGENT_LAST_PAYED'] > 15 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')":
-          print('farmer satisfaction')
         r_cur = self.obligation_reward * 1.1
 
     return r_forward + r_cur

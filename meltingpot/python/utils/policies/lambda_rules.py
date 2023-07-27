@@ -93,18 +93,18 @@ POTENTIAL_OBLIGATIONS = [
   ObligationRule(cleaning_precon_free_5, cleaning_goal_free_5),
   ObligationRule(cleaning_precon_free_10, cleaning_goal_free_10),
   ObligationRule(cleaning_precon_free_15, cleaning_goal_free_15),
-  ObligationRule(cleaning_precon_free_30, cleaning_goal_free_30),
+  #ObligationRule(cleaning_precon_free_30, cleaning_goal_free_30),
   # If you're in the farmer role, pay cleaner with apples
   ObligationRule(payment_precon_farmer_5, payment_goal_farmer_5),
   ObligationRule(payment_precon_farmer_10, payment_goal_farmer_10),
-  ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15),
+  #ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15),
   ObligationRule(payment_precon_farmer_30, payment_goal_farmer_30),
   # If you're in the cleaner role, clean in a certain rhythm
-  ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5),
+  #ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5),
   ObligationRule(cleaning_precon_cleaner_10, cleaning_goal_cleaner_10),
   ObligationRule(cleaning_precon_cleaner_15, cleaning_goal_cleaner_15),
   ObligationRule(cleaning_precon_cleaner_30, cleaning_goal_cleaner_30)
-]
+] + DEFAULT_OBLIGATIONS
 
 """ 
 ################# PROHIBITIONS ################## 
@@ -129,7 +129,7 @@ POTENTIAL_PROHIBITIONS = [
   # don't go if <x apples around
   ProhibitionRule(harvest_apple_precon_1, 'MOVE_ACTION'),
   ProhibitionRule(harvest_apple_precon_2, 'MOVE_ACTION'),
-  ProhibitionRule(harvest_apple_precon_3, 'MOVE_ACTION'),
+  # ProhibitionRule(harvest_apple_precon_3, 'MOVE_ACTION'),
   ProhibitionRule(harvest_apple_precon_4, 'MOVE_ACTION'),
   ProhibitionRule(harvest_apple_precon_5, 'MOVE_ACTION'),
   ProhibitionRule(harvest_apple_precon_6, 'MOVE_ACTION'),
@@ -165,4 +165,4 @@ POTENTIAL_PROHIBITIONS = [
   ProhibitionRule(orientation_west_precon, 'EAT_ACTION'),
   ProhibitionRule(orientation_west_precon, 'MOVE_ACTION'),
   ProhibitionRule(orientation_west_precon, 'TURN_ACTION'),
-]
+] + DEFAULT_PROHIBITIONS
