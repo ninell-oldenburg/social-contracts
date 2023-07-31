@@ -684,6 +684,8 @@ class RuleObeyingPolicy(policy.Policy):
     if self.current_obligation != None:
       r_cur = 0
       if self.current_obligation.satisfied(ts_next.observation):
+        if self.current_obligation.pure_precon == "obs['SINCE_AGENT_LAST_PAYED'] > 15 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')":
+          print('fulfilled at ' + str(ts_next.observation['POSITION']))
         r_cur = self.obligation_reward
 
     return r_forward + r_cur
