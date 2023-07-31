@@ -182,7 +182,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         """Saves the ones who are violating rules in the global riots variable."""
         if not player_idx == self._index:
             if rule in self.active_rules:
-                print(rule.pure_precon)
                 self.riots.append(player_idx)
 
     def comp_oblig_llh(self, player_idx: int, rule: ObligationRule) -> float:
@@ -217,7 +216,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                     p_action = (1-self.p_obey)/(self.num_actions)
                     # note rule violationg
                     self.maybe_mark_riot(player_idx, rule)
-                    print(past_timestep.observation['SURROUNDINGS'])
                     return np.log(p_action)
             else: # Obligation is not active, or has expired
                 return np.log(1/(self.num_actions))

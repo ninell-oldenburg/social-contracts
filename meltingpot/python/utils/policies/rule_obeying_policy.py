@@ -190,7 +190,6 @@ class RuleObeyingPolicy(policy.Policy):
       self.update_surroundings(new_pos, ts.observation, idx)
     ts.observation = self.update_obs_without_coordinates(ts.observation)
     ts.observation['RIOTS'] = self.update_riots(actions, ts.observation)
-    print('RIOTS: ' + str(ts.observation['RIOTS']))
 
     return ts
   
