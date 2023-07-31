@@ -51,16 +51,18 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.threshold = threshold
 
         # HYPERPARAMETER
-        self.max_depth = 30
+        self.max_depth = 20
         self.compliance_cost = 1
         self.violation_cost = 0.2
-        self.n_steps = 5
+        self.epsilon = 0.8
+        self.n_steps = 2
         self.step_counter = 0
         self.gamma = 0.6 # mean of compliance and violation
-        self.n_rollouts = 10
+        self.n_rollouts = 4
         self.obligation_reward = 1.0
         self.initial_exp_r_cum = [30] * self.action_spec.num_values
         self.init_prior = 0.2
+        self.p_obey = 0.9
         
         # GLOBAL INITILIZATIONS
         self.history = deque(maxlen=10)
@@ -178,8 +180,10 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
     def maybe_mark_riot(self, player_idx, rule):
         """Saves the ones who are violating rules in the global riots variable."""
-        if rule in self.active_rules:
-            self.riots.append(player_idx)
+        if not player_idx == self._index:
+            if rule in self.active_rules:
+                print(rule.pure_precon)
+                self.riots.append(player_idx)
 
     def comp_oblig_llh(self, player_idx: int, rule: ObligationRule) -> float:
 
@@ -203,7 +207,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         rule_is_active = rule_active_count <= self.max_depth
 
         if rule_is_active: # Obligation is active
-            if self.could_be_satisfied(rule, past_timestep):
+            if self.could_be_satisfied(rule, past_timestep, player_idx):
                 if rule.satisfied(next_obs): # Agent obeyed the obligation
                     # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)
                     p_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
@@ -213,6 +217,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                     p_action = (1-self.p_obey)/(self.num_actions)
                     # note rule violationg
                     self.maybe_mark_riot(player_idx, rule)
+                    print(past_timestep.observation['SURROUNDINGS'])
                     return np.log(p_action)
             else: # Obligation is not active, or has expired
                 return np.log(1/(self.num_actions))
