@@ -87,8 +87,8 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
   cum_reward = [0] * num_bots
   dead_apple_ratio = 0.0
 
-  actions = {key: [0] for key in range(len(bots))}
-  action_list = [0] * len(bots)
+  # actions = {key: [0] for key in range(len(bots))}
+  actions = [0] * len(bots)
   # make headline of output dict#
   ROLE_LIST = ['free', 'cleaner', 'farmer', 'learner']
   ACTION_ROLE_LIST = [key + "_action" for key in config['roles']]
@@ -124,7 +124,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
     clock.tick(fps)
 
     example_bot = bots[0]
-    timestep_list = [example_bot.add_non_physical_info(timestep, action_list, i) for i in range(len(bots))]
+    timestep_list = [example_bot.add_non_physical_info(timestep, actions, i) for i in range(len(bots))]
 
     for i, bot in enumerate(bots):
       # TODO make everything AgentTimestep() from scratch
@@ -134,9 +134,10 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
             discount=timestep.discount,
             observation=timestep.observation[i])
             
-      cum_reward[i] += timestep_bot.reward
+      # cum_reward[i] += timestep_bot.reward
       bot.append_to_history(timestep_list)
-      #bot.update_beliefs(action_list)
+      if len(bot.history) > 1:
+        bot.update_beliefs(actions)
       bot.obligations, bot.prohibitions = bot.threshold_rules()
 
       """
@@ -152,25 +153,22 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
         cur_beliefs = bot.rule_beliefs
         """
         
-      if len(actions[i]) == 0: # action pipeline empty
-        print('BOT STEP')
-        actions[i] = bot.step(timestep, action_list)
+      actions[i] = bot.step()
         
-      dead_apple_ratio = timestep_bot.observation['DEAD_APPLE_RATIO'] # same for every player
+      # dead_apple_ratio = timestep_bot.observation['DEAD_APPLE_RATIO'] # same for every player
             
     if log_output:
       print(actions)
 
-    action_list = [int(item[0]) for item in actions.values()]
-    timestep = env.step(action_list)
-    print('TIMESTEP ACTION')
-    actions = update(actions)
+    # action_list = [int(item[0]) for item in actions.values()]
+    timestep = env.step(actions)
+    # actions = update(actions)
 
     data_dict = append_to_dict(data_dict, 
                                timestep.reward, 
                                cur_beliefs, 
                                roles, 
-                               action_list,
+                               actions,
                                dead_apple_ratio)
 
     # Saving files in superdircetory
@@ -288,7 +286,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 0
   episodes = 200
   num_iteration = 1
   setting, data_dict = main(roles=roles,
