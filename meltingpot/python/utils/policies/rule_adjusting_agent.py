@@ -21,7 +21,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
     def __init__(self,
                  env: dm_env.Environment,
                  player_idx: int,
-                 # other_player_looks: list,
                  log_output: bool,
                  look: shapes,
                  num_players: int,
@@ -53,14 +52,17 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # HYPERPARAMETER
         self.max_depth = 20
-        self.compliance_cost = 0.1
-        self.violation_cost = 0.3
-        self.n_steps = 5
-        self.gamma = 0.98
-        self.n_rollouts = 10
+        self.compliance_cost = 1
+        self.violation_cost = 0.2
+        self.epsilon = 0.8
+        self.n_steps = 2
+        self.step_counter = 0
+        self.gamma = 0.6 # mean of compliance and violation
+        self.n_rollouts = 4
         self.obligation_reward = 1.0
         self.initial_exp_r_cum = [30] * self.action_spec.num_values
         self.init_prior = 0.2
+        self.p_obey = 0.9
         
         # GLOBAL INITILIZATIONS
         self.history = deque(maxlen=10)
@@ -80,6 +82,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.last_zapped = 0
         self.last_payed = 0
         self.last_cleaned = 0
+        self.old_pos = None
 
         # self.player_looks = other_player_looks
         self.num_rules = len(self.potential_rules)
@@ -116,27 +119,28 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'POSITION', 
             'ORIENTATION',
             'NUM_APPLES_AROUND',
-            'POSITION_OTHERS',
+            # 'POSITION_OTHERS',
+            'SINCE_AGENT_LAST_CLEANED',
+            # 'SINCE_AGENT_LAST_ZAPPED',
+            # 'SINCE_AGENT_LAST_PAYED',
             'INVENTORY',
-            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            # 'CUR_CELL_IS_FOREIGN_PROPERTY', 
             'CUR_CELL_HAS_APPLE', 
             'AGENT_CLEANED'
         ]
     
-    def step(self, 
-           timestep: dm_env.TimeStep,
-           actions: list
-           ) -> list:
+    def step(self) -> list:
         """
         See base class.
         End of episode defined in dm_env.TimeStep.
         """
 
-        self.x_max = len(timestep.observation[self._index]['WORLD.RGB'][1]) / 8
-        self.y_max = len(timestep.observation[self._index]['WORLD.RGB'][0]) / 8
+        self.x_max = len(self.history[-1][self._index].observation['WORLD.RGB'][1]) / 8
+        self.y_max = len(self.history[-1][self._index].observation['WORLD.RGB'][0]) / 8
 
-        ts_cur = self.add_non_physical_info(timestep=timestep, actions=actions, idx=self._index)
+        ts_cur = self.history[-1][self._index]
         self.ts_start = ts_cur
+        self.ts_start.observation = self.deepcopy_dict(ts_cur.observation)
 
         # Check if any of the obligations are active
         self.current_obligation = None
@@ -151,11 +155,13 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         if self.log_output:
             print(f"player: {self._index} obligation active?: {self.current_obligation != None}")
 
-        if not self.has_policy(ts_cur):
+        if self.step_counter >= self.n_steps:
+            self.rtdp(ts_cur)
+
+        if not self.has_policy(self.ts_start):
             self.rtdp(ts_cur)
         
-        # return [self.get_best_act(ts_cur)]
-        return self.get_optimal_path(ts_cur)
+        return self.get_best_act(self.ts_start)
     
     def append_to_history(self, timestep_list: list) -> None:
         """Apoends a list of timesteps to the agent's history"""
@@ -174,8 +180,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
     def maybe_mark_riot(self, player_idx, rule):
         """Saves the ones who are violating rules in the global riots variable."""
-        if rule in self.active_rules:
-            self.riots.append(player_idx)
+        if not player_idx == self._index:
+            if rule in self.active_rules:
+                self.riots.append(player_idx)
 
     def comp_oblig_llh(self, player_idx: int, rule: ObligationRule) -> float:
 
@@ -199,7 +206,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         rule_is_active = rule_active_count <= self.max_depth
 
         if rule_is_active: # Obligation is active
-            if self.could_be_satisfied(rule, past_timestep):
+            if self.could_be_satisfied(rule, past_timestep, player_idx):
                 if rule.satisfied(next_obs): # Agent obeyed the obligation
                     # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)
                     p_action = self.p_obey + (1-self.p_obey)/(self.num_actions)

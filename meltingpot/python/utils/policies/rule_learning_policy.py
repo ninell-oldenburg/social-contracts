@@ -163,7 +163,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         rule_is_active = rule_active_count <= self.max_depth
 
         if rule_is_active: # Obligation is active
-            if self.could_be_satisfied(rule, past_timestep):
+            if self.could_be_satisfied(rule, past_timestep, player_idx):
                 if rule.satisfied(next_obs): # Agent obeyed the obligation
                     # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)
                     p_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
@@ -204,7 +204,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                                                      cur_pos,
                                                      observation)
 
-            if self.exceeds_map(observation['WORLD.RGB'], x, y):
+            if self.exceeds_map(x, y):
                 prohib_acts.append(action)
                 continue
 
@@ -230,10 +230,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         
         return agent_timestep
     
-    def could_be_satisfied(self, rule, past_timestep):
+    def could_be_satisfied(self, rule, past_timestep, idx):
         """Returns True is an obligation could be satisfied."""
         for action in range(self.action_spec.num_values):
-            next_timestep = super().env_step(past_timestep, action)
+            next_timestep = super().env_step(past_timestep, action, idx)
             if rule.satisfied(next_timestep.observation):
                 return True
             

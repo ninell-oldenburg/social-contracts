@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from collections import deque
+import random
 
 import numpy as np
 import hashlib
@@ -62,8 +63,9 @@ class RuleObeyingPolicy(policy.Policy):
 
     # HYPERPARAMETER
     self.max_depth = 20
-    self.compliance_cost = 0.1
-    self.violation_cost = 0.3
+    self.compliance_cost = 1
+    self.violation_cost = 0.2
+    self.epsilon = 0.2
     self.n_steps = 10
     self.gamma = 0.98
     self.n_rollouts = 8
@@ -83,11 +85,13 @@ class RuleObeyingPolicy(policy.Policy):
     self.goal = None
     self.x_max = 15
     self.y_max = 15
+    self.old_pos = None
 
     # non-physical info
     self.last_zapped = 0
     self.last_payed = 0
     self.last_cleaned = 0
+    self.old_pos = None
 
     # move actions
     self.action_to_pos = [
@@ -119,6 +123,7 @@ class RuleObeyingPolicy(policy.Policy):
       'NUM_APPLES_AROUND',
       'POSITION_OTHERS',
       'INVENTORY',
+      'SINCE_AGENT_LAST_CLEANED',
       'CUR_CELL_IS_FOREIGN_PROPERTY', 
       'CUR_CELL_HAS_APPLE', 
       'AGENT_CLEANED'
@@ -179,9 +184,12 @@ class RuleObeyingPolicy(policy.Policy):
     # not sure whether to subtract 1 or not
     ts.observation['POSITION'][0] = ts.observation['POSITION'][0]-1
     ts.observation['POSITION'][1] = ts.observation['POSITION'][1]-1
-    ts.obs = self.update_obs_without_coordinates(ts.observation)
-    self.update_last_actions(ts.obs, actions[self._index])
-    ts.obs['RIOTS'] = self.update_riots(actions, ts.obs)
+    new_pos = ts.observation['POSITION']
+    self.update_last_actions(ts.observation, actions[idx])
+    if not self.is_water(ts.observation, new_pos):
+      self.update_surroundings(new_pos, ts.observation, idx)
+    ts.observation = self.update_obs_without_coordinates(ts.observation)
+    ts.observation['RIOTS'] = self.update_riots(actions, ts.observation)
 
     return ts
   
@@ -213,10 +221,6 @@ class RuleObeyingPolicy(policy.Policy):
 
   def update_observation(self, obs, x, y) -> dict:
     """Updates the observation with requested information."""
-    # obs['POSITION'][0], obs['POSITION'][1] = x, y
-    """for i in range(x-1, x+2):
-      for j in range(y-1, y+2):
-        if not self.exceeds_map(i, j):"""
     obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
     obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -3 else False
     self.make_territory_observation(obs, x, y)
@@ -254,15 +258,15 @@ class RuleObeyingPolicy(policy.Policy):
     sorted_positive_indices = np.argwhere(positive_values_mask)[sorted_indices]
     return [(index[0], index[1]) for index in sorted_positive_indices]
 
-  def get_optimal_path(self, ts_cur: AgentTimestep) -> list:
+  """def get_optimal_path(self, ts_cur: AgentTimestep) -> list:
     path = np.array([])
 
     for _ in range(self.n_steps):
       best_act = self.get_best_act(ts_cur)  # Get the next action
       path = np.append(path, best_act)  # Append action to the path list
-      ts_cur = self.env_step(ts_cur, best_act)
+      ts_cur = self.env_step(ts_cur, best_act, self._index)
 
-    return path
+    return path"""
   
   def update_and_append_history(self, timestep: dm_env.TimeStep, actions: list) -> None:
     """Append current timestep obsetvation to observation history."""
@@ -280,20 +284,27 @@ class RuleObeyingPolicy(policy.Policy):
       return 1, False
     return 0, has_apple
   
-  def update_surroundings(self, cur_pos, new_pos, observation):
+  def update_surroundings(self, new_pos, observation, idx):
       x, y = new_pos[0], new_pos[1]
+      cur_pos = list(zip(*np.where(observation['SURROUNDINGS'] == idx+1)))
       if not self.exceeds_map(x, y):
-        if not self.exceeds_map(cur_pos[0], cur_pos[1]):
-          observation['SURROUNDINGS'][cur_pos[0]][cur_pos[1]] = 0
-          observation['SURROUNDINGS'][x][y] = 1
+        observation['SURROUNDINGS'][cur_pos[0][0]][cur_pos[0][1]] = 0
+        observation['SURROUNDINGS'][x][y] = idx+1
 
-  def env_step(self, timestep: AgentTimestep, action: int) -> AgentTimestep:
+  def increase_action_steps(self, observation: dict) -> None:
+      observation['SINCE_AGENT_LAST_ZAPPED'] = observation['SINCE_AGENT_LAST_ZAPPED'] + 1
+      observation['SINCE_AGENT_LAST_CLEANED'] = observation['SINCE_AGENT_LAST_CLEANED'] + 1 
+      observation['SINCE_AGENT_LAST_PAYED'] = observation['SINCE_AGENT_LAST_PAYED'] + 1
+
+  def env_step(self, timestep: AgentTimestep, action: int, idx: int) -> AgentTimestep:
       # 1. Unpack observations from timestep
       # TODO: this can be made faster, I believe
       observation = self.deepcopy_dict(timestep.observation)
       observation = self.update_obs_without_coordinates(observation)
+      self.increase_action_steps(observation)
       next_timestep = AgentTimestep()
       orientation = observation['ORIENTATION']
+      observation['AGENT_CLEANED'] = False
       cur_inventory = observation['INVENTORY']
       cur_pos = observation['POSITION']
       reward = 0
@@ -305,11 +316,13 @@ class RuleObeyingPolicy(policy.Policy):
           # make the cleaner wait for it's paying farmer
           observation['TIME_TO_GET_PAYED'] = 0
         new_pos = cur_pos + self.action_to_pos[orientation][action]
+        if self.is_water(observation, new_pos):
+          new_pos = cur_pos # don't move to water
         observation['POSITION'] = new_pos
         new_inventory, has_apple = self.maybe_collect_apple(observation)
         observation['CUR_CELL_HAS_APPLE'] = has_apple
         cur_inventory += new_inventory
-        self.update_surroundings(cur_pos, new_pos, observation)
+        self.update_surroundings(new_pos, observation, idx)
 
       elif action <= 6: # TURN ACTIONS
         observation['ORIENTATION'] = self.action_to_orientation[orientation][action-5]
@@ -327,6 +340,7 @@ class RuleObeyingPolicy(policy.Policy):
         if action_name == 'CLEAN_ACTION':
           last_cleaned_time, num_cleaners = self.compute_clean(observation, x, y)
           observation['SINCE_AGENT_LAST_CLEANED'] = last_cleaned_time
+          observation['AGENT_CLEANED'] = True
           observation['TOTAL_NUM_CLEANERS'] = num_cleaners
 
         if cur_inventory > 0: # EAT AND PAY
@@ -358,10 +372,10 @@ class RuleObeyingPolicy(policy.Policy):
     if not self.role == 'farmer':
       # if facing north and is at water
       if not self.exceeds_map(x, y):
-        if observation['ORIENTATION'] == 0 \
-          and observation['SURROUNDINGS'][x-1][y] == -1:
-          last_cleaned_time = 0
-          num_cleaners = 1
+        if observation['ORIENTATION'] == 0:
+          if observation['SURROUNDINGS'][x][y-1] == -1 or observation['SURROUNDINGS'][x][y-2] == -1:
+            last_cleaned_time = 0
+            num_cleaners = 1
 
     return last_cleaned_time, num_cleaners
   
@@ -513,7 +527,7 @@ class RuleObeyingPolicy(policy.Policy):
       return "clean"
     if "PAY" in self.current_obligation.goal:
       return "pay"
-    if "ZAP" in self.current_obligation.goal:
+    if "RIOTS" in self.current_obligation.goal:
       return "zap"
     
     return None
@@ -601,7 +615,7 @@ class RuleObeyingPolicy(policy.Policy):
         # add post-rollout nodes
         visited.update(cur_visited)
         # taking nest best action
-        ts_cur = self.env_step(ts_cur, best_act)
+        ts_cur = self.env_step(ts_cur, best_act, self._index)
 
     # post-rollout update
     while len(visited) > 0:
@@ -613,6 +627,7 @@ class RuleObeyingPolicy(policy.Policy):
   def get_best_act(self, ts_cur: AgentTimestep) -> int:
     hash = self.hash_ts(ts_cur)
     if hash in self.V[self.goal].keys():
+      # print(self.V[self.goal][hash])
       return np.argmax(self.V[self.goal][hash][1:]) + 1 # no null action
     else:
       best_act, _ = self.update(ts_cur)
@@ -622,8 +637,7 @@ class RuleObeyingPolicy(policy.Policy):
     """Updates state-action pair value function 
     and returns the best action based on that."""
     size = self.action_spec.num_values 
-    value = 0.0
-    Q = np.full(size, value)
+    Q = np.full(size, -1.0)
     visited = list()
 
     # TODO: change to available_action_history()
@@ -631,36 +645,48 @@ class RuleObeyingPolicy(policy.Policy):
     s_cur = self.hash_ts(ts_cur)
 
     if s_cur not in self.V[self.goal].keys():
-        self.V[self.goal][s_cur] = self.initial_exp_r_cum # 100 apples maximum
+        self.V[self.goal][s_cur] = np.zeros(size)
     
-    for act in range(self.action_spec.num_values):
-      ts_next = self.env_step(ts_cur, act)
+    for act in range(size):
+      ts_next = self.env_step(ts_cur, act, self._index)
+
+      pos = ts_next.observation['POSITION']
+      if self.exceeds_map(pos[0], pos[1]):
+        continue
+
       visited.append(ts_next)
       s_next = self.hash_ts(ts_next)
 
       if s_next not in self.V[self.goal].keys():
-        self.V[self.goal][s_next] = self.initial_exp_r_cum # 100 apples maximum
+        self.V[self.goal][s_next] = np.zeros(size)
 
-      cost = self.compliance_cost
-      if act not in available:
-        cost = self.violation_cost # rule violation
-
+      cost = self.compliance_cost if act in available else self.violation_cost # rule violation
       r_next = self.get_reward(ts_next, s_next)
-      Q[act] = r_next - cost
+      Q[act] = r_next * cost
 
     self.V[self.goal][s_cur] = Q
-    argmax = np.argmax(Q[1:]) + 1
-    del visited[argmax]
-    return argmax, set(visited)
+    action = self.select_action(Q)
+    del visited[action]
+    return action, set(visited)
+  
+  def select_action(self, q_values: list) -> int:
+    if random.random() < self.epsilon:
+        action = random.choice(range(self.action_spec.num_values))
+    else:
+        action = np.argmax(q_values[1:]) + 1
+
+    return action
   
   def get_reward(self, ts_next: AgentTimestep, s_next: str) -> float:
     r_forward = max(self.V[self.goal][s_next]) * self.gamma
-    r_cur = ts_next.reward * 1.1
+    r_cur = ts_next.reward
 
     if self.current_obligation != None:
       r_cur = 0
       if self.current_obligation.satisfied(ts_next.observation):
-        r_cur = self.obligation_reward * 1.1
+        if self.current_obligation.pure_precon == "obs['SINCE_AGENT_LAST_PAYED'] > 15 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')":
+          print('fulfilled at ' + str(ts_next.observation['POSITION']))
+        r_cur = self.obligation_reward
 
     return r_forward + r_cur
   
@@ -801,6 +827,16 @@ class RuleObeyingPolicy(policy.Policy):
     else:
       # free or own property
       observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = False
+
+  def is_water(self, observation, pos):
+    x, y = pos[0], pos[1]
+    if self.exceeds_map(x, y):
+      return True
+    if observation["SURROUNDINGS"][x][y] == -1:
+      return True
+    if observation["SURROUNDINGS"][x][y] == -2:
+      return True
+    return False
 
   def exceeds_map(self, x, y):
     """Returns True if current cell index exceeds game map."""
