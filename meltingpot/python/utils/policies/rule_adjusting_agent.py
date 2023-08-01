@@ -13,8 +13,11 @@ from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
 from meltingpot.python.utils.policies.agent_timestep import AgentTimestep
-from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
+from meltingpot.python.utils.policies.rule_generation import RuleGenerator
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
+
+generator = RuleGenerator()
+POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_length(2)
 
 class RuleAdjustingPolicy(RuleLearningPolicy):
 
@@ -86,6 +89,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # self.player_looks = other_player_looks
         self.num_rules = len(self.potential_rules)
+        # if rules are coming in as active rules then they'll have a prior f self.threshold otherwise self.init_prior
         self.rule_beliefs = np.array([self.threshold if rule in self.active_rules else self.init_prior for rule in self.potential_rules])
         self.nonself_active_obligations_count = np.array([dict() for _ in range(self.num_players)])
         self.others_history = deque(maxlen=10)

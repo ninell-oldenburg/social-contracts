@@ -41,8 +41,8 @@ CLEANING_RULES = [
 """ 
 ################# PROHIBITIONS ################## 
 """
-harvest_apple_precon_standard = "obs['NUM_APPLES_AROUND'] < 3 and obs['CUR_CELL_HAS_APPLE']"
-steal_from_forgein_cell_precon = "obs['CUR_CELL_IS_FOREIGN_PROPERTY'] and not obs['AGENT_HAS_STOLEN'] and obs['CUR_CELL_HAS_APPLE']"
+harvest_apple_precon_standard = "obs['CUR_CELL_HAS_APPLE'] and obs['NUM_APPLES_AROUND'] < 3"
+steal_from_forgein_cell_precon = "obs['CUR_CELL_HAS_APPLE'] and obs['CUR_CELL_IS_FOREIGN_PROPERTY']"
 
 DEFAULT_PROHIBITIONS = [
   # don't go if <2 apples around

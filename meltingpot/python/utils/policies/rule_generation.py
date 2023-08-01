@@ -10,14 +10,14 @@ DEFAULT_LOOKS = [
 
 DEFAULT_FEATURES = {
     "bool": [
-        "AGENT_CLEANED",
+        # "AGENT_CLEANED",
         "CUR_CELL_HAS_APPLE",
         "CUR_CELL_IS_FOREIGN_PROPERTY",
-        "AGENT_HAS_STOLEN"
+        # "AGENT_HAS_STOLEN"
         ],
     "discrete": {
         # 'KEY': (compare_condition, values, goal_condition)
-        "TOTAL_NUM_CLEANERS": ('<', [1, 2, 3, 4, 5], '>'),
+        # "TOTAL_NUM_CLEANERS": ('<', [1, 2, 3, 4, 5], '>'),
         "SINCE_AGENT_LAST_CLEANED": ('>', list(np.arange(0,51,5)), '== 0'),
         "SINCE_AGENT_LAST_PAYED": ('>', list(np.arange(0,51,5)), '== 0'),
         "RIOTS": ("len(obs['RIOTS']) >= 1", None, "len(obs['RIOTS']) == 0"),
@@ -51,16 +51,17 @@ class RuleGenerator():
         self.features = self.bools + list(self.discretes.keys())
 
     def generate_rules_of_length(self, target_length):
-        rules = []
+        obligations = []
+        prohibitions = []
 
         for i in range(1, target_length+1):
             new_comb = list(itertools.combinations(self.features, i))
             for comb in new_comb:
                 conditions = self.make_conditions(comb)
-                rules.extend(self.make_prohib_str(conditions))
-                rules.extend(self.make_oblig_str(comb, conditions))
+                prohibitions.extend(self.make_prohib_str(conditions))
+                obligations.extend(self.make_oblig_str(comb, conditions))
 
-        return rules
+        return obligations, prohibitions
             
 
     def make_prohib_str(self, conditions):
