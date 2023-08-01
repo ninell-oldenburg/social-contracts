@@ -158,7 +158,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
       # dead_apple_ratio = timestep_bot.observation['DEAD_APPLE_RATIO'] # same for every player
             
     if log_output:
-      print(actions)
+      print('Actions: ' + str(actions))
 
     # action_list = [int(item[0]) for item in actions.values()]
     timestep = env.step(actions)
