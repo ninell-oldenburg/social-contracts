@@ -32,7 +32,7 @@ from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, 
 from meltingpot.python.utils.policies.lambda_rules import CLEANING_RULES, PICK_APPLE_RULES, TERRITORY_RULES
 from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
 from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
-from meltingpot.python.utils.policies.rule_adjusting_agent import RuleAdjustingPolicy
+from meltingpot.python.utils.policies.rule_adjusting_policy import RuleAdjustingPolicy
 from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
 
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
