@@ -63,7 +63,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.gamma = 0.6 # mean of compliance and violation
         self.n_rollouts = 4
         self.obligation_reward = 1.0
-        self.initial_exp_r_cum = [30] * self.action_spec.num_values
         self.init_prior = 0.2
         self.p_obey = 0.9
         

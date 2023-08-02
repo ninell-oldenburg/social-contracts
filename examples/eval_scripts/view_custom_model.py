@@ -24,6 +24,7 @@ from itertools import islice
 import os
 
 from meltingpot.python import substrate
+import csv
 
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
@@ -110,6 +111,11 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
   shape = obs_spec[0]["WORLD.RGB"].shape
   game_display = pygame.display.set_mode(
       (int(shape[1] * scale), int(shape[0] * scale)))
+  
+  for bot in bots:
+    filename = f'examples/results/policies/{bot.role}_policies.csv'
+    if os.path.exists(filename):
+      bot.V = read_from_csv(filename)
 
   for k in range(episodes):
     obs = timestep.observation[0]["WORLD.RGB"]
@@ -126,41 +132,19 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
     example_bot = bots[0]
     timestep_list = [example_bot.add_non_physical_info(timestep, actions, i) for i in range(len(bots))]
 
-    for i, bot in enumerate(bots):
-      # TODO make everything AgentTimestep() from scratch
-      timestep_bot = dm_env.TimeStep(
-            step_type=timestep.step_type,
-            reward=timestep.reward[i],
-            discount=timestep.discount,
-            observation=timestep.observation[i])
-            
+    for i, bot in enumerate(bots):            
       # cum_reward[i] += timestep_bot.reward
       bot.append_to_history(timestep_list)
       if len(bot.history) > 1:
         bot.update_beliefs(actions)
       bot.obligations, bot.prohibitions = bot.threshold_rules()
-
-      """
-      FOLLOWING VERSION IS FOR DISTINCTION BETWEEN DIFFERENT TYPES OF BOTS
-      if i >= num_focal_bots: # update beliefs if focal bot
-        bot.update_and_append_others_history(timestep)
-        if len(bot.others_history) > 2:
-          other_acts = [action[0] for _, action in islice(
-            actions.items(), num_focal_bots)]
-          bot.update_beliefs(other_acts)
-          bot.obligations, bot.prohibitions = bot.threshold_rules(threshold=0.80)
-          
-        cur_beliefs = bot.rule_beliefs
-        """
         
       actions[i] = bot.step()
-        
       # dead_apple_ratio = timestep_bot.observation['DEAD_APPLE_RATIO'] # same for every player
             
     if log_output:
       print('Actions: ' + str(actions))
 
-    # action_list = [int(item[0]) for item in actions.values()]
     timestep = env.step(actions)
     # actions = update(actions)
 
@@ -181,12 +165,48 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
   if create_video:
     make_video(filename)
 
+  for i, bot in enumerate(bots):
+    filename = f'examples/results/policies/{bot.role}_policies.csv'
+    save_to_csv(filename, bot.V)
+
   settings = get_settings(bots=bots, rules=rules)
 
   return settings, data_dict
 
   """ Profiler Run:
-  ~ python3 -m cProfile -o run1.prof -s cumtime  examples/evals/evals.py """
+  ~ python3 -m cProfile -o output.prof examples/evals/evals.py 
+  snakeviz output.prof 
+  """
+
+# Function to save the bot.V nested dictionaries to a CSV file
+def save_to_csv(filename, data):
+  with open(filename, 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+
+    # Write the header row
+    writer.writerow(['Goal', 'Hashkey'] + [f'Value {i + 1}' for i in range(12)])
+
+    # Write the data rows
+    for goal, hash_dict in data.items():
+      for hashkey, values in hash_dict.items():
+        row_data = [str(goal), str(hashkey)] + [str(val) for val in values]
+        writer.writerow(row_data)
+
+# Function to read the CSV file and create the nested dictionary
+def read_from_csv(filename):
+  data = {}
+  with open(filename, 'r') as csvfile:
+    reader = csv.reader(csvfile)
+    next(reader)  # Skip the header row
+
+    for row in reader:
+      goal, hashkey = row[:2]
+      values = [float(val) for val in row[2:]]
+      if goal not in data:
+          data[goal] = {}
+      data[goal][hashkey] = values
+
+  return data
 
 def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dead_apple_ratio) -> dict:
   for i, key in enumerate(data_dict):

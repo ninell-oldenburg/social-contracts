@@ -204,6 +204,8 @@ class RuleObeyingPolicy(policy.Policy):
     return self.riots
 
   def get_zapped_agent(self, player_who_zapped: int, obs: dict) -> int:
+    print('player_who_zapped: ' + str(player_who_zapped))
+    print('position others: ' + str(obs['POSITION_OTHERS']))
     x, y = obs['POSITION_OTHERS'][player_who_zapped][0], obs['POSITION_OTHERS'][player_who_zapped][1]
     for i in range(x-1, x+2):
       for j in range(y-1, y+2):
