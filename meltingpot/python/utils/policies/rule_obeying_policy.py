@@ -63,9 +63,12 @@ class RuleObeyingPolicy(policy.Policy):
 
     # HYPERPARAMETER
     self.max_depth = 20
-    self.compliance_cost = 1
-    self.violation_cost = 0.2
+    self.compliance_cost = 0.1
+    self.violation_cost = 0.4
+    self.tau = 0.6
+    self.cost = 1
     self.epsilon = 0.2
+    self.regrowth_rate = 0.5
     self.n_steps = 10
     self.gamma = 0.98
     self.n_rollouts = 8
@@ -76,6 +79,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.history = deque(maxlen=10)
     self.payees = []
     self.riots = []
+    self.pos_all_apples = []
     self.hash_table = {}
     if self.role == 'farmer':
       self.payees = None
@@ -140,6 +144,9 @@ class RuleObeyingPolicy(policy.Policy):
 
       self.x_max = len(timestep.observation['WORLD.RGB'][1]) / 8
       self.y_max = len(timestep.observation['WORLD.RGB'][0]) / 8
+
+      if timestep == timestep.first():
+        self.pos_all_apples = list(zip(*np.where(timestep.observation['SURROUNDINGS']== -3)))
 
       ts_cur = self.add_non_physical_info(timestep=timestep, actions=actions, idx=self._index)
       self.ts_start = ts_cur
@@ -259,16 +266,6 @@ class RuleObeyingPolicy(policy.Policy):
     sorted_indices = np.argsort(positive_values)
     sorted_positive_indices = np.argwhere(positive_values_mask)[sorted_indices]
     return [(index[0], index[1]) for index in sorted_positive_indices]
-
-  """def get_optimal_path(self, ts_cur: AgentTimestep) -> list:
-    path = np.array([])
-
-    for _ in range(self.n_steps):
-      best_act = self.get_best_act(ts_cur)  # Get the next action
-      path = np.append(path, best_act)  # Append action to the path list
-      ts_cur = self.env_step(ts_cur, best_act, self._index)
-
-    return path"""
   
   def update_and_append_history(self, timestep: dm_env.TimeStep, actions: list) -> None:
     """Append current timestep obsetvation to observation history."""
@@ -352,7 +349,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       observation['INVENTORY'] = cur_inventory
       next_timestep.step_type = dm_env.StepType.MID
-      next_timestep.reward = reward
+      next_timestep.reward = reward - self.cost
       next_timestep.observation = observation
 
       return next_timestep
@@ -453,73 +450,6 @@ class RuleObeyingPolicy(policy.Policy):
         new_obs[key] = old_obs[key]
 
     return new_obs
-      
-  """def reconstruct_path(self, state: int) -> list:
-    # Reconstructs path from path dictionary.
-    _, action = self.unhash(state)
-    path = np.array([action])
-    while state in self.came_from.keys():
-      if state == self.came_from[state]:
-        break
-      state = self.came_from[state]
-      _, action = self.unhash(state)
-      path = np.append(path, action)
-
-    path = np.flip(path)
-    return path[1:] # first element is always 0"""
-        
-  """def get_riverbank(self, ts_cur: AgentTimestep) -> tuple:
-    Returns the coordinates of closest riverbank.
-    observation = ts_cur.observation
-    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
-    radius = self.max_depth # assume larger search space
-    for j in range(cur_y-radius-1, cur_y+radius):
-      if not self.exceeds_map(cur_x, j):
-        if observation['SURROUNDINGS'][cur_x][j] == -2:
-          return (cur_x, j) # assume river is all along the y axis
-  
-    return (cur_x, cur_y)"""
-  
-  """def get_payee(self, ts_cur: AgentTimestep) -> tuple:
-    Returns the coordinates of closest payee.
-    observation = ts_cur.observation
-    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
-    radius = self.max_depth # assume larger search space
-    payees = self.get_payees(observation)
-    for i in range(cur_x-radius-1, cur_x+radius):
-      for j in range(cur_y-radius-1, cur_y+radius):
-        if not self.exceeds_map(i, j):
-          for payee in payees:
-            if observation['SURROUNDINGS'][i][j] == payee:
-              return (i, j) # assume river is all along the y axis
-          
-    return (cur_x, cur_y)"""
-  
-  """def get_punshee(self, ts_cur: AgentTimestep) -> tuple:
-    Returns the coordinates of the agent to punish.
-    # TODO
-    observation = ts_cur.observation
-    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
-    return (cur_x, cur_y)"""
-  
-  """def get_closest_apple(self, ts_cur: AgentTimestep) -> tuple:
-    Returns the coordinates of closest apple in observation radius.
-    Returns None if no apple is around.
-    observation = ts_cur.observation
-    cur_x, cur_y = observation['POSITION'][0], observation['POSITION'][1]
-    goal_pos = []
-    for radius in range(int((self.max_depth - 2) / 2)):
-      for i in range(cur_x-radius-1, cur_x+radius):
-        for j in range(cur_y-radius-1, cur_y+radius):
-          if not self.exceeds_map(i, j):
-            if not (i == cur_x and j == cur_y): # don't count target apple
-              if observation['SURROUNDINGS'][i][j] == -3:
-                if not (i, j) in goal_pos:
-                  goal_pos.append((i, j))
-                if len(goal_pos) > 6: # return when there are 10 goals
-                  return goal_pos
-
-    return goal_pos"""
   
   def get_cur_obl(self) -> str:
     """
@@ -549,80 +479,24 @@ class RuleObeyingPolicy(policy.Policy):
     self.hash_table[hash_key] = (timestep)
     return hash_key
   
-  """def get_neighbors(self, s):
-    neighbors = []
-    cur_ts, _ = self.unhash(s)
-    for action in range(self.action_spec.num_values):
-      neighbors_ts = self.env_step(cur_ts, action)
-      s_next = self.hash_ts_and_action(neighbors_ts, action)
-      neighbors.append(s_next)
-
-    return neighbors"""
-  
-  """def update_s_cur(self, s_cur, s_next, came_from):
-    _, action = self.unhash(s_next)
-    path = np.array([action])
-
-    while s_next in came_from.keys():
-
-      # TODO: make the actions h_value relevant
-      h_list = {}
-      s_neighbors = self.get_neighbors(s_next)
-      for s_n in s_neighbors:
-        if s_n in self.h_vals.keys():
-          h_list[s_n] = self.h_vals[s_n]
-
-      s_next = came_from[s_next]
-      _, action = self.unhash(s_cur)
-      path = np.append(path, action)
-      
-      if s_next == s_cur:
-        path = np.flip(path)
-        return s_next, path[1:] # first element is always 0"""
-
-  # source: http://idm-lab.org/bib/abstracts/papers/aamas06.pdf
-  # used a lot from: https://github.com/zhm-real/PathPlanning/blob/master/Search_based_Planning/Search_2D/RTAAStar.py#L42
-  """def real_time_adaptive_astar(self, timestep: dm_env.TimeStep) -> list[int]:
-    timestep = timestep._replace(reward=0.0)
-    init_action = 0
-    s_cur = self.hash_ts_and_action(timestep, init_action)
-    n_rollouts = 0
-
-    while s_cur not in self.s_goal:
-      PRIO_QUEUE, S_VISITED, g_vals, came_from = self.a_star(s_cur)
-
-      if PRIO_QUEUE == True: # terminal state of A*
-        return self.reconstruct_path(S_VISITED)
-
-      # s_next is the next cheapest node
-      s_next = self.cal_h_value(PRIO_QUEUE, S_VISITED, g_vals, came_from)
-      s_cur, path_k = self.update_s_cur(s_cur, s_next, came_from)
-
-      if n_rollouts >= self.n_rollouts:
-        return path_k
-      
-      count_searches += 1
-    
-    return"""
-  
   # from https://github.com/JuliaPlanners/SymbolicPlanners.jl/blob/master/src/planners/rtdp.jl
   def rtdp(self, ts_start: AgentTimestep) -> None:
     # Perform greedy value iteration
-    visited = set()
+    visited = []
     for _ in range(self.n_rollouts):
       ts_cur = ts_start
       for _ in range(self.max_depth):
+        visited.append(ts_cur)
         # greedy rollout giving the next best action
-        best_act, cur_visited = self.update(ts_cur)
-        # add post-rollout nodes
-        visited.update(cur_visited)
+        next_act = self.update(ts_cur)
         # taking nest best action
-        ts_cur = self.env_step(ts_cur, best_act, self._index)
+        print(next_act)
+        ts_cur = self.env_step(ts_cur, next_act, self._index)
 
     # post-rollout update
     while len(visited) > 0:
       ts_cur = visited.pop()
-      _, _ = self.update(ts_cur)
+      _ = self.update(ts_cur)
 
     return
   
@@ -640,14 +514,14 @@ class RuleObeyingPolicy(policy.Policy):
     and returns the best action based on that."""
     size = self.action_spec.num_values 
     Q = np.full(size, -1.0)
-    visited = list()
 
     # TODO: change to available_action_history()
     available = self.available_actions(ts_cur.observation)
     s_cur = self.hash_ts(ts_cur)
 
+    # initialize best optimistic guess for cur state
     if s_cur not in self.V[self.goal].keys():
-        self.V[self.goal][s_cur] = np.zeros(size)
+        self.V[self.goal][s_cur] = self.init_heuristic(ts_cur)
     
     for act in range(size):
       ts_next = self.env_step(ts_cur, act, self._index)
@@ -656,41 +530,95 @@ class RuleObeyingPolicy(policy.Policy):
       if self.exceeds_map(pos[0], pos[1]):
         continue
 
-      visited.append(ts_next)
       s_next = self.hash_ts(ts_next)
 
+      # initialize best optimistic guess for next state
       if s_next not in self.V[self.goal].keys():
-        self.V[self.goal][s_next] = np.zeros(size)
-
-      cost = self.compliance_cost if act in available else self.violation_cost # rule violation
-      r_next = self.get_reward(ts_next, s_next)
-      Q[act] = r_next * cost
+        self.V[self.goal][s_next] = self.init_heuristic(ts_next)
+      
+      Q[act]  = self.get_estimated_return(ts_next, s_next, act, available)
 
     self.V[self.goal][s_cur] = Q
+    print(Q)
     action = self.select_action(Q)
-    del visited[action]
-    return action, set(visited)
+    return action
+  
+  def init_heuristic(self, timestep: AgentTimestep) -> np.array:
+    size = self.action_spec.num_values 
+    Q = np.full(size, -1.0)
+
+    for act in range(size):
+      ts_next = self.env_step(timestep, act, self._index)
+      observation = ts_next.observation
+      pos = observation['POSITION']
+      reward = 0.0
+      
+      if self.exceeds_map(pos[0], pos[1]):
+        continue
+
+      if self.goal == "apple":
+        pos_cur_apples = self.get_cur_apples(observation['SURROUNDINGS'])
+        r_cur_apples = self.get_discounted_reward(pos_cur_apples, pos)
+        r_fut_apples = self.predict_future_reward(pos_cur_apples, pos)
+        reward = r_cur_apples + r_fut_apples
+
+      else:
+        pos_cur_obl = self.get_cur_obl_pos(observation)
+        reward = self.get_discounted_reward(pos_cur_obl, pos)
+
+      Q[act] = reward
+
+    return Q
+  
+  def get_cur_obl_pos(self, observation: dict) -> list:
+    if self.goal == 'clean':
+      return list(zip(*np.where(observation['SURROUNDINGS'] == -3)))
+    elif self.goal == 'pay':
+      return  list(zip(*np.where(observation['SURROUNDINGS'] == observation['ALWAYS_PAYING_TO'])))
+    else: # self.goal == 'zap'
+      return list(zip(*np.where(observation['SURROUNDINGS'] == self.riots)))
+
+  def predict_future_reward(self, pos_cur_apples, own_pos) -> float:
+    reward = 0.0
+    pos_future_apples = [i for i in self.pos_all_apples if i not in pos_cur_apples]
+    for pos in pos_future_apples:
+      reward += 1 * self.regrowth_rate - self.manhattan_dis(pos, own_pos) 
+    return reward
+
+  def get_discounted_reward(self, target_pos, own_pos) -> float:
+    reward = 0.0
+    for pos in target_pos:
+      reward += 1 - self.manhattan_dis(pos, own_pos)
+    return reward
+
+  def manhattan_dis(self, pos_cur, pos_goal) -> int:
+    return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1])
+
+  def get_cur_apples(self, surroundings: np.array) -> list:
+    return list(zip(*np.where(surroundings== -3)))
   
   def select_action(self, q_values: list) -> int:
-    if random.random() < self.epsilon:
-        action = random.choice(range(self.action_spec.num_values))
-    else:
-        action = np.argmax(q_values[1:]) + 1
+    #if random.random() < self.epsilon:
+        #action = random.choice(range(self.action_spec.num_values))
+    #else: # boltzman
+    probs = q_values / self.tau
+    probs /= np.sum(probs)
+    action = np.random.choice(range(self.action_spec.num_values), p=probs)
 
     return action
   
-  def get_reward(self, ts_next: AgentTimestep, s_next: str) -> float:
+  def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list) -> float:
     r_forward = max(self.V[self.goal][s_next]) * self.gamma
     r_cur = ts_next.reward
 
     if self.current_obligation != None:
       r_cur = 0
       if self.current_obligation.satisfied(ts_next.observation):
-        if self.current_obligation.pure_precon == "obs['SINCE_AGENT_LAST_PAYED'] > 15 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')":
-          print('fulfilled at ' + str(ts_next.observation['POSITION']))
         r_cur = self.obligation_reward
 
-    return r_forward + r_cur
+    cost = self.compliance_cost if act in available else self.violation_cost # rule violation
+
+    return r_forward + r_cur - cost
   
   """def a_star(self, s_start: int) -> list[int]:
     # Perform a A* search to generate plan.

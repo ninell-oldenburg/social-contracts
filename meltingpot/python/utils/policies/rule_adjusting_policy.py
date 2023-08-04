@@ -59,6 +59,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.violation_cost = 0.2
         self.epsilon = 0.8
         self.n_steps = 2
+        self.tau = 0.6
+        self.cost = 1
         self.step_counter = 0
         self.gamma = 0.6 # mean of compliance and violation
         self.n_rollouts = 4
@@ -70,6 +72,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.history = deque(maxlen=10)
         self.payees = []
         self.riots = []
+        self.pos_all_apples = []
         self.hash_table = {}
         if self.role == 'farmer':
             self.payees = None

@@ -37,7 +37,7 @@ from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPo
 
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
 
-def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log_output=True):
+def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log_output=True, save_csv=True):
 
   level_name = get_name_from_rules(rules)
   substrate_name = f'rule_obeying_harvest_{level_name}'
@@ -165,9 +165,10 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
   if create_video:
     make_video(filename)
 
-  for i, bot in enumerate(bots):
-    filename = f'examples/results/policies/{bot.role}_policies.csv'
-    save_to_csv(filename, bot.V)
+  if save_csv:
+    for i, bot in enumerate(bots):
+      filename = f'examples/results/policies/{bot.role}_policies.csv'
+      save_to_csv(filename, bot.V)
 
   settings = get_settings(bots=bots, rules=rules)
 
@@ -306,7 +307,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
   episodes = 200
   num_iteration = 1
   setting, data_dict = main(roles=roles,
@@ -315,7 +316,8 @@ if __name__ == "__main__":
                             episodes=episodes, 
                             num_iteration=num_iteration, 
                             create_video=True,
-                            log_output=True)
+                            log_output=True,
+                            save_csv=False)
   
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
