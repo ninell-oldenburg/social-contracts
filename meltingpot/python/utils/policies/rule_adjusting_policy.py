@@ -59,10 +59,10 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.violation_cost = 0.2
         self.epsilon = 0.8
         self.n_steps = 2
-        self.tau = 0.6
+        self.tau = 0.2
         self.cost = 1
         self.step_counter = 0
-        self.gamma = 0.6 # mean of compliance and violation
+        self.gamma = 0.98
         self.n_rollouts = 4
         self.obligation_reward = 1.0
         self.init_prior = 0.2

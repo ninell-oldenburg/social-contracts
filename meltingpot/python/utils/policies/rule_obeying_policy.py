@@ -490,7 +490,6 @@ class RuleObeyingPolicy(policy.Policy):
         # greedy rollout giving the next best action
         next_act = self.update(ts_cur)
         # taking nest best action
-        print(next_act)
         ts_cur = self.env_step(ts_cur, next_act, self._index)
 
     # post-rollout update
@@ -503,7 +502,7 @@ class RuleObeyingPolicy(policy.Policy):
   def get_best_act(self, ts_cur: AgentTimestep) -> int:
     hash = self.hash_ts(ts_cur)
     if hash in self.V[self.goal].keys():
-      # print(self.V[self.goal][hash])
+      print(self.V[self.goal][hash])
       return np.argmax(self.V[self.goal][hash][1:]) + 1 # no null action
     else:
       best_act, _ = self.update(ts_cur)
@@ -539,7 +538,6 @@ class RuleObeyingPolicy(policy.Policy):
       Q[act]  = self.get_estimated_return(ts_next, s_next, act, available)
 
     self.V[self.goal][s_cur] = Q
-    print(Q)
     action = self.select_action(Q)
     return action
   
@@ -592,7 +590,7 @@ class RuleObeyingPolicy(policy.Policy):
     return reward
 
   def manhattan_dis(self, pos_cur, pos_goal) -> int:
-    return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1])
+    return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1]) * 0.1
 
   def get_cur_apples(self, surroundings: np.array) -> list:
     return list(zip(*np.where(surroundings== -3)))
