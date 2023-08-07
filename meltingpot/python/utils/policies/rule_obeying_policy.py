@@ -503,7 +503,6 @@ class RuleObeyingPolicy(policy.Policy):
         visited.append(ts_cur)
         # greedy rollout giving the next best action
         next_act = self.update(ts_cur)
-        print(f'NEXT ACTION: {next_act}')
         # taking nest best action
         ts_cur = self.env_step(ts_cur, next_act, self._index)
 
@@ -614,7 +613,6 @@ class RuleObeyingPolicy(policy.Policy):
 
   def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list) -> float:
     r_forward = max(self.V[self.goal][s_next]) / self.gamma
-    # print(f'first: {max(self.V[self.goal][s_next])}, after scaling: {r_forward}')
     r_cur = ts_next.reward * 10
 
     if self.current_obligation != None:
