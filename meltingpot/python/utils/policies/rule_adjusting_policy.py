@@ -62,7 +62,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.action_cost = 1
         # self.regrowth_rate = 0.5
         self.step_counter = 0
-        self.epsilon = 0.5
         self.gamma = 0.9999
         self.n_rollouts = 2
         self.obligation_reward = 1.0
@@ -162,8 +161,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.ts_start = ts_cur
         self.ts_start.observation = self.deepcopy_dict(ts_cur.observation)
 
-        if ts_cur.step_type == dm_env.StepType.FIRST:
-            self.pos_all_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
+        # if ts_cur.step_type == dm_env.StepType.FIRST:
+        self.pos_all_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
 
         # Check if any of the obligations are active
         self.current_obligation = None

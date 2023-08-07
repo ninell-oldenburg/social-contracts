@@ -552,7 +552,7 @@ class RuleObeyingPolicy(policy.Policy):
       Q[act]  = self.get_estimated_return(ts_next, s_next, act, available)
 
     self.V[self.goal][s_cur] = Q
-    return self.select_action(Q)
+    return self.get_boltzmann_act(Q)
   
   def init_heuristic(self, timestep: AgentTimestep) -> np.array:
     size = self.action_spec.num_values 
@@ -569,6 +569,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       if self.goal == "apple":
         r_cur_apples = self.get_discounted_reward(self.pos_all_apples, pos)
+        # print(self.pos_all_apples)
         r_eaten_apples = 10 if tuple(pos) in self.pos_all_apples and observation['INVENTORY'] != 0 and act == 10 else 0
         reward = r_cur_apples + r_eaten_apples
 
@@ -600,11 +601,7 @@ class RuleObeyingPolicy(policy.Policy):
   def get_cur_apples(self, surroundings: np.array) -> list:
     return list(zip(*np.where(surroundings== -3)))
   
-  def select_action(self, q_values: list) -> int:
-    """if random.random() < self.epsilon:
-        action = random.choice(range(self.action_spec.num_values))
-    else: # boltzman
-      action = np.argmax(q_values)"""
+  def get_boltzmann_act(self, q_values: list) -> int:
     exp_q_values = np.exp(q_values / self.tau)
     probs = exp_q_values / np.sum(exp_q_values)
     action = np.argmax(probs)
