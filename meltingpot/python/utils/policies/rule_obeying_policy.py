@@ -568,14 +568,15 @@ class RuleObeyingPolicy(policy.Policy):
         continue
 
       if self.goal == "apple":
-        r_cur_apples = self.get_discounted_reward(self.pos_all_apples, pos)
-        # print(self.pos_all_apples)
-        r_eaten_apples = 10 if tuple(pos) in self.pos_all_apples and observation['INVENTORY'] != 0 and act == 10 else 0
+        r_cur_apples = self.get_discounted_reward(self.pos_all_cur_apples, pos)
+        r_eaten_apples = 9 if tuple(pos) in self.pos_all_cur_apples and observation['INVENTORY'] != 0 and act == 10 else 0
         reward = r_cur_apples + r_eaten_apples
 
       else:
         pos_cur_obl = self.get_cur_obl_pos(observation)
-        reward = self.get_discounted_reward(pos_cur_obl, pos)
+        r_cur_obl = self.get_discounted_reward(pos_cur_obl, pos)
+        r_fulfilled_obl = 9 if self.current_obligation.satisfied(observation) else 0
+        reward = r_cur_obl + r_fulfilled_obl
 
       Q[act] = reward
 
@@ -583,7 +584,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def get_cur_obl_pos(self, observation: dict) -> list:
     if self.goal == 'clean':
-      return list(zip(*np.where(observation['SURROUNDINGS'] == -3)))
+      return list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
     elif self.goal == 'pay':
       return  list(zip(*np.where(observation['SURROUNDINGS'] == observation['ALWAYS_PAYING_TO'])))
     else: # self.goal == 'zap'
@@ -610,7 +611,14 @@ class RuleObeyingPolicy(policy.Policy):
 
   def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list) -> float:
     r_forward = max(self.V[self.goal][s_next]) / self.gamma
-    r_cur = ts_next.reward * 10
+    r_cur = ts_next.reward * 9 # it needs careful scaling with the values from manhattan dis
+
+    if act >= 7:
+      print(f'STATE HASH: {s_next}, INVENTORY: {ts_next.observation["INVENTORY"]}')
+      print(f'POSITION: {ts_next.observation["POSITION"]}, ACTION: {act}, REWARD: {r_forward}, Q: {self.V[self.goal][s_next]}')
+
+    if act != 10 and r_cur != 0:
+      print(f'ACTION: {act}, REWARD: {r_cur}')
 
     if self.current_obligation != None:
       r_cur = 0

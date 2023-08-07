@@ -72,7 +72,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.history = deque(maxlen=10)
         self.payees = []
         self.riots = []
-        self.pos_all_apples = []
+        self.pos_all_cur_apples = []
+        self.pos_all_possible_apples = []
         self.hash_table = {}
         if self.role == 'farmer':
             self.payees = None
@@ -161,8 +162,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.ts_start = ts_cur
         self.ts_start.observation = self.deepcopy_dict(ts_cur.observation)
 
-        # if ts_cur.step_type == dm_env.StepType.FIRST:
-        self.pos_all_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
+        if ts_cur.step_type == dm_env.StepType.FIRST:
+            self.pos_all_possible_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
+        self.pos_all_cur_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
 
         # Check if any of the obligations are active
         self.current_obligation = None
