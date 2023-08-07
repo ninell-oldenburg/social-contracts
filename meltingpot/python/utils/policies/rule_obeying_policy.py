@@ -66,7 +66,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.compliance_cost = 0.1
     self.violation_cost = 0.4
     self.tau = 0.6
-    self.cost = 1
+    self.action_cost = 1
     self.epsilon = 0.2
     self.regrowth_rate = 0.5
     self.n_steps = 10
@@ -235,7 +235,6 @@ class RuleObeyingPolicy(policy.Policy):
     self.make_territory_observation(obs, x, y)
     obs['POSITION_OTHERS'] = self.get_others(obs)
     # break
-
     return obs
   
   def update_last_actions(self, obs: dict, action: int) -> None:
@@ -349,7 +348,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       observation['INVENTORY'] = cur_inventory
       next_timestep.step_type = dm_env.StepType.MID
-      next_timestep.reward = reward - self.cost
+      next_timestep.reward = reward - self.action_cost
       next_timestep.observation = observation
 
       return next_timestep
@@ -521,8 +520,9 @@ class RuleObeyingPolicy(policy.Policy):
     # initialize best optimistic guess for cur state
     if s_cur not in self.V[self.goal].keys():
         self.V[self.goal][s_cur] = self.init_heuristic(ts_cur)
+        print('POS CURRENT: ' + str(ts_cur.observation['POSITION']) + ', heuristic: ' + str(self.V[self.goal][s_cur]))
     
-    for act in range(size):
+    for act in range(size): 
       ts_next = self.env_step(ts_cur, act, self._index)
 
       pos = ts_next.observation['POSITION']
@@ -538,8 +538,7 @@ class RuleObeyingPolicy(policy.Policy):
       Q[act]  = self.get_estimated_return(ts_next, s_next, act, available)
 
     self.V[self.goal][s_cur] = Q
-    action = self.select_action(Q)
-    return action
+    return self.select_action(Q)
   
   def init_heuristic(self, timestep: AgentTimestep) -> np.array:
     size = self.action_spec.num_values 
@@ -580,13 +579,16 @@ class RuleObeyingPolicy(policy.Policy):
     reward = 0.0
     pos_future_apples = [i for i in self.pos_all_apples if i not in pos_cur_apples]
     for pos in pos_future_apples:
-      reward += 1 * self.regrowth_rate - self.manhattan_dis(pos, own_pos) 
+      reward += 1 * self.regrowth_rate - self.manhattan_dis(pos, own_pos) * 0.1
     return reward
 
   def get_discounted_reward(self, target_pos, own_pos) -> float:
     reward = 0.0
+    print('getting discounteed apples')
+    print(target_pos)
     for pos in target_pos:
-      reward += 1 - self.manhattan_dis(pos, own_pos)
+      print(reward)
+      reward += 1 - self.manhattan_dis(pos, own_pos) * 0.1
     return reward
 
   def manhattan_dis(self, pos_cur, pos_goal) -> int:
@@ -649,7 +651,7 @@ class RuleObeyingPolicy(policy.Policy):
         s_next = self.hash_ts_and_action(cur_timestep, action)
 
         if s_next not in S_ORDERED: # has not been visited yet
-          new_cost = g_table[s_cur] + self.cost(s_cur, s_next, action)
+          new_cost = g_table[s_cur] + self.action_cost(s_cur, s_next, action)
           if s_next not in g_table:
             g_table[s_next] = float('inf')
           if new_cost < g_table[s_next]:  # conditions for updating cost

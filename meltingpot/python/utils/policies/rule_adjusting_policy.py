@@ -60,11 +60,11 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.epsilon = 0.8
         self.n_steps = 2
         self.tau = 0.2
-        self.cost = 1
+        self.action_cost = 0.5
         self.regrowth_rate = 0.5
         self.step_counter = 0
         self.gamma = 0.98
-        self.n_rollouts = 4
+        self.n_rollouts = 10
         self.obligation_reward = 1.0
         self.init_prior = 0.2
         self.p_obey = 0.9
@@ -142,12 +142,14 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         End of episode defined in dm_env.TimeStep.
         """
 
-        self.x_max = len(self.history[-1][self._index].observation['WORLD.RGB'][1]) / 8
-        self.y_max = len(self.history[-1][self._index].observation['WORLD.RGB'][0]) / 8
+        self.x_max = self.history[-1][self._index].observation['WORLD.RGB'].shape[1] / 8
+        self.y_max = self.history[-1][self._index].observation['WORLD.RGB'].shape[0] / 8 - 5 # inventory
 
         ts_cur = self.history[-1][self._index]
         self.ts_start = ts_cur
         self.ts_start.observation = self.deepcopy_dict(ts_cur.observation)
+
+        print(self.ts_start.observation['SURROUNDINGS'])
 
         if ts_cur.step_type == dm_env.StepType.FIRST:
             self.pos_all_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
