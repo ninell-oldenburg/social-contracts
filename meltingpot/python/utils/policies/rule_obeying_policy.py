@@ -569,7 +569,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       if self.goal == "apple":
         r_cur_apples = self.get_discounted_reward(self.pos_all_cur_apples, pos)
-        r_eaten_apples = 9 if tuple(pos) in self.pos_all_cur_apples and observation['INVENTORY'] != 0 and act == 10 else 0
+        r_eaten_apples = 9 if observation['INVENTORY'] != 0 and act == 10 else 0
         reward = r_cur_apples + r_eaten_apples
 
       else:
@@ -612,13 +612,6 @@ class RuleObeyingPolicy(policy.Policy):
   def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list) -> float:
     r_forward = max(self.V[self.goal][s_next]) / self.gamma
     r_cur = ts_next.reward * 9 # it needs careful scaling with the values from manhattan dis
-
-    if act >= 7:
-      print(f'STATE HASH: {s_next}, INVENTORY: {ts_next.observation["INVENTORY"]}')
-      print(f'POSITION: {ts_next.observation["POSITION"]}, ACTION: {act}, REWARD: {r_forward}, Q: {self.V[self.goal][s_next]}')
-
-    if act != 10 and r_cur != 0:
-      print(f'ACTION: {act}, REWARD: {r_cur}')
 
     if self.current_obligation != None:
       r_cur = 0

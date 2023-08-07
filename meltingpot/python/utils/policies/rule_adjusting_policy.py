@@ -129,7 +129,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'EAT_ACTION',
             # 'POSITION_OTHERS',
             'INVENTORY',
-            # 'SINCE_AGENT_LAST_CLEANED',
+            'SINCE_AGENT_LAST_CLEANED',
+            'SINCE_AGENT_LAST_PAYED',
+            'SINCE_AGENT_LAST_ZAPPED',
             'CUR_CELL_IS_FOREIGN_PROPERTY', 
             'CUR_CELL_HAS_APPLE', 
             # 'AGENT_CLEANED'
