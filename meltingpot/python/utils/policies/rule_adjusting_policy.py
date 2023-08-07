@@ -122,30 +122,17 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             "PAY_ACTION"
           ]
         
-        self.relevant_apple_keys = [
+        self.relevant_keys = [
             'POSITION', 
             'ORIENTATION',
             'NUM_APPLES_AROUND',
+            'WATER_LOCATION', # maybe take out again
             'EAT_ACTION',
-            # 'POSITION_OTHERS',
+            'POSITION_OTHERS',
             'INVENTORY',
             'SINCE_AGENT_LAST_CLEANED',
             'SINCE_AGENT_LAST_PAYED',
             'SINCE_AGENT_LAST_ZAPPED',
-            'CUR_CELL_IS_FOREIGN_PROPERTY', 
-            'CUR_CELL_HAS_APPLE', 
-            # 'AGENT_CLEANED'
-        ]
-    
-        self.relevant_obligation_keys = [
-            'POSITION', 
-            'ORIENTATION',
-            'NUM_APPLES_AROUND',
-            # 'EAT_ACTION',
-            'POSITION_OTHERS',
-            # 'INVENTORY',
-            'SINCE_AGENT_LAST_CLEANED',
-            'SINCE_AGENT_LAST_PAYED',
             'CUR_CELL_IS_FOREIGN_PROPERTY', 
             'CUR_CELL_HAS_APPLE', 
             'AGENT_CLEANED'

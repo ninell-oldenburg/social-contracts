@@ -120,30 +120,20 @@ class RuleObeyingPolicy(policy.Policy):
             "PAY_ACTION"
           ]
     
-    self.relevant_apple_keys = [
-      'POSITION', 
-      'ORIENTATION',
-      'NUM_APPLES_AROUND',
-      # 'POSITION_OTHERS',
-      'INVENTORY',
-      # 'SINCE_AGENT_LAST_CLEANED',
-      'CUR_CELL_IS_FOREIGN_PROPERTY', 
-      'CUR_CELL_HAS_APPLE', 
-      # 'AGENT_CLEANED'
-      ]
-    
-    self.relevant_obligation_keys = [
-      'POSITION', 
-      'ORIENTATION',
-      'NUM_APPLES_AROUND',
-      'POSITION_OTHERS',
-      # 'INVENTORY',
-      'SINCE_AGENT_LAST_CLEANED',
-      'SINCE_AGENT_LAST_PAYED',
-      'CUR_CELL_IS_FOREIGN_PROPERTY', 
-      'CUR_CELL_HAS_APPLE', 
-      'AGENT_CLEANED'
-      ]
+    self.relevant_keys = [
+            'POSITION', 
+            'ORIENTATION',
+            'NUM_APPLES_AROUND',
+            'EAT_ACTION',
+            'POSITION_OTHERS',
+            'INVENTORY',
+            'SINCE_AGENT_LAST_CLEANED',
+            'SINCE_AGENT_LAST_PAYED',
+            'SINCE_AGENT_LAST_ZAPPED',
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'CUR_CELL_HAS_APPLE', 
+            'AGENT_CLEANED'
+        ]
         
   def step(self, 
            timestep: dm_env.TimeStep,
@@ -243,6 +233,7 @@ class RuleObeyingPolicy(policy.Policy):
   def update_observation(self, obs, x, y) -> dict:
     """Updates the observation with requested information."""
     obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
+    obs['WATER_LOCATION'] = list(zip(*np.where(obs['SURROUNDINGS'] == -1)))
     obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -3 else False
     self.make_territory_observation(obs, x, y)
     obs['POSITION_OTHERS'] = self.get_others(obs)
@@ -361,6 +352,8 @@ class RuleObeyingPolicy(policy.Policy):
           observation['SINCE_AGENT_LAST_PAYED'] = payed_time
 
       observation['INVENTORY'] = cur_inventory
+      observation['WATER_LOCATION'] = list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
+      
       next_timestep.step_type = dm_env.StepType.MID
       next_timestep.reward = reward
       next_timestep.observation = observation
@@ -479,10 +472,8 @@ class RuleObeyingPolicy(policy.Policy):
 
   def get_ts_hash_key(self, obs, reward):
     # Convert the dictionary to a tuple of key-value pairs
-    relevant_keys = self.relevant_apple_keys if self.current_obligation == None else self.relevant_obligation_keys
-    items = tuple((key, value) for key, value in obs.items() if key in relevant_keys)
+    items = tuple((key, value) for key, value in obs.items() if key in self.relevant_keys)
     sorted_items = sorted(items, key=lambda x: x[0])
-    # items = [value[1] for value in sorted_items]
     list_bytes = pickle.dumps(sorted_items + [reward])
     hash_key = hashlib.sha256(list_bytes).hexdigest() 
     return hash_key
