@@ -65,15 +65,14 @@ class RuleObeyingPolicy(policy.Policy):
     self.max_depth = 20
     self.compliance_cost = 0.1
     self.violation_cost = 0.4
-    self.tau = 0.6
+    self.tau = 0.1
     self.action_cost = 1
-    self.epsilon = 0.2
+    # self.epsilon = 0.2
     self.regrowth_rate = 0.5
     self.n_steps = 10
     self.gamma = 0.98
     self.n_rollouts = 8
     self.obligation_reward = 1
-    self.initial_exp_r_cum = [30] * self.action_spec.num_values
     
     # GLOBAL INITILIZATIONS
     self.history = deque(maxlen=10)
@@ -121,13 +120,26 @@ class RuleObeyingPolicy(policy.Policy):
             "PAY_ACTION"
           ]
     
-    self.relevant_keys = [
+    self.relevant_apple_keys = [
+      'POSITION', 
+      'ORIENTATION',
+      'NUM_APPLES_AROUND',
+      # 'POSITION_OTHERS',
+      'INVENTORY',
+      # 'SINCE_AGENT_LAST_CLEANED',
+      'CUR_CELL_IS_FOREIGN_PROPERTY', 
+      'CUR_CELL_HAS_APPLE', 
+      # 'AGENT_CLEANED'
+      ]
+    
+    self.relevant_obligation_keys = [
       'POSITION', 
       'ORIENTATION',
       'NUM_APPLES_AROUND',
       'POSITION_OTHERS',
-      'INVENTORY',
+      # 'INVENTORY',
       'SINCE_AGENT_LAST_CLEANED',
+      'SINCE_AGENT_LAST_PAYED',
       'CUR_CELL_IS_FOREIGN_PROPERTY', 
       'CUR_CELL_HAS_APPLE', 
       'AGENT_CLEANED'
@@ -348,7 +360,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       observation['INVENTORY'] = cur_inventory
       next_timestep.step_type = dm_env.StepType.MID
-      next_timestep.reward = reward - self.action_cost
+      next_timestep.reward = reward
       next_timestep.observation = observation
 
       return next_timestep
@@ -465,7 +477,8 @@ class RuleObeyingPolicy(policy.Policy):
 
   def get_ts_hash_key(self, obs, reward):
     # Convert the dictionary to a tuple of key-value pairs
-    items = tuple((key, value) for key, value in obs.items() if key in self.relevant_keys)
+    relevant_keys = self.relevant_apple_keys if self.current_obligation == None else self.relevant_obligation_keys
+    items = tuple((key, value) for key, value in obs.items() if key in relevant_keys)
     sorted_items = sorted(items, key=lambda x: x[0])
     # items = [value[1] for value in sorted_items]
     list_bytes = pickle.dumps(sorted_items + [reward])
@@ -491,18 +504,24 @@ class RuleObeyingPolicy(policy.Policy):
         # taking nest best action
         ts_cur = self.env_step(ts_cur, next_act, self._index)
 
+    # print('POST ROLLOUT')
+
     # post-rollout update
     while len(visited) > 0:
       ts_cur = visited.pop()
       _ = self.update(ts_cur)
+
+    # print()
+    # print('POST ROLLOUT DONE')
 
     return
   
   def get_best_act(self, ts_cur: AgentTimestep) -> int:
     hash = self.hash_ts(ts_cur)
     if hash in self.V[self.goal].keys():
+      print(f'position: {ts_cur.observation["POSITION"]}')
       print(self.V[self.goal][hash])
-      return np.argmax(self.V[self.goal][hash][1:]) + 1 # no null action
+      return np.argmax(self.V[self.goal][hash]) # no null action
     else:
       best_act, _ = self.update(ts_cur)
       return best_act
@@ -520,7 +539,6 @@ class RuleObeyingPolicy(policy.Policy):
     # initialize best optimistic guess for cur state
     if s_cur not in self.V[self.goal].keys():
         self.V[self.goal][s_cur] = self.init_heuristic(ts_cur)
-        print('POS CURRENT: ' + str(ts_cur.observation['POSITION']) + ', heuristic: ' + str(self.V[self.goal][s_cur]))
     
     for act in range(size): 
       ts_next = self.env_step(ts_cur, act, self._index)
@@ -530,11 +548,10 @@ class RuleObeyingPolicy(policy.Policy):
         continue
 
       s_next = self.hash_ts(ts_next)
-
       # initialize best optimistic guess for next state
       if s_next not in self.V[self.goal].keys():
         self.V[self.goal][s_next] = self.init_heuristic(ts_next)
-      
+
       Q[act]  = self.get_estimated_return(ts_next, s_next, act, available)
 
     self.V[self.goal][s_cur] = Q
@@ -554,10 +571,9 @@ class RuleObeyingPolicy(policy.Policy):
         continue
 
       if self.goal == "apple":
-        pos_cur_apples = self.get_cur_apples(observation['SURROUNDINGS'])
-        r_cur_apples = self.get_discounted_reward(pos_cur_apples, pos)
-        r_fut_apples = self.predict_future_reward(pos_cur_apples, pos)
-        reward = r_cur_apples + r_fut_apples
+        r_cur_apples = self.get_discounted_reward(self.pos_all_apples, pos)
+        r_eaten_apples = 10 if tuple(pos) in self.pos_all_apples and act==10 else 0
+        reward = r_cur_apples + r_eaten_apples
 
       else:
         pos_cur_obl = self.get_cur_obl_pos(observation)
@@ -575,41 +591,34 @@ class RuleObeyingPolicy(policy.Policy):
     else: # self.goal == 'zap'
       return list(zip(*np.where(observation['SURROUNDINGS'] == self.riots)))
 
-  def predict_future_reward(self, pos_cur_apples, own_pos) -> float:
-    reward = 0.0
-    pos_future_apples = [i for i in self.pos_all_apples if i not in pos_cur_apples]
-    for pos in pos_future_apples:
-      reward += 1 * self.regrowth_rate - self.manhattan_dis(pos, own_pos) * 0.1
-    return reward
-
   def get_discounted_reward(self, target_pos, own_pos) -> float:
     reward = 0.0
-    print('getting discounteed apples')
-    print(target_pos)
     for pos in target_pos:
-      print(reward)
-      reward += 1 - self.manhattan_dis(pos, own_pos) * 0.1
+      reward += 1 - self.manhattan_dis(pos, own_pos)
     return reward
 
   def manhattan_dis(self, pos_cur, pos_goal) -> int:
-    return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1]) * 0.1
+    return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1])
 
   def get_cur_apples(self, surroundings: np.array) -> list:
     return list(zip(*np.where(surroundings== -3)))
   
   def select_action(self, q_values: list) -> int:
-    #if random.random() < self.epsilon:
-        #action = random.choice(range(self.action_spec.num_values))
-    #else: # boltzman
-    probs = q_values / self.tau
+    if random.random() < self.epsilon:
+        action = random.choice(range(self.action_spec.num_values))
+    else: # boltzman
+      action = np.argmax(q_values)
+    """probs = q_values / self.tau
     probs /= np.sum(probs)
-    action = np.random.choice(range(self.action_spec.num_values), p=probs)
+    print(probs)
+    action = np.random.choice(range(self.action_spec.num_values), p=probs)"""
 
     return action
   
   def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list) -> float:
     r_forward = max(self.V[self.goal][s_next]) * self.gamma
-    r_cur = ts_next.reward
+    # r_forward = self.V[self.goal][s_cur][act] * self.gamma
+    r_cur = ts_next.reward * 10 - self.action_cost
 
     if self.current_obligation != None:
       r_cur = 0

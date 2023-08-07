@@ -55,16 +55,17 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # HYPERPARAMETER
         self.max_depth = 20
-        self.compliance_cost = 1
-        self.violation_cost = 0.2
-        self.epsilon = 0.8
+        self.compliance_cost = 0.0
+        self.violation_cost = 1.0
+        # self.epsilon = 0.8
         self.n_steps = 2
-        self.tau = 0.2
-        self.action_cost = 0.5
+        self.tau = 0.1
+        self.action_cost = 1
         self.regrowth_rate = 0.5
         self.step_counter = 0
-        self.gamma = 0.98
-        self.n_rollouts = 10
+        self.epsilon = 0.5
+        self.gamma = 0.9
+        self.n_rollouts = 5
         self.obligation_reward = 1.0
         self.init_prior = 0.2
         self.p_obey = 0.9
@@ -122,16 +123,27 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             "PAY_ACTION"
           ]
         
-        self.relevant_keys = [
+        self.relevant_apple_keys = [
             'POSITION', 
             'ORIENTATION',
             'NUM_APPLES_AROUND',
             # 'POSITION_OTHERS',
-            'SINCE_AGENT_LAST_CLEANED',
-            # 'SINCE_AGENT_LAST_ZAPPED',
-            # 'SINCE_AGENT_LAST_PAYED',
             'INVENTORY',
-            # 'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            # 'SINCE_AGENT_LAST_CLEANED',
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'CUR_CELL_HAS_APPLE', 
+            # 'AGENT_CLEANED'
+        ]
+    
+        self.relevant_obligation_keys = [
+            'POSITION', 
+            'ORIENTATION',
+            'NUM_APPLES_AROUND',
+            'POSITION_OTHERS',
+            # 'INVENTORY',
+            'SINCE_AGENT_LAST_CLEANED',
+            'SINCE_AGENT_LAST_PAYED',
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
             'CUR_CELL_HAS_APPLE', 
             'AGENT_CLEANED'
         ]
@@ -148,8 +160,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         ts_cur = self.history[-1][self._index]
         self.ts_start = ts_cur
         self.ts_start.observation = self.deepcopy_dict(ts_cur.observation)
-
-        print(self.ts_start.observation['SURROUNDINGS'])
 
         if ts_cur.step_type == dm_env.StepType.FIRST:
             self.pos_all_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
