@@ -55,17 +55,16 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # HYPERPARAMETER
         self.max_depth = 20
-        self.compliance_cost = 0.0
-        self.violation_cost = 1.0
-        # self.epsilon = 0.8
+        self.compliance_cost = 1.0
+        self.violation_cost = 2.0
         self.n_steps = 2
-        self.tau = 0.1
+        self.tau = 0.9
         self.action_cost = 1
-        self.regrowth_rate = 0.5
+        # self.regrowth_rate = 0.5
         self.step_counter = 0
         self.epsilon = 0.5
-        self.gamma = 0.9
-        self.n_rollouts = 5
+        self.gamma = 0.9999
+        self.n_rollouts = 2
         self.obligation_reward = 1.0
         self.init_prior = 0.2
         self.p_obey = 0.9
@@ -127,6 +126,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'POSITION', 
             'ORIENTATION',
             'NUM_APPLES_AROUND',
+            'EAT_ACTION',
             # 'POSITION_OTHERS',
             'INVENTORY',
             # 'SINCE_AGENT_LAST_CLEANED',
@@ -139,6 +139,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'POSITION', 
             'ORIENTATION',
             'NUM_APPLES_AROUND',
+            # 'EAT_ACTION',
             'POSITION_OTHERS',
             # 'INVENTORY',
             'SINCE_AGENT_LAST_CLEANED',

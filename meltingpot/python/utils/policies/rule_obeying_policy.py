@@ -265,6 +265,7 @@ class RuleObeyingPolicy(policy.Policy):
       setattr(self, last_counters[action], 0)
 
     # Update the observations with the updated counters
+    obs['EAT_ACTION'] = True if action == 10 else False
     obs['SINCE_AGENT_LAST_ZAPPED'] = self.last_zapped
     obs['SINCE_AGENT_LAST_CLEANED'] = self.last_cleaned
     obs['SINCE_AGENT_LAST_PAYED'] = self.last_payed
@@ -315,6 +316,7 @@ class RuleObeyingPolicy(policy.Policy):
       next_timestep = AgentTimestep()
       orientation = observation['ORIENTATION']
       observation['AGENT_CLEANED'] = False
+      observation['EAT_ACTION'] = True if action == 10 else False
       cur_inventory = observation['INVENTORY']
       cur_pos = observation['POSITION']
       reward = 0
@@ -501,18 +503,14 @@ class RuleObeyingPolicy(policy.Policy):
         visited.append(ts_cur)
         # greedy rollout giving the next best action
         next_act = self.update(ts_cur)
+        print(f'NEXT ACTION: {next_act}')
         # taking nest best action
         ts_cur = self.env_step(ts_cur, next_act, self._index)
-
-    # print('POST ROLLOUT')
 
     # post-rollout update
     while len(visited) > 0:
       ts_cur = visited.pop()
       _ = self.update(ts_cur)
-
-    # print()
-    # print('POST ROLLOUT DONE')
 
     return
   
@@ -572,7 +570,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       if self.goal == "apple":
         r_cur_apples = self.get_discounted_reward(self.pos_all_apples, pos)
-        r_eaten_apples = 10 if tuple(pos) in self.pos_all_apples and act==10 else 0
+        r_eaten_apples = 10 if tuple(pos) in self.pos_all_apples and observation['INVENTORY'] != 0 and act == 10 else 0
         reward = r_cur_apples + r_eaten_apples
 
       else:
@@ -604,21 +602,20 @@ class RuleObeyingPolicy(policy.Policy):
     return list(zip(*np.where(surroundings== -3)))
   
   def select_action(self, q_values: list) -> int:
-    if random.random() < self.epsilon:
+    """if random.random() < self.epsilon:
         action = random.choice(range(self.action_spec.num_values))
     else: # boltzman
-      action = np.argmax(q_values)
-    """probs = q_values / self.tau
-    probs /= np.sum(probs)
-    print(probs)
-    action = np.random.choice(range(self.action_spec.num_values), p=probs)"""
+      action = np.argmax(q_values)"""
+    exp_q_values = np.exp(q_values / self.tau)
+    probs = exp_q_values / np.sum(exp_q_values)
+    action = np.argmax(probs)
 
     return action
-  
+
   def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list) -> float:
-    r_forward = max(self.V[self.goal][s_next]) * self.gamma
-    # r_forward = self.V[self.goal][s_cur][act] * self.gamma
-    r_cur = ts_next.reward * 10 - self.action_cost
+    r_forward = max(self.V[self.goal][s_next]) / self.gamma
+    # print(f'first: {max(self.V[self.goal][s_next])}, after scaling: {r_forward}')
+    r_cur = ts_next.reward * 10
 
     if self.current_obligation != None:
       r_cur = 0
