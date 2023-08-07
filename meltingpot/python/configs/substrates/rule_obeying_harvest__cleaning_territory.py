@@ -72,7 +72,7 @@ PrefabConfig = game_object_utils.PrefabConfig
 
 APPLE_RESPAWN_RADIUS = 2.0
 REGROWTH_PROBABILITIES = [0.5, 0.5, 0.5, 0.5]
-OBSERVATION_RADIUS = 10 # defines radius that agents can observe
+OBSERVATION_RADIUS = 15 # defines radius that agents can observe
 
 ASCII_MAP = """
 WWWWWWWWWWWWWWWWWWWWWWW
