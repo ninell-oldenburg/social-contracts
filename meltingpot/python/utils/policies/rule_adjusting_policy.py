@@ -34,6 +34,10 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                  active_obligations: list = DEFAULT_OBLIGATIONS,
                  selection_mode: str = "threshold",
                  threshold: int = 0.8,
+                 max_depth: int = 20,
+                 tau: float = 0.9,
+                 reward_scale_param: int = 9,
+                 gamma: float = 0.9999,
                  ) -> None:
         
         # CALLING PARAMETERS
@@ -54,15 +58,15 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.threshold = threshold
 
         # HYPERPARAMETER
-        self.max_depth = 20
-        self.compliance_cost = 1.0
+        self.max_depth = max_depth
+        self.tau = tau
+        self.reward_scale_param = reward_scale_param
+        self.gamma = gamma
+
+        # FIXED COSTS, PARAMS, COUNTERS
+        self.compliance_cost = 1.0 # action cost
         self.violation_cost = 2.0
         self.n_steps = 2
-        self.tau = 0.9
-        self.action_cost = 1
-        # self.regrowth_rate = 0.5
-        self.step_counter = 0
-        self.gamma = 0.9999
         self.n_rollouts = 2
         self.obligation_reward = 1.0
         self.init_prior = 0.2
@@ -70,6 +74,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         
         # GLOBAL INITILIZATIONS
         self.history = deque(maxlen=10)
+        self.step_counter = 0
         self.payees = []
         self.riots = []
         self.pos_all_cur_apples = []

@@ -19,12 +19,13 @@ You must provide experiment_state, expected to be
 import dm_env
 from dmlab2d.ui_renderer import pygame
 import numpy as np
-from itertools import islice
+import itertools
 
 import os
 
 from meltingpot.python import substrate
 import csv
+import time
 
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
@@ -105,6 +106,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
   fps = 5
 
   pygame.init()
+  start_time = time.time()  # Start the timer
   clock = pygame.time.Clock()
   pygame.display.set_caption("DM Lab2d")
   obs_spec = env.observation_spec()
@@ -172,6 +174,9 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
 
   settings = get_settings(bots=bots, rules=rules)
 
+  end_time = time.time()  # End the timer
+
+  return end_time - start_time, data_dict
   return settings, data_dict
 
   """ Profiler Run:
@@ -309,17 +314,45 @@ def update(actions):
 if __name__ == "__main__":
   roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
   episodes = 200
-  num_iteration = 1
-  setting, data_dict = main(roles=roles,
-                            rules=DEFAULT_RULES,
-                            env_seed=1,
-                            episodes=episodes, 
-                            num_iteration=num_iteration, 
-                            create_video=True,
-                            log_output=True,
-                            save_csv=False)
+  num_iteration = 10
+
+  depths = [10, 15, 20, 25]
+  taus = [0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
+  reward_scale_params = [7, 8, 9, 10, 11, 12, 13, 14, 15]
+  gammas = [0.99, 0.9999, 0.99999]
+
+  # Get all possible combinations
+  combinations = list(itertools.product(depths, taus, reward_scale_params, gammas))
+  results = []
+
+  for max_depth, tau, reward_scale_param, gamma in combinations:
+    elapsed_time, data_dict = main(roles=roles,
+                              rules=DEFAULT_RULES,
+                              env_seed=1,
+                              episodes=episodes,
+                              num_iteration=num_iteration,
+                              create_video=False,
+                              log_output=False,
+                              save_csv=False,
+                              max_depth=max_depth,
+                              tau=tau,
+                              reward_scale_param=reward_scale_param,
+                              gamma=gamma)
+    
+    result = {
+      "max_depth": max_depth,
+      "tau": tau,
+      "reward_scale_param": reward_scale_param,
+      "gamma": gamma,
+      "average_time": elapsed_time,
+      "average_cleaner_sum": sum(data_dict['cleaner'])
+    }
+
+    results.append(result)
+
+  print(results)
   
-  print(sum(data_dict['cleaner']))
-  print(sum(data_dict['farmer']))
-  print(sum(data_dict['free']))
-  print(sum(data_dict['learner']))
+  #print(sum(data_dict['cleaner']))
+  #print(sum(data_dict['farmer']))
+  #print(sum(data_dict['free']))
+  #print(sum(data_dict['learner']))

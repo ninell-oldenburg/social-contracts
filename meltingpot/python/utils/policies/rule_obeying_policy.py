@@ -66,7 +66,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.compliance_cost = 0.1
     self.violation_cost = 0.4
     self.tau = 0.1
-    self.action_cost = 1
+    # self.action_cost = 1
     # self.epsilon = 0.2
     self.regrowth_rate = 0.5
     self.n_steps = 10
@@ -353,7 +353,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       observation['INVENTORY'] = cur_inventory
       observation['WATER_LOCATION'] = list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
-      
+
       next_timestep.step_type = dm_env.StepType.MID
       next_timestep.reward = reward
       next_timestep.observation = observation
@@ -560,13 +560,13 @@ class RuleObeyingPolicy(policy.Policy):
 
       if self.goal == "apple":
         r_cur_apples = self.get_discounted_reward(self.pos_all_cur_apples, pos)
-        r_eaten_apples = 9 if observation['INVENTORY'] != 0 and act == 10 else 0
+        r_eaten_apples = self.reward_scale_param if observation['INVENTORY'] != 0 and act == 10 else 0
         reward = r_cur_apples + r_eaten_apples
 
       else:
         pos_cur_obl = self.get_cur_obl_pos(observation)
         r_cur_obl = self.get_discounted_reward(pos_cur_obl, pos)
-        r_fulfilled_obl = 9 if self.current_obligation.satisfied(observation) else 0
+        r_fulfilled_obl = self.reward_scale_param if self.current_obligation.satisfied(observation) else 0
         reward = r_cur_obl + r_fulfilled_obl
 
       Q[act] = reward
@@ -602,7 +602,7 @@ class RuleObeyingPolicy(policy.Policy):
 
   def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list) -> float:
     r_forward = max(self.V[self.goal][s_next]) / self.gamma
-    r_cur = ts_next.reward * 9 # it needs careful scaling with the values from manhattan dis
+    r_cur = ts_next.reward * self.reward_scale_param # it needs careful scaling with the values from manhattan dis
 
     if self.current_obligation != None:
       r_cur = 0
