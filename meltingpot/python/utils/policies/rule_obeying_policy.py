@@ -290,6 +290,7 @@ class RuleObeyingPolicy(policy.Policy):
       x, y = new_pos[0], new_pos[1]
       cur_pos = list(zip(*np.where(observation['SURROUNDINGS'] == idx+1)))
       if not self.exceeds_map(x, y):
+        # print(f'update surroundings pos: {cur_pos[0][0], cur_pos[0][1]}')
         observation['SURROUNDINGS'][cur_pos[0][0]][cur_pos[0][1]] = 0
         observation['SURROUNDINGS'][x][y] = idx+1
 
@@ -560,15 +561,19 @@ class RuleObeyingPolicy(policy.Policy):
         continue
 
       if self.goal == "apple":
-        cur_apples = self.get_cur_apple_pos(observation['SURROUNDINGS'])
-        future_apples = [apple for apple in self.pos_all_cur_apples if apple not in cur_apples and not apple == tuple(pos)]
-        r_cur_apples = self.get_discounted_reward(cur_apples, pos)
-        r_fut_apples = self.get_discounted_reward(future_apples, pos, 0.99)
+        #cur_apples = self.get_cur_apple_pos(observation['SURROUNDINGS'])
+        #future_apples = [apple for apple in self.pos_all_cur_apples if apple not in cur_apples]
+        r_cur_apples = self.get_discounted_reward(self.pos_all_cur_apples, pos)
+        #r_fut_apples = self.get_discounted_reward(future_apples, pos)
+        #print(f"cur_apples: {cur_apples},\n\nfuture_apples: {future_apples}")
         r_eaten_apples = self.reward_scale_param if observation['INVENTORY'] != 0 and act == 10 else 0
-        reward = r_cur_apples + r_eaten_apples + r_fut_apples
+        reward = r_cur_apples + r_eaten_apples #+ r_fut_apples
 
       else:
         pos_cur_obl = self.get_cur_obl_pos(observation)
+        if self.goal == "pay":
+          print(f"AlWAYS PAYING TO: {observation['ALWAYS_PAYING_TO']}")
+          print(f"PAY GOAL: {pos_cur_obl}")
         r_cur_obl = self.get_discounted_reward(pos_cur_obl, pos)
         r_fulfilled_obl = self.reward_scale_param if self.current_obligation.satisfied(observation) else 0
         reward = r_cur_obl + r_fulfilled_obl
@@ -580,12 +585,19 @@ class RuleObeyingPolicy(policy.Policy):
   def get_cur_obl_pos(self, observation: dict) -> list:
     if self.goal == 'clean':
       return list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
-    elif self.goal == 'pay':
-      return  list(zip(*np.where(observation['SURROUNDINGS'] == observation['ALWAYS_PAYING_TO'])))
-    else: # self.goal == 'zap'
-      return list(zip(*np.where(observation['SURROUNDINGS'] == self.riots)))
+    else:
+      return  self.get_agent_list(observation)
+    
+  def get_agent_list(self, observation: dict) -> list:
+    agent_idx = observation['ALWAYS_PAYING_TO'] if self.goal == "pay" else self.riots # zap
+    agents_pos = []
+    for agent in agent_idx:
+      if agent != 0:
+        agents_pos += list(zip(*np.where(observation['SURROUNDINGS'] == agent)))
 
-  def get_discounted_reward(self, target_pos, own_pos, dis_rate=1.0) -> float:
+    return agents_pos
+
+  def get_discounted_reward(self, target_pos, own_pos, dis_rate=1) -> float:
     reward = 0.0
     for pos in target_pos:
       reward += 1 - self.manhattan_dis(pos, own_pos) * dis_rate

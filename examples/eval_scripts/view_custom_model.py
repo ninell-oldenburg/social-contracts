@@ -327,7 +327,7 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 0
   episodes = 200
   num_iteration = 10
 
@@ -342,7 +342,7 @@ if __name__ == "__main__":
                             max_depth=20,
                             tau=0.99,
                             reward_scale_param=18,
-                            gamma=0.99)
+                            gamma=0.999)
       
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
