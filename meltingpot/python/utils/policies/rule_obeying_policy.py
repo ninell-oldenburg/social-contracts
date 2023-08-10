@@ -290,7 +290,6 @@ class RuleObeyingPolicy(policy.Policy):
       x, y = new_pos[0], new_pos[1]
       cur_pos = list(zip(*np.where(observation['SURROUNDINGS'] == idx+1)))
       if not self.exceeds_map(x, y):
-        # print(f'update surroundings pos: {cur_pos[0][0], cur_pos[0][1]}')
         observation['SURROUNDINGS'][cur_pos[0][0]][cur_pos[0][1]] = 0
         observation['SURROUNDINGS'][x][y] = idx+1
 
@@ -571,9 +570,6 @@ class RuleObeyingPolicy(policy.Policy):
 
       else:
         pos_cur_obl = self.get_cur_obl_pos(observation)
-        if self.goal == "pay":
-          print(f"AlWAYS PAYING TO: {observation['ALWAYS_PAYING_TO']}")
-          print(f"PAY GOAL: {pos_cur_obl}")
         r_cur_obl = self.get_discounted_reward(pos_cur_obl, pos)
         r_fulfilled_obl = self.reward_scale_param if self.current_obligation.satisfied(observation) else 0
         reward = r_cur_obl + r_fulfilled_obl
