@@ -336,12 +336,12 @@ if __name__ == "__main__":
                             env_seed=1,
                             episodes=episodes,
                             num_iteration=1,
-                            create_video=False,
+                            create_video=True,
                             log_output=True,
                             save_csv=False,
                             max_depth=20,
                             tau=0.99,
-                            reward_scale_param=18,
+                            reward_scale_param=10,
                             gamma=0.999)
       
   print(sum(data_dict['cleaner']))

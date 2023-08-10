@@ -213,8 +213,8 @@ class RuleObeyingPolicy(policy.Policy):
     return self.riots
 
   def get_zapped_agent(self, player_who_zapped: int, obs: dict) -> int:
-    #print('player_who_zapped: ' + str(player_who_zapped))
-    #print('position others: ' + str(obs['POSITION_OTHERS']))
+    print('player_who_zapped: ' + str(player_who_zapped))
+    print('position others: ' + str(obs['POSITION_OTHERS']))
     x, y = obs['POSITION_OTHERS'][player_who_zapped][0], obs['POSITION_OTHERS'][player_who_zapped][1]
     for i in range(x-1, x+2):
       for j in range(y-1, y+2):
@@ -614,7 +614,7 @@ class RuleObeyingPolicy(policy.Policy):
 
   def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list) -> float:
     r_forward = max(self.V[self.goal][s_next]) / self.gamma
-    r_cur = ts_next.reward * self.reward_scale_param # it needs careful scaling with the values from manhattan dis
+    r_cur = ts_next.reward # * self.reward_scale_param # it needs careful scaling with the values from manhattan dis
 
     if self.current_obligation != None:
       r_cur = 0
