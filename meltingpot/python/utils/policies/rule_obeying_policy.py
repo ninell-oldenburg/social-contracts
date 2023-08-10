@@ -213,8 +213,8 @@ class RuleObeyingPolicy(policy.Policy):
     return self.riots
 
   def get_zapped_agent(self, player_who_zapped: int, obs: dict) -> int:
-    print('player_who_zapped: ' + str(player_who_zapped))
-    print('position others: ' + str(obs['POSITION_OTHERS']))
+    #print('player_who_zapped: ' + str(player_who_zapped))
+    #print('position others: ' + str(obs['POSITION_OTHERS']))
     x, y = obs['POSITION_OTHERS'][player_who_zapped][0], obs['POSITION_OTHERS'][player_who_zapped][1]
     for i in range(x-1, x+2):
       for j in range(y-1, y+2):
@@ -507,8 +507,9 @@ class RuleObeyingPolicy(policy.Policy):
   def get_best_act(self, ts_cur: AgentTimestep) -> int:
     hash = self.hash_ts(ts_cur)
     if hash in self.V[self.goal].keys():
-      print(f'position: {ts_cur.observation["POSITION"]}')
-      print(self.V[self.goal][hash])
+      if self.log_output:
+        print(f'position: {ts_cur.observation["POSITION"]}')
+        print(self.V[self.goal][hash])
       return np.argmax(self.V[self.goal][hash]) # no null action
     else:
       best_act, _ = self.update(ts_cur)
@@ -559,9 +560,12 @@ class RuleObeyingPolicy(policy.Policy):
         continue
 
       if self.goal == "apple":
-        r_cur_apples = self.get_discounted_reward(self.pos_all_cur_apples, pos)
+        cur_apples = self.get_cur_apple_pos(observation['SURROUNDINGS'])
+        future_apples = [apple for apple in self.pos_all_cur_apples if apple not in cur_apples and not apple == tuple(pos)]
+        r_cur_apples = self.get_discounted_reward(cur_apples, pos)
+        r_fut_apples = self.get_discounted_reward(future_apples, pos, 0.99)
         r_eaten_apples = self.reward_scale_param if observation['INVENTORY'] != 0 and act == 10 else 0
-        reward = r_cur_apples + r_eaten_apples
+        reward = r_cur_apples + r_eaten_apples + r_fut_apples
 
       else:
         pos_cur_obl = self.get_cur_obl_pos(observation)
@@ -581,16 +585,16 @@ class RuleObeyingPolicy(policy.Policy):
     else: # self.goal == 'zap'
       return list(zip(*np.where(observation['SURROUNDINGS'] == self.riots)))
 
-  def get_discounted_reward(self, target_pos, own_pos) -> float:
+  def get_discounted_reward(self, target_pos, own_pos, dis_rate=1.0) -> float:
     reward = 0.0
     for pos in target_pos:
-      reward += 1 - self.manhattan_dis(pos, own_pos)
+      reward += 1 - self.manhattan_dis(pos, own_pos) * dis_rate
     return reward
 
   def manhattan_dis(self, pos_cur, pos_goal) -> int:
     return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1])
 
-  def get_cur_apples(self, surroundings: np.array) -> list:
+  def get_cur_apple_pos(self, surroundings: np.array) -> list:
     return list(zip(*np.where(surroundings== -3)))
   
   def get_boltzmann_act(self, q_values: list) -> int:

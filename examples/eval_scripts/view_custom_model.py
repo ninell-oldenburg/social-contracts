@@ -38,7 +38,18 @@ from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPo
 
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
 
-def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log_output=True, save_csv=True):
+def main(roles, 
+          episodes, 
+          num_iteration, 
+          rules, 
+          env_seed, 
+          create_video=True, 
+          log_output=True, 
+          save_csv=True, 
+          max_depth=20,
+          tau=0.9,
+          reward_scale_param=9,
+          gamma=0.9999):
 
   level_name = get_name_from_rules(rules)
   substrate_name = f'rule_obeying_harvest_{level_name}'
@@ -67,7 +78,11 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
                                     potential_prohibitions=POTENTIAL_PROHIBITIONS,
                                     active_prohibitions=DEFAULT_PROHIBITIONS,
                                     active_obligations=DEFAULT_OBLIGATIONS,
-                                    selection_mode="threshold"
+                                    selection_mode="threshold",
+                                    max_depth=max_depth,
+                                    tau=tau,
+                                    reward_scale_param=reward_scale_param,
+                                    gamma=gamma
                                     ))
     """else:
     bots.append(RuleLearningPolicy(env=env, 
@@ -176,7 +191,7 @@ def main(roles, episodes, num_iteration, rules, env_seed, create_video=True, log
 
   end_time = time.time()  # End the timer
 
-  return end_time - start_time, data_dict
+  # return end_time - start_time, data_dict
   return settings, data_dict
 
   """ Profiler Run:
@@ -312,47 +327,24 @@ def update(actions):
   return actions
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 0
   episodes = 200
   num_iteration = 10
 
-  depths = [10, 15, 20, 25]
-  taus = [0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
-  reward_scale_params = [7, 8, 9, 10, 11, 12, 13, 14, 15]
-  gammas = [0.99, 0.9999, 0.99999]
-
-  # Get all possible combinations
-  combinations = list(itertools.product(depths, taus, reward_scale_params, gammas))
-  results = []
-
-  for max_depth, tau, reward_scale_param, gamma in combinations:
-    elapsed_time, data_dict = main(roles=roles,
-                              rules=DEFAULT_RULES,
-                              env_seed=1,
-                              episodes=episodes,
-                              num_iteration=num_iteration,
-                              create_video=False,
-                              log_output=False,
-                              save_csv=False,
-                              max_depth=max_depth,
-                              tau=tau,
-                              reward_scale_param=reward_scale_param,
-                              gamma=gamma)
-    
-    result = {
-      "max_depth": max_depth,
-      "tau": tau,
-      "reward_scale_param": reward_scale_param,
-      "gamma": gamma,
-      "average_time": elapsed_time,
-      "average_cleaner_sum": sum(data_dict['cleaner'])
-    }
-
-    results.append(result)
-
-  print(results)
-  
-  #print(sum(data_dict['cleaner']))
-  #print(sum(data_dict['farmer']))
-  #print(sum(data_dict['free']))
-  #print(sum(data_dict['learner']))
+  settings, data_dict = main(roles=roles,
+                            rules=DEFAULT_RULES,
+                            env_seed=1,
+                            episodes=episodes,
+                            num_iteration=1,
+                            create_video=False,
+                            log_output=True,
+                            save_csv=False,
+                            max_depth=20,
+                            tau=0.99,
+                            reward_scale_param=18,
+                            gamma=0.99)
+      
+  print(sum(data_dict['cleaner']))
+  print(sum(data_dict['farmer']))
+  print(sum(data_dict['free']))
+  print(sum(data_dict['learner']))

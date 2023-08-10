@@ -103,6 +103,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.others_history = deque(maxlen=10)
         self.history = deque(maxlen=10)
 
+        print(f"SETTINGS\nmax_depth: {self.max_depth},\ntau: {self.tau},\nreward_scale_param: {self.reward_scale_param},\ngamma: {self.gamma}\n")
+
         # move actions
         self.action_to_pos = [
             [[0,0],[0,-1],[0,1],[-1,0],[1,0]], # N
@@ -178,6 +180,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         if not self.has_policy(self.ts_start):
             self.rtdp(ts_cur)
+
+        if self.goal == "pay":
+            print('position others: ' + str(ts_cur.observation['POSITION_OTHERS']))
         
         return self.get_best_act(self.ts_start)
     

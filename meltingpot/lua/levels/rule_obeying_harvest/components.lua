@@ -1304,11 +1304,9 @@ function Surroundings:update()
   self:setPayeeLocations()
   self:setOwnLocation()
   self:setRatioDessicatedFields()
+  self:setOtherPlayersLocation()
   --print(self.deadAppleRatio)
   -- self:setOwnLocation()
-  if self._config.agentRole == "learner" then 
-    self:setOtherPlayersLocation()
-  end
 end
 
 --[[ The Taste component assigns specific roles to agents. Not used in defaults.
