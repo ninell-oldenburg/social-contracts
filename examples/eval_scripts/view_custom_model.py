@@ -341,8 +341,8 @@ if __name__ == "__main__":
                             save_csv=False,
                             max_depth=20,
                             tau=0.5,
-                            reward_scale_param=1,
-                            gamma=0.8)
+                            reward_scale_param=10,
+                            gamma=0.9)
       
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))

@@ -604,7 +604,7 @@ class RuleObeyingPolicy(policy.Policy):
     return reward
 
   def manhattan_dis(self, pos_cur, pos_goal) -> int:
-    return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1])
+    return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1]) * 0.1
 
   def get_cur_apple_pos(self, surroundings: np.array) -> list:
     return list(zip(*np.where(surroundings== -3)))
