@@ -64,8 +64,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.gamma = gamma
 
         # FIXED COSTS, PARAMS, COUNTERS
-        self.compliance_cost = 1.0 # action cost
-        self.violation_cost = 2.0
+        self.compliance_cost = 0.0 # action cost shall not exceed reward
+        self.violation_cost = 0.0
         self.n_steps = 2
         self.n_rollouts = 2
         self.obligation_reward = 1.0
@@ -137,6 +137,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'EAT_ACTION',
             'POSITION_OTHERS',
             'INVENTORY',
+            'SURROUNDINGS',
             'SINCE_AGENT_LAST_CLEANED',
             'SINCE_AGENT_LAST_PAYED',
             'SINCE_AGENT_LAST_ZAPPED',

@@ -377,10 +377,12 @@ class RuleObeyingPolicy(policy.Policy):
     if not self.role == 'farmer':
       # if facing north and is at water
       if not self.exceeds_map(x, y):
-        if observation['ORIENTATION'] == 0:
-          if observation['SURROUNDINGS'][x][y-1] == -1 or observation['SURROUNDINGS'][x][y-2] == -1:
-            last_cleaned_time = 0
-            num_cleaners = 1
+        min_pos = tuple((x, y-1))
+        if self.is_water(observation, min_pos):
+          if observation['ORIENTATION'] == 0:
+            if observation['SURROUNDINGS'][x][y-1] == -1 or observation['SURROUNDINGS'][x][y-2] == -1:
+              last_cleaned_time = 0
+              num_cleaners = 1
 
     return last_cleaned_time, num_cleaners
   
@@ -548,7 +550,9 @@ class RuleObeyingPolicy(policy.Policy):
   
   def init_heuristic(self, timestep: AgentTimestep) -> np.array:
     size = self.action_spec.num_values 
-    Q = np.full(size, -1.0)
+    Q = np.full(size, -np.inf)
+
+    # print(f'init {timestep.observation["POSITION"]}:')
 
     for act in range(size):
       ts_next = self.env_step(timestep, act, self._index)
@@ -565,7 +569,7 @@ class RuleObeyingPolicy(policy.Policy):
         r_cur_apples = self.get_discounted_reward(self.pos_all_cur_apples, pos)
         #r_fut_apples = self.get_discounted_reward(future_apples, pos)
         #print(f"cur_apples: {cur_apples},\n\nfuture_apples: {future_apples}")
-        r_eaten_apples = self.reward_scale_param if observation['INVENTORY'] != 0 and act == 10 else 0
+        r_eaten_apples = self.reward_scale_param if act == 10 and observation['INVENTORY'] > 0 else 0
         reward = r_cur_apples + r_eaten_apples #+ r_fut_apples
 
       else:
@@ -596,7 +600,7 @@ class RuleObeyingPolicy(policy.Policy):
   def get_discounted_reward(self, target_pos, own_pos, dis_rate=1) -> float:
     reward = 0.0
     for pos in target_pos:
-      reward += 1 - self.manhattan_dis(pos, own_pos) * dis_rate
+      reward -= self.manhattan_dis(pos, own_pos) * dis_rate
     return reward
 
   def manhattan_dis(self, pos_cur, pos_goal) -> int:
@@ -606,10 +610,19 @@ class RuleObeyingPolicy(policy.Policy):
     return list(zip(*np.where(surroundings== -3)))
   
   def get_boltzmann_act(self, q_values: list) -> int:
+    # Clip q_values to prevent overflow or underflow
+    q_values = np.clip(q_values, -20, 20)
+
+    # Compute softmax probabilities
     exp_q_values = np.exp(q_values / self.tau)
     probs = exp_q_values / np.sum(exp_q_values)
-    action = np.argmax(probs)
 
+    # Check and handle NaN values
+    if np.any(np.isnan(probs)):
+        print("Warning: NaN values detected in probabilities. Using uniform distribution.")
+        probs = np.ones_like(q_values) / len(q_values)
+
+    action = np.random.choice(len(q_values), p=probs) 
     return action
 
   def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list) -> float:
