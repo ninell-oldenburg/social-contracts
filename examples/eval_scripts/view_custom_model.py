@@ -320,31 +320,48 @@ def make_video(filename):
               + ' -y '
               + filename)
 
-# delete first row of the array
-def update(actions):
-  for key in actions:
-    actions[key] = actions[key][1:] if len(actions[key]) > 1 else []
-  return actions
 
 if __name__ == "__main__":
   roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
   episodes = 200
   num_iteration = 10
-
-  settings, data_dict = main(roles=roles,
-                            rules=DEFAULT_RULES,
-                            env_seed=1,
-                            episodes=episodes,
-                            num_iteration=1,
-                            create_video=True,
-                            log_output=True,
-                            save_csv=False,
-                            max_depth=20,
-                            tau=0.5,
-                            reward_scale_param=10,
-                            gamma=0.9)
-      
-  print(sum(data_dict['cleaner']))
-  print(sum(data_dict['farmer']))
-  print(sum(data_dict['free']))
-  print(sum(data_dict['learner']))
+  # Possible values for tau and gamma you want to test
+  taus = [0, 0.1, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.5, 2.0]
+  gammas = [0.9, 0.99, 0.999, 1.0]
+  num_runs = 10
+  
+  # Initialize results
+  results = {(tau, gamma): {'cleaner': 0, 'farmer': 0, 'free': 0} for tau in taus for gamma in gammas}
+  
+  for run in range(num_runs):
+      print(f"Run number: {run+1}")
+      for tau in taus:
+          for gamma in gammas:
+              print(f"Running for tau={tau} and gamma={gamma}")
+              settings, data_dict = main(roles=roles,
+                                          rules=DEFAULT_RULES,
+                                          env_seed=1,
+                                          episodes=episodes,
+                                          num_iteration=1,
+                                          create_video=False,
+                                          log_output=False,
+                                          save_csv=False,
+                                          max_depth=20,
+                                          tau=tau,
+                                          reward_scale_param=1,
+                                          gamma=gamma)
+              
+              results[(tau, gamma)]['cleaner'] += sum(data_dict['cleaner'])
+              results[(tau, gamma)]['farmer'] += sum(data_dict['farmer'])
+              results[(tau, gamma)]['free'] += sum(data_dict['free'])
+              
+  # Calculate averages
+  for (tau, gamma), scores in results.items():
+      scores['cleaner'] /= num_runs
+      scores['farmer'] /= num_runs
+      scores['free'] /= num_runs
+  
+  # Print or process averaged results as desired
+  for (tau, gamma), scores in results.items():
+      print(f"For tau={tau} and gamma={gamma}:")
+      print(f"cleaner: {scores['cleaner']:.2f}, farmer: {scores['farmer']:.2f}, free: {scores['free']:.2f}")
