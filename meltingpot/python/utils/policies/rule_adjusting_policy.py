@@ -24,7 +24,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
     DEFAULT_MAX_DEPTH = 20
     DEFAULT_COMPLIANCE_COST = 0.1
     DEFAULT_VIOLATION_COST = 0.4
-    DEFAULT_TAU = 0.6
+    DEFAULT_TAU = 0.0
     DEFAULT_N_STEPS = 2
     DEFAULT_GAMMA = 0.9999
     DEFAULT_N_ROLLOUTS = 2
@@ -148,23 +148,25 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             "PAY_ACTION"
           ]
         
+        # keep sorted
         self.relevant_keys = [
-            'POSITION', 
-            'ORIENTATION',
-            'NUM_APPLES_AROUND',
-            'AGENT_CLEANED',
-            'AGENT_ZAPPED',
-            'AGENT_PAYED',
             'AGENT_ATE',
-            'WATER_LOCATION', # maybe take out again
-            'POSITION_OTHERS',
+            'AGENT_CLAIMED',
+            'AGENT_CLEANED',
+            'AGENT_PAYED',
+            'AGENT_ZAPPED',
+            'CUR_CELL_HAS_APPLE', 
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
             'INVENTORY',
-            'SURROUNDINGS',
+            'NUM_APPLES_AROUND',
+            'ORIENTATION',
+            'POSITION', 
             'SINCE_AGENT_LAST_CLEANED',
             'SINCE_AGENT_LAST_PAYED',
             'SINCE_AGENT_LAST_ZAPPED',
-            'CUR_CELL_IS_FOREIGN_PROPERTY', 
-            'CUR_CELL_HAS_APPLE', 
+            'SURROUNDINGS',
+            'WATER_LOCATION', # maybe take out again
+            'POSITION_OTHERS',
         ]
     
     def step(self) -> list:
@@ -178,7 +180,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         ts_cur = self.history[-1][self._index]
         self.ts_start = ts_cur
-        self.ts_start.observation = self.deepcopy_dict(ts_cur.observation)
+        self.ts_start.observation = self.custom_deepcopy(ts_cur.observation)
 
         if ts_cur.step_type == dm_env.StepType.FIRST:
             self.pos_all_possible_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))

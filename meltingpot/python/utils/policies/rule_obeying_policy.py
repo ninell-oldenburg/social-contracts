@@ -41,7 +41,7 @@ class RuleObeyingPolicy(policy.Policy):
   DEFAULT_MAX_DEPTH = 20
   DEFAULT_COMPLIANCE_COST = 0.1
   DEFAULT_VIOLATION_COST = 0.4
-  DEFAULT_TAU = 0.6
+  DEFAULT_TAU = 0.1
   DEFAULT_N_STEPS = 2
   DEFAULT_GAMMA = 0.9999
   DEFAULT_N_ROLLOUTS = 2
@@ -95,6 +95,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.history = deque(maxlen=10)
     self.payees = []
     self.riots = []
+    self.hash_table = {}
     self.pos_all_apples = []
     if self.role == 'farmer':
       self.payees = None
@@ -272,10 +273,18 @@ class RuleObeyingPolicy(policy.Policy):
       setattr(self, last_counters[action], 0)
 
     # Update the observations with the updated counters
-    obs['EAT_ACTION'] = True if action == 10 else False
+    self.get_bool_action(observation=obs, action=action)
     obs['SINCE_AGENT_LAST_ZAPPED'] = self.last_zapped
     obs['SINCE_AGENT_LAST_CLEANED'] = self.last_cleaned
     obs['SINCE_AGENT_LAST_PAYED'] = self.last_payed
+
+  def get_bool_action(self, observation, action) -> None:
+    # keep sorted
+    observation['AGENT_ATE'] = True if action == 10 else False
+    observation['AGENT_CLAIMED'] = True if action == 9 else False
+    observation['AGENT_CLEANED'] = True if action == 8 else False
+    observation['AGENT_PAYED'] = True if action == 11 else False
+    observation['AGENT_ZAPPED'] = True if action == 7 else False
   
   def get_others(self, observation: dict) -> list:
     """Returns the indices of all players in a 2D array."""
@@ -320,13 +329,9 @@ class RuleObeyingPolicy(policy.Policy):
       observation = self.custom_deepcopy(timestep.observation)
       observation = self.update_obs_without_coordinates(observation)
       self.increase_action_steps(observation)
+      self.get_bool_action(observation=observation, action=action)
       next_timestep = AgentTimestep()
       orientation = observation['ORIENTATION']
-      observation['AGENT_CLEANED'] = False
-      observation['AGENT_ZAPPED'] = False
-      observation['AGENT_PAYED'] = False
-      observation['AGENT_ATE'] = False
-      observation['AGENT_CLAIMED'] = False
       cur_inventory = observation['INVENTORY']
       cur_pos = observation['POSITION']
       reward = 0
@@ -505,10 +510,45 @@ class RuleObeyingPolicy(policy.Policy):
     sorted_items = sorted(items, key=lambda x: x[0])
     list_bytes = pickle.dumps(sorted_items + [reward])
     hash_key = hashlib.sha256(list_bytes).hexdigest() 
+
+    # Check for potential collision
+    if hash_key in self.hash_table:
+      existing_obs = self.hash_table[hash_key]
+      new_obs = obs
+        
+      mismatch_found = False  # Flag to indicate if a mismatch is found
+
+      # Compare the observations
+      for key in existing_obs.keys():
+
+        if key in ["WORLD.RGB", "PROPERTY", "READY_TO_SHOOT", "TOTAL_NUM_CLEANERS"]:
+          continue
+        
+        if isinstance(existing_obs[key], np.ndarray):
+          if not np.array_equal(existing_obs[key], new_obs[key]):
+            print(f"Key: {key}")
+            print("Stored Value:", existing_obs[key])
+            print("New Value:", new_obs[key])
+            mismatch_found = True
+        else:
+          if existing_obs[key] != new_obs[key]:
+            print(f"Key: {key}")
+            print("Stored Value:", existing_obs[key])
+            print("New Value:", new_obs[key])
+            mismatch_found = True
+        
+      if mismatch_found:
+        raise ValueError(f"Hash collision detected for key {hash_key}")
+    
+    else:
+      # Store the timestep in the hash_table
+      self.hash_table[hash_key] = obs
+
     return hash_key
-  
+
   def hash_ts(self, timestep: AgentTimestep):
-    """Encodes the state, action pairs and saves them in a hash table."""
+    """Computes hash for the given timestep observation."""
+    # Convert observation to tuple format
     hash_key = self.get_ts_hash_key(timestep.observation, timestep.reward)
     return hash_key
   
@@ -603,7 +643,7 @@ class RuleObeyingPolicy(policy.Policy):
         r_cur_apples = self.get_discounted_reward(self.pos_all_cur_apples, pos)
         #r_fut_apples = self.get_discounted_reward(future_apples, pos)
         print(f"len cur_apples: {len(self.pos_all_cur_apples)}, reward: {r_cur_apples}")
-        r_eaten_apples = self.reward_scale_param if act == 10 and observation['INVENTORY'] > 0 else 0
+        r_eaten_apples = self.obligation_reward if act == 10 and observation['INVENTORY'] > 0 else 0
         reward = r_cur_apples + r_eaten_apples #+ r_fut_apples
 
         if self.get_action_name(action=act) != "MOVE_ACTION":
@@ -612,7 +652,7 @@ class RuleObeyingPolicy(policy.Policy):
       else:
         pos_cur_obl = self.get_cur_obl_pos(observation)
         r_cur_obl = self.get_discounted_reward(pos_cur_obl, pos)
-        r_fulfilled_obl = self.reward_scale_param if self.current_obligation.satisfied(observation) else 0
+        r_fulfilled_obl = self.obligation_reward if self.current_obligation.satisfied(observation) else 0
         reward = r_cur_obl + r_fulfilled_obl
 
         action = self.get_action_name(action=act)
@@ -655,9 +695,14 @@ class RuleObeyingPolicy(policy.Policy):
     return list(zip(*np.where(surroundings== -3)))
   
   def get_boltzmann_act(self, q_values: list) -> int:
+
+    if self.tau == 0:
+        return np.argmax(q_values)
+    
     # Clip q_values to prevent overflow or underflow
     q_values = np.clip(q_values, -20, 20)
 
+    print(f'TAU AT BOLTZMANN: {self.tau}')
     # Compute softmax probabilities
     exp_q_values = np.exp(q_values / self.tau)
     probs = exp_q_values / np.sum(exp_q_values)
@@ -666,6 +711,9 @@ class RuleObeyingPolicy(policy.Policy):
     if np.any(np.isnan(probs)):
         print("Warning: NaN values detected in probabilities. Using uniform distribution.")
         probs = np.ones_like(q_values) / len(q_values)
+
+    print(f'probs after conversion: {probs}')
+    print()
 
     action = np.random.choice(len(q_values), p=probs) 
     return action

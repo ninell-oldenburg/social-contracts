@@ -46,10 +46,7 @@ def main(roles,
           create_video=True, 
           log_output=True, 
           save_csv=True, 
-          max_depth=20,
-          tau=0.9,
-          reward_scale_param=9,
-          gamma=0.9999):
+          ):
 
   level_name = get_name_from_rules(rules)
   substrate_name = f'rule_obeying_harvest_{level_name}'
@@ -78,10 +75,6 @@ def main(roles,
                                     potential_prohibitions=POTENTIAL_PROHIBITIONS,
                                     active_prohibitions=DEFAULT_PROHIBITIONS,
                                     active_obligations=DEFAULT_OBLIGATIONS,
-                                    selection_mode="threshold",
-                                    max_depth=max_depth,
-                                    tau=tau,
-                                    gamma=gamma
                                     ))
     """else:
     bots.append(RuleLearningPolicy(env=env, 
@@ -347,10 +340,7 @@ if __name__ == "__main__":
                               create_video=False,
                               log_output=True,
                               save_csv=False,
-                              max_depth=20,
-                              tau=0.6,
-                              reward_scale_param=1,
-                              gamma=0.9999)
+                              )
   
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
