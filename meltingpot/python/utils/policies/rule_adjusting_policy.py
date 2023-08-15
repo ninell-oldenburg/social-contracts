@@ -21,24 +21,44 @@ POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_leng
 
 class RuleAdjustingPolicy(RuleLearningPolicy):
 
+    DEFAULT_MAX_DEPTH = 20
+    DEFAULT_COMPLIANCE_COST = 0.1
+    DEFAULT_VIOLATION_COST = 0.4
+    DEFAULT_TAU = 0.6
+    DEFAULT_N_STEPS = 2
+    DEFAULT_GAMMA = 0.9999
+    DEFAULT_N_ROLLOUTS = 2
+    DEFAULT_OBLIGATION_REWARD = 1
+    DEFAULT_SELECTION_MODE = "threshold"
+    DEFAULT_THRESHOLD = 0.8
+    DEFAULT_ACTION_COST = 1.0
+    DEFAULT_INIT_PRIOR = 0.2
+    DEFAULT_P_OBEY = 0.9
+
     def __init__(self,
-                 env: dm_env.Environment,
-                 player_idx: int,
-                 log_output: bool,
-                 look: shapes,
-                 num_players: int,
-                 role: str = "learner",
-                 potential_obligations: list = POTENTIAL_OBLIGATIONS,
-                 potential_prohibitions: list = POTENTIAL_PROHIBITIONS,
-                 active_prohibitions: list = DEFAULT_PROHIBITIONS,
-                 active_obligations: list = DEFAULT_OBLIGATIONS,
-                 selection_mode: str = "threshold",
-                 threshold: int = 0.8,
-                 max_depth: int = 20,
-                 tau: float = 0.9,
-                 reward_scale_param: int = 9,
-                 gamma: float = 0.9999,
-                 ) -> None:
+                env: dm_env.Environment,
+                player_idx: int,
+                log_output: bool,
+                look: shapes,
+                num_players: int,
+                role: str = "free",
+                potential_obligations: list = POTENTIAL_OBLIGATIONS,
+                potential_prohibitions: list = POTENTIAL_PROHIBITIONS,
+                active_prohibitions: list = DEFAULT_PROHIBITIONS,
+                active_obligations: list = DEFAULT_OBLIGATIONS,
+                selection_mode: str = DEFAULT_SELECTION_MODE,
+                threshold: int = DEFAULT_THRESHOLD,
+                max_depth: int = DEFAULT_MAX_DEPTH,
+                compliance_cost: float = DEFAULT_COMPLIANCE_COST,
+                violation_cost: float = DEFAULT_VIOLATION_COST,
+                tau: float = DEFAULT_TAU, 
+                n_steps: int = DEFAULT_N_STEPS, 
+                gamma: float = DEFAULT_GAMMA,
+                n_rollouts: int = DEFAULT_N_ROLLOUTS,
+                obligation_reward: int = DEFAULT_OBLIGATION_REWARD,
+                default_action_cost: float = DEFAULT_ACTION_COST,
+                init_prior: float = DEFAULT_INIT_PRIOR,
+                p_obey: float = DEFAULT_P_OBEY) -> None:
         
         # CALLING PARAMETERS
         self._index = player_idx
@@ -55,22 +75,21 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.prohibitions = active_prohibitions
         self.obligations = active_obligations
         self.active_rules = self.prohibitions + self.obligations
-        self.threshold = threshold
 
-        # HYPERPARAMETER
+        # CONSTANTS
         self.max_depth = max_depth
+        self.compliance_cost = compliance_cost
+        self.violation_cost = violation_cost
         self.tau = tau
-        self.reward_scale_param = reward_scale_param
+        self.n_steps = n_steps
+        self.threshold = threshold
         self.gamma = gamma
-
-        # FIXED COSTS, PARAMS, COUNTERS
-        self.compliance_cost = 0.0 # action cost shall not exceed reward
-        self.violation_cost = 0.0
-        self.n_steps = 2
-        self.n_rollouts = 2
-        self.obligation_reward = 1.0
-        self.init_prior = 0.2
-        self.p_obey = 0.9
+        self.n_rollouts = n_rollouts
+        self.obligation_reward = obligation_reward
+        self.max_depth = max_depth
+        self.default_action_cost = default_action_cost
+        self.init_prior = init_prior
+        self.p_obey = p_obey
         
         # GLOBAL INITILIZATIONS
         self.history = deque(maxlen=10)
@@ -103,7 +122,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.others_history = deque(maxlen=10)
         self.history = deque(maxlen=10)
 
-        print(f"SETTINGS\nmax_depth: {self.max_depth},\ntau: {self.tau},\nreward_scale_param: {self.reward_scale_param},\ngamma: {self.gamma}\n")
+        # print(f"SETTINGS\nmax_depth: {self.max_depth},\ntau: {self.tau},\nreward_scale_param: {self.reward_scale_param},\ngamma: {self.gamma}\n")
 
         # move actions
         self.action_to_pos = [
@@ -133,8 +152,11 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'POSITION', 
             'ORIENTATION',
             'NUM_APPLES_AROUND',
+            'AGENT_CLEANED',
+            'AGENT_ZAPPED',
+            'AGENT_PAYED',
+            'AGENT_ATE',
             'WATER_LOCATION', # maybe take out again
-            'EAT_ACTION',
             'POSITION_OTHERS',
             'INVENTORY',
             'SURROUNDINGS',
@@ -143,7 +165,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'SINCE_AGENT_LAST_ZAPPED',
             'CUR_CELL_IS_FOREIGN_PROPERTY', 
             'CUR_CELL_HAS_APPLE', 
-            'AGENT_CLEANED'
         ]
     
     def step(self) -> list:

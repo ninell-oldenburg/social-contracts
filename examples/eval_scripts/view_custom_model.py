@@ -81,7 +81,6 @@ def main(roles,
                                     selection_mode="threshold",
                                     max_depth=max_depth,
                                     tau=tau,
-                                    reward_scale_param=reward_scale_param,
                                     gamma=gamma
                                     ))
     """else:
@@ -325,9 +324,9 @@ if __name__ == "__main__":
   roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
   episodes = 200
   num_iteration = 10
-  # Possible values for tau and gamma you want to test
-  taus = [0, 0.1, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.5, 2.0]
-  gammas = [0.9, 0.99, 0.999, 1.0]
+  """# Possible values for tau and gamma you want to test
+  taus = [0.6]
+  gammas = [0.999, 0.9999]
   num_runs = 10
   
   # Initialize results
@@ -338,22 +337,28 @@ if __name__ == "__main__":
       for tau in taus:
           for gamma in gammas:
               print(f"Running for tau={tau} and gamma={gamma}")
-              settings, data_dict = main(roles=roles,
-                                          rules=DEFAULT_RULES,
-                                          env_seed=1,
-                                          episodes=episodes,
-                                          num_iteration=1,
-                                          create_video=False,
-                                          log_output=False,
-                                          save_csv=False,
-                                          max_depth=20,
-                                          tau=tau,
-                                          reward_scale_param=1,
-                                          gamma=gamma)
-              
-              results[(tau, gamma)]['cleaner'] += sum(data_dict['cleaner'])
-              results[(tau, gamma)]['farmer'] += sum(data_dict['farmer'])
-              results[(tau, gamma)]['free'] += sum(data_dict['free'])
+  """
+    
+  settings, data_dict = main(roles=roles,
+                              rules=DEFAULT_RULES,
+                              env_seed=1,
+                              episodes=episodes,
+                              num_iteration=1,
+                              create_video=False,
+                              log_output=True,
+                              save_csv=False,
+                              max_depth=20,
+                              tau=0.6,
+                              reward_scale_param=1,
+                              gamma=0.9999)
+  
+  print(sum(data_dict['cleaner']))
+  print(sum(data_dict['farmer']))
+  print(sum(data_dict['free']))
+"""
+  results[(tau, gamma)]['cleaner'] += sum(data_dict['cleaner'])
+  results[(tau, gamma)]['farmer'] += sum(data_dict['farmer'])
+  results[(tau, gamma)]['free'] += sum(data_dict['free'])
               
   # Calculate averages
   for (tau, gamma), scores in results.items():
@@ -365,3 +370,4 @@ if __name__ == "__main__":
   for (tau, gamma), scores in results.items():
       print(f"For tau={tau} and gamma={gamma}:")
       print(f"cleaner: {scores['cleaner']:.2f}, farmer: {scores['farmer']:.2f}, free: {scores['free']:.2f}")
+"""

@@ -7,7 +7,7 @@ from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, Obligati
 #################################################
 """
 cleaning_precon_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] > 30 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['free']).encode('utf-8')"
-cleaning_goal_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] < 30"
+cleaning_goal_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] > 0"
 
 payment_precon_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] > 15 and obs['AGENT_LOOK'] == ''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')"
 payment_goal_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] < 15"

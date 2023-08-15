@@ -38,6 +38,15 @@ class PrioritizedItem:
 class RuleObeyingPolicy(policy.Policy):
   """A puppet policy controlled by ertain environment rules."""
 
+  DEFAULT_MAX_DEPTH = 20
+  DEFAULT_COMPLIANCE_COST = 0.1
+  DEFAULT_VIOLATION_COST = 0.4
+  DEFAULT_TAU = 0.6
+  DEFAULT_N_STEPS = 2
+  DEFAULT_GAMMA = 0.9999
+  DEFAULT_N_ROLLOUTS = 2
+  DEFAULT_OBLIGATION_REWARD = 1
+
   def __init__(self, 
                env: dm_env.Environment, 
                player_idx: int,
@@ -45,7 +54,15 @@ class RuleObeyingPolicy(policy.Policy):
                look: shapes,
                role: str = "free",
                prohibitions: list = DEFAULT_PROHIBITIONS, 
-               obligations: list = DEFAULT_OBLIGATIONS) -> None:
+               obligations: list = DEFAULT_OBLIGATIONS,
+               max_depth: int = DEFAULT_MAX_DEPTH,
+               compliance_cost: float = DEFAULT_COMPLIANCE_COST,
+               violation_cost: float = DEFAULT_VIOLATION_COST,
+               tau: float = DEFAULT_TAU, 
+               n_steps: int = DEFAULT_N_STEPS, 
+               gamma: float = DEFAULT_GAMMA,
+               n_rollouts: int = DEFAULT_N_ROLLOUTS,
+               obligation_reward: int = DEFAULT_OBLIGATION_REWARD) -> None:
     """Initializes the policy.
 
     Args:
@@ -61,25 +78,24 @@ class RuleObeyingPolicy(policy.Policy):
     self.prohibitions = prohibitions
     self.obligations = obligations
 
-    # HYPERPARAMETER
-    self.max_depth = 20
-    self.compliance_cost = 0.1
-    self.violation_cost = 0.4
-    self.tau = 0.1
+    # CONSTANTS
+    self.max_depth = max_depth
+    self.compliance_cost = compliance_cost
+    self.violation_cost = violation_cost
+    self.tau = tau
     # self.action_cost = 1
     # self.epsilon = 0.2
-    self.regrowth_rate = 0.5
-    self.n_steps = 10
-    self.gamma = 0.98
-    self.n_rollouts = 8
-    self.obligation_reward = 1
+    # self.regrowth_rate = 0.5
+    self.n_steps = n_steps
+    self.gamma = gamma
+    self.n_rollouts = n_rollouts
+    self.obligation_reward = obligation_reward
     
     # GLOBAL INITILIZATIONS
     self.history = deque(maxlen=10)
     self.payees = []
     self.riots = []
     self.pos_all_apples = []
-    self.hash_table = {}
     if self.role == 'farmer':
       self.payees = None
     # TODO condition on set of active rules
@@ -88,7 +104,6 @@ class RuleObeyingPolicy(policy.Policy):
     self.goal = None
     self.x_max = 15
     self.y_max = 15
-    self.old_pos = None
 
     # non-physical info
     self.last_zapped = 0
@@ -186,7 +201,7 @@ class RuleObeyingPolicy(policy.Policy):
   def add_non_physical_info(self, timestep: dm_env.TimeStep, actions: list, idx: int) -> AgentTimestep:
     ts = AgentTimestep()
     ts.step_type = timestep.step_type
-    dict_observation = self.deepcopy_dict(timestep.observation[idx])
+    dict_observation = self.custom_deepcopy(timestep.observation[idx])
     for obs_name, obs_val in dict_observation.items():
       ts.add_obs(obs_name=obs_name, obs_val=obs_val)
 
@@ -302,13 +317,16 @@ class RuleObeyingPolicy(policy.Policy):
   def env_step(self, timestep: AgentTimestep, action: int, idx: int) -> AgentTimestep:
       # 1. Unpack observations from timestep
       # TODO: this can be made faster, I believe
-      observation = self.deepcopy_dict(timestep.observation)
+      observation = self.custom_deepcopy(timestep.observation)
       observation = self.update_obs_without_coordinates(observation)
       self.increase_action_steps(observation)
       next_timestep = AgentTimestep()
       orientation = observation['ORIENTATION']
       observation['AGENT_CLEANED'] = False
-      observation['EAT_ACTION'] = True if action == 10 else False
+      observation['AGENT_ZAPPED'] = False
+      observation['AGENT_PAYED'] = False
+      observation['AGENT_ATE'] = False
+      observation['AGENT_CLAIMED'] = False
       cur_inventory = observation['INVENTORY']
       cur_pos = observation['POSITION']
       reward = 0
@@ -339,7 +357,11 @@ class RuleObeyingPolicy(policy.Policy):
         if action_name == "ZAP_ACTION":
           zap_time, riots = self.compute_zap(observation, x, y)
           observation['SINCE_AGENT_LAST_ZAPPED'] = zap_time
+          observation['AGENT_ZAPPED'] = True
           observation['RIOTS'] = riots
+
+        if action_name == 'CLAIM_ACTION':
+          observation['AGENT_CLAIMED'] = True
 
         if action_name == 'CLEAN_ACTION':
           last_cleaned_time, num_cleaners = self.compute_clean(observation, x, y)
@@ -351,6 +373,10 @@ class RuleObeyingPolicy(policy.Policy):
           reward, cur_inventory, payed_time = self.compute_eat_pay(action, action_name, 
                                                     cur_inventory, observation)
           observation['SINCE_AGENT_LAST_PAYED'] = payed_time
+          if action == 11:
+            observation['AGENT_PAYED'] = True
+          else:
+            observation['AGENT_ATE'] = True
 
       observation['INVENTORY'] = cur_inventory
       observation['WATER_LOCATION'] = list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
@@ -444,7 +470,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     return False
   
-  def deepcopy_dict(self, old_obs):
+  def custom_deepcopy(self, old_obs):
     """Own copy implementation for time efficiency."""
     new_obs = {}
     for key in old_obs:
@@ -481,10 +507,9 @@ class RuleObeyingPolicy(policy.Policy):
     hash_key = hashlib.sha256(list_bytes).hexdigest() 
     return hash_key
   
-  def hash_ts(self, timestep: dm_env.TimeStep):
+  def hash_ts(self, timestep: AgentTimestep):
     """Encodes the state, action pairs and saves them in a hash table."""
     hash_key = self.get_ts_hash_key(timestep.observation, timestep.reward)
-    self.hash_table[hash_key] = (timestep)
     return hash_key
   
   # from https://github.com/JuliaPlanners/SymbolicPlanners.jl/blob/master/src/planners/rtdp.jl
@@ -528,8 +553,11 @@ class RuleObeyingPolicy(policy.Policy):
     available = self.available_actions(ts_cur.observation)
     s_cur = self.hash_ts(ts_cur)
 
+    print(f'NEW UPDATE FOR STATE {s_cur}')
+
     # initialize best optimistic guess for cur state
     if s_cur not in self.V[self.goal].keys():
+        print('NEW INITIAL STATE ENCOUNTEREND')
         self.V[self.goal][s_cur] = self.init_heuristic(ts_cur)
     
     for act in range(size): 
@@ -544,14 +572,20 @@ class RuleObeyingPolicy(policy.Policy):
       if s_next not in self.V[self.goal].keys():
         self.V[self.goal][s_next] = self.init_heuristic(ts_next)
 
-      Q[act]  = self.get_estimated_return(ts_next, s_next, act, available)
+      Q[act]  = self.get_estimated_return(ts_next, s_next, act, available, ts_cur)
 
     self.V[self.goal][s_cur] = Q
-    return self.get_boltzmann_act(Q)
+    print('SUUMMARY:')
+    print(f"{Q}")
+    boltzi = self.get_boltzmann_act(Q)
+    print(f'next action: {boltzi}')
+    return boltzi
   
   def init_heuristic(self, timestep: AgentTimestep) -> np.array:
     size = self.action_spec.num_values 
     Q = np.full(size, -np.inf)
+    print()
+    print(f"{timestep.observation['POSITION']} for {self.hash_ts(timestep)}")
 
     # print(f'init {timestep.observation["POSITION"]}:')
 
@@ -565,13 +599,15 @@ class RuleObeyingPolicy(policy.Policy):
         continue
 
       if self.goal == "apple":
-        #cur_apples = self.get_cur_apple_pos(observation['SURROUNDINGS'])
         #future_apples = [apple for apple in self.pos_all_cur_apples if apple not in cur_apples]
         r_cur_apples = self.get_discounted_reward(self.pos_all_cur_apples, pos)
         #r_fut_apples = self.get_discounted_reward(future_apples, pos)
-        #print(f"cur_apples: {cur_apples},\n\nfuture_apples: {future_apples}")
+        print(f"len cur_apples: {len(self.pos_all_cur_apples)}, reward: {r_cur_apples}")
         r_eaten_apples = self.reward_scale_param if act == 10 and observation['INVENTORY'] > 0 else 0
         reward = r_cur_apples + r_eaten_apples #+ r_fut_apples
+
+        if self.get_action_name(action=act) != "MOVE_ACTION":
+          reward -= self.default_action_cost # assume all actions are valid
 
       else:
         pos_cur_obl = self.get_cur_obl_pos(observation)
@@ -579,7 +615,15 @@ class RuleObeyingPolicy(policy.Policy):
         r_fulfilled_obl = self.reward_scale_param if self.current_obligation.satisfied(observation) else 0
         reward = r_cur_obl + r_fulfilled_obl
 
+        action = self.get_action_name(action=act)
+        if action != "MOVE_ACTION" and r_fulfilled_obl == 0:
+          reward -= self.default_action_cost # assume all actions are valid
+
+        print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
+
       Q[act] = reward
+
+    print(Q)
 
     return Q
   
@@ -626,9 +670,9 @@ class RuleObeyingPolicy(policy.Policy):
     action = np.random.choice(len(q_values), p=probs) 
     return action
 
-  def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list) -> float:
+  def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list, ts_cur: AgentTimestep) -> float:
     r_forward = max(self.V[self.goal][s_next]) / self.gamma
-    r_cur = ts_next.reward # * self.reward_scale_param # it needs careful scaling with the values from manhattan dis
+    r_cur = ts_next.reward
 
     if self.current_obligation != None:
       r_cur = 0
@@ -636,6 +680,9 @@ class RuleObeyingPolicy(policy.Policy):
         r_cur = self.obligation_reward
 
     cost = self.compliance_cost if act in available else self.violation_cost # rule violation
+
+    print()
+    print(f'{ts_cur.observation["POSITION"]} for {act} to {ts_next.observation["POSITION"]} gives\t{r_forward} + {r_cur} - {cost}; {s_next}')
 
     return r_forward + r_cur - cost
   
@@ -701,7 +748,7 @@ class RuleObeyingPolicy(policy.Policy):
   def available_actions(self, obs) -> list[int]:
     """Return the available actions at a given timestep."""
     actions = []
-    observation = self.deepcopy_dict(obs)
+    observation = self.custom_deepcopy(obs)
     cur_pos = np.copy(observation['POSITION'])
 
     for action in range(self.action_spec.num_values):
