@@ -27,6 +27,8 @@ from meltingpot.python import substrate
 import csv
 import time
 
+import matplotlib.pyplot as plt
+
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
@@ -46,7 +48,8 @@ def main(roles,
           create_video=True, 
           log_output=True, 
           log_weights=False,
-          save_csv=True, 
+          save_csv=True,
+          plot_q_vals=False, 
           ):
 
   level_name = get_name_from_rules(rules)
@@ -114,6 +117,9 @@ def main(roles,
   scale = 4
   fps = 5
 
+  states = ["db92bb5346ea55128dec8d75e2cd56aaaf3e90e2a5413ae794fef9957b4333c6", "bd1091caf6d4a7734a0bb3ab218cde9ce2d7bda341cb56f36e6a3418e965570c", "121322c1792685aab9431c4f8d54ae151bf10c6fe72384b5bad0edc671242703", "15be1195521324b3d9c3322a9193a3db956393400ef6c2e8c3e6b7e2852d7b40"]
+  q_values_log = {key: [] for key in states}
+
   pygame.init()
   start_time = time.time()  # Start the timer
   clock = pygame.time.Clock()
@@ -156,6 +162,12 @@ def main(roles,
     if log_output:
       print('Actions: ' + str(actions))
 
+    for state in states:
+      if state in bots[0].V['apple'].keys():
+        print('IT IN HERE')
+        q_value = bots[0].V['apple'][state]
+        q_values_log[state].append(q_value)
+
     timestep = env.step(actions)
     # actions = update(actions)
 
@@ -173,6 +185,14 @@ def main(roles,
   name = f'vers{num_iteration}_{role_str}'[:-1]
   filename = 'videos/evals/' + name + '.mov'
 
+  if plot_q_vals:
+    for state in states:
+      plt.plot(q_values_log[state])
+      plt.xlabel('Episode')
+      plt.ylabel('Q-value')
+      plt.title(f'Q-value Evolution for State {state}')
+      plt.show()
+
   if create_video:
     make_video(filename)
 
@@ -182,6 +202,10 @@ def main(roles,
       save_to_csv(filename, bot.V)
 
   settings = get_settings(bots=bots, rules=rules)
+
+  key_with_max_value = max(bots[0].hash_count, key=bots[0].hash_count.get)
+  print(f"The key with the highest value is: {key_with_max_value}")
+  print(f"Its value is: {bots[0].hash_count[key_with_max_value]}")
 
   end_time = time.time()  # End the timer
 
@@ -341,7 +365,9 @@ if __name__ == "__main__":
                               num_iteration=1,
                               create_video=False,
                               log_output=True,
+                              log_weights=False,
                               save_csv=False,
+                              plot_q_vals=True,
                               )
   
   print(sum(data_dict['cleaner']))

@@ -24,8 +24,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
     DEFAULT_MAX_DEPTH = 20
     DEFAULT_COMPLIANCE_COST = 0.1
     DEFAULT_VIOLATION_COST = 0.4
-    DEFAULT_TAU = 0.1
-    DEFAULT_N_STEPS = 2
+    DEFAULT_TAU = 0.0001
+    DEFAULT_N_STEPS = 1
     DEFAULT_GAMMA = 0.9999
     DEFAULT_N_ROLLOUTS = 3
     DEFAULT_OBLIGATION_REWARD = 1
@@ -100,7 +100,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.riots = []
         self.pos_all_cur_apples = []
         self.pos_all_possible_apples = []
-        self.hash_table = {}
+        self.hash_count = {}
         if self.role == 'farmer':
             self.payees = None
         # TODO condition on set of active rules

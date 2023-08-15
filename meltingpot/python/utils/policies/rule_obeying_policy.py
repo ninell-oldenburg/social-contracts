@@ -41,8 +41,8 @@ class RuleObeyingPolicy(policy.Policy):
   DEFAULT_MAX_DEPTH = 20
   DEFAULT_COMPLIANCE_COST = 0.1
   DEFAULT_VIOLATION_COST = 0.4
-  DEFAULT_TAU = 0.2
-  DEFAULT_N_STEPS = 1
+  DEFAULT_TAU = 0.01
+  DEFAULT_N_STEPS = 2
   DEFAULT_GAMMA = 0.9999
   DEFAULT_N_ROLLOUTS = 2
   DEFAULT_OBLIGATION_REWARD = 1
@@ -98,6 +98,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.payees = []
     self.riots = []
     self.hash_table = {}
+    self.hash_count = {}
     self.pos_all_apples = []
     if self.role == 'farmer':
       self.payees = None
@@ -298,7 +299,7 @@ class RuleObeyingPolicy(policy.Policy):
 
   def hit_dirt(self, obs, x, y) -> bool:
     for i in range(x-2, x+2):
-      for j in range(y, y+3):
+      for j in range(y-3, y):
         if obs['SURROUNDINGS'][i][j] == -1 or obs['SURROUNDINGS'][i][j] == -2:
           return True
     return False
@@ -436,9 +437,7 @@ class RuleObeyingPolicy(policy.Policy):
       if not self.exceeds_map(x, y):
         if not self.is_water_in_front(observation, x, y):
           if observation['ORIENTATION'] == 0:
-            if observation['SURROUNDINGS'][x][y-1] == -1 \
-              or observation['SURROUNDINGS'][x][y-2] == -1 \
-                or observation['SURROUNDINGS'][x][y-3] == -1:
+            if self.hit_dirt(observation, x, y):
               last_cleaned_time = 0
               num_cleaners = 1
 
@@ -550,14 +549,14 @@ class RuleObeyingPolicy(policy.Policy):
     list_bytes = pickle.dumps(sorted_items + [reward])
     hash_key = hashlib.sha256(list_bytes).hexdigest() 
 
-    # Check for potential collision
+    """# Check for potential collision
     if hash_key in self.hash_table:
       existing_obs = self.hash_table[hash_key]
       new_obs = obs
         
       mismatch_found = False  # Flag to indicate if a mismatch is found
 
-      """# Compare the observations
+      # Compare the observations
       for key in existing_obs.keys():
 
         if key in ["WORLD.RGB", "PROPERTY", "READY_TO_SHOOT", "TOTAL_NUM_CLEANERS"]:
@@ -577,11 +576,11 @@ class RuleObeyingPolicy(policy.Policy):
             mismatch_found = True
         
       if mismatch_found:
-        raise ValueError(f"Hash collision detected for key {hash_key}")"""
+        raise ValueError(f"Hash collision detected for key {hash_key}")
     
     else:
       # Store the timestep in the hash_table
-      self.hash_table[hash_key] = obs
+      self.hash_table[hash_key] = obs"""
 
     return hash_key
 
@@ -637,9 +636,14 @@ class RuleObeyingPolicy(policy.Policy):
 
     # initialize best optimistic guess for cur state
     if s_cur not in self.V[self.goal].keys():
-        if self.log_weights:
-          print('NEW INITIAL STATE ENCOUNTEREND')
-        self.V[self.goal][s_cur] = self.init_heuristic(ts_cur)
+      if self.log_weights:
+        print('NEW INITIAL STATE ENCOUNTEREND')
+      self.V[self.goal][s_cur] = self.init_heuristic(ts_cur)
+
+    if s_cur not in self.hash_count:
+      self.hash_count[s_cur] = 1
+    else:
+      self.hash_count[s_cur] += 1
     
     for act in range(size): 
       ts_next = self.env_step(ts_cur, act, self._index)
@@ -709,9 +713,6 @@ class RuleObeyingPolicy(policy.Policy):
         if self.log_weights:
           print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
 
-      if act == 0:
-        reward -= 0.1
-
       Q[act] = reward
 
     if self.log_weights:
@@ -762,12 +763,15 @@ class RuleObeyingPolicy(policy.Policy):
     if self.tau == 0:
         return np.argmax(q_values)
     
-    # Clip q_values to prevent overflow or underflow
-    q_values = np.clip(q_values, -20, 20)
-
-    # Compute softmax probabilities
-    exp_q_values = np.exp(q_values / self.tau)
-    probs = exp_q_values / np.sum(exp_q_values)
+    # Compute the log-softmax values
+    max_q = np.max(q_values)
+    stabilized_q_values = q_values - max_q
+    log_probs = stabilized_q_values - self.tau * np.log(np.sum(np.exp(stabilized_q_values / self.tau)))
+    
+    # Convert log probabilities back to original scale
+    probs = np.exp(log_probs)
+    # Normalize the probabilities to ensure they sum to 1
+    probs /= probs.sum()
 
     # Check and handle NaN values
     if np.any(np.isnan(probs)):
