@@ -97,7 +97,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.history = deque(maxlen=10)
     self.payees = []
     self.riots = []
-    self.hash_table = {}
+    self.q_value_log = {}
     self.hash_count = {}
     self.pos_all_apples = []
     if self.role == 'farmer':
@@ -639,11 +639,6 @@ class RuleObeyingPolicy(policy.Policy):
       if self.log_weights:
         print('NEW INITIAL STATE ENCOUNTEREND')
       self.V[self.goal][s_cur] = self.init_heuristic(ts_cur)
-
-    if s_cur not in self.hash_count:
-      self.hash_count[s_cur] = 1
-    else:
-      self.hash_count[s_cur] += 1
     
     for act in range(size): 
       ts_next = self.env_step(ts_cur, act, self._index)
@@ -660,6 +655,13 @@ class RuleObeyingPolicy(policy.Policy):
       Q[act]  = self.get_estimated_return(ts_next, s_next, act, available, ts_cur)
 
     self.V[self.goal][s_cur] = Q
+
+    if s_cur not in self.hash_count:
+      self.hash_count[s_cur] = 1
+      self.q_value_log[s_cur] = [max(Q)]
+    else:
+      self.hash_count[s_cur] += 1
+      self.q_value_log[s_cur].append(max(Q))
 
     boltzi = self.get_boltzmann_act(Q)
     if self.log_weights:

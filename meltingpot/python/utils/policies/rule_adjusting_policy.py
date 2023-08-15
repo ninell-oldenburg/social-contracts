@@ -101,6 +101,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.pos_all_cur_apples = []
         self.pos_all_possible_apples = []
         self.hash_count = {}
+        self.q_value_log = {}
         if self.role == 'farmer':
             self.payees = None
         # TODO condition on set of active rules

@@ -117,9 +117,6 @@ def main(roles,
   scale = 4
   fps = 5
 
-  states = ["db92bb5346ea55128dec8d75e2cd56aaaf3e90e2a5413ae794fef9957b4333c6", "bd1091caf6d4a7734a0bb3ab218cde9ce2d7bda341cb56f36e6a3418e965570c", "121322c1792685aab9431c4f8d54ae151bf10c6fe72384b5bad0edc671242703", "15be1195521324b3d9c3322a9193a3db956393400ef6c2e8c3e6b7e2852d7b40"]
-  q_values_log = {key: [] for key in states}
-
   pygame.init()
   start_time = time.time()  # Start the timer
   clock = pygame.time.Clock()
@@ -160,13 +157,7 @@ def main(roles,
       # dead_apple_ratio = timestep_bot.observation['DEAD_APPLE_RATIO'] # same for every player
             
     if log_output:
-      print('Actions: ' + str(actions))
-
-    for state in states:
-      if state in bots[0].V['apple'].keys():
-        print('IT IN HERE')
-        q_value = bots[0].V['apple'][state]
-        q_values_log[state].append(q_value)
+      print('Actions: ' + str(actions)) 
 
     timestep = env.step(actions)
     # actions = update(actions)
@@ -186,8 +177,9 @@ def main(roles,
   filename = 'videos/evals/' + name + '.mov'
 
   if plot_q_vals:
+    states = get_most_frequent_states(bots[0].q_value_log)
     for state in states:
-      plt.plot(q_values_log[state])
+      plt.plot(bots[0].q_value_log[state])
       plt.xlabel('Episode')
       plt.ylabel('Q-value')
       plt.title(f'Q-value Evolution for State {state}')
@@ -216,6 +208,12 @@ def main(roles,
   ~ python3 -m cProfile -o output.prof examples/evals/evals.py 
   snakeviz output.prof 
   """
+def get_most_frequent_states(q_value_log, top_k=10):
+    states = []
+    sorted_states = sorted(q_value_log.items(), key=lambda x: x[1], reverse=True)
+    for i, (state, count) in enumerate(sorted_states[:top_k]):
+      states.append(state)
+    return states
 
 # Function to save the bot.V nested dictionaries to a CSV file
 def save_to_csv(filename, data):
