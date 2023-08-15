@@ -42,7 +42,7 @@ class RuleObeyingPolicy(policy.Policy):
   DEFAULT_COMPLIANCE_COST = 0.1
   DEFAULT_VIOLATION_COST = 0.4
   DEFAULT_TAU = 0.1
-  DEFAULT_N_STEPS = 2
+  DEFAULT_N_STEPS = 1
   DEFAULT_GAMMA = 0.9999
   DEFAULT_N_ROLLOUTS = 2
   DEFAULT_OBLIGATION_REWARD = 1
@@ -51,6 +51,7 @@ class RuleObeyingPolicy(policy.Policy):
                env: dm_env.Environment, 
                player_idx: int,
                log_output: bool,
+               log_weights: bool,
                look: shapes,
                role: str = "free",
                prohibitions: list = DEFAULT_PROHIBITIONS, 
@@ -74,6 +75,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.role = role
     self.look = look
     self.log_output = log_output
+    self.log_weights = log_weights
     self.action_spec = env.action_spec()[0]
     self.prohibitions = prohibitions
     self.obligations = obligations
@@ -409,14 +411,25 @@ class RuleObeyingPolicy(policy.Policy):
     if not self.role == 'farmer':
       # if facing north and is at water
       if not self.exceeds_map(x, y):
-        min_pos = tuple((x, y-1))
-        if self.is_water(observation, min_pos):
+        if not self.is_water_in_front(observation, x, y):
           if observation['ORIENTATION'] == 0:
             if observation['SURROUNDINGS'][x][y-1] == -1 or observation['SURROUNDINGS'][x][y-2] == -1:
               last_cleaned_time = 0
               num_cleaners = 1
 
     return last_cleaned_time, num_cleaners
+  
+  def is_water_in_front(self, observation, x, y):
+    orientation = observation['ORIENTATION']
+    if orientation == 0:  # North
+        return self.is_water(observation, (x, y-1))
+    elif orientation == 1:  # East
+        return self.is_water(observation, (x+1, y))
+    elif orientation == 2:  # South
+        return self.is_water(observation, (x, y+1))
+    elif orientation == 3:  # West
+        return self.is_water(observation, (x-1, y))
+    return False
   
   def compute_eat_pay(self, action, action_name, 
                                 cur_inventory, observation):
@@ -518,7 +531,7 @@ class RuleObeyingPolicy(policy.Policy):
         
       mismatch_found = False  # Flag to indicate if a mismatch is found
 
-      # Compare the observations
+      """# Compare the observations
       for key in existing_obs.keys():
 
         if key in ["WORLD.RGB", "PROPERTY", "READY_TO_SHOOT", "TOTAL_NUM_CLEANERS"]:
@@ -538,7 +551,7 @@ class RuleObeyingPolicy(policy.Policy):
             mismatch_found = True
         
       if mismatch_found:
-        raise ValueError(f"Hash collision detected for key {hash_key}")
+        raise ValueError(f"Hash collision detected for key {hash_key}")"""
     
     else:
       # Store the timestep in the hash_table
@@ -593,11 +606,13 @@ class RuleObeyingPolicy(policy.Policy):
     available = self.available_actions(ts_cur.observation)
     s_cur = self.hash_ts(ts_cur)
 
-    print(f'NEW UPDATE FOR STATE {s_cur}')
+    if self.log_weights:
+      print(f'NEW UPDATE FOR STATE {s_cur}')
 
     # initialize best optimistic guess for cur state
     if s_cur not in self.V[self.goal].keys():
-        print('NEW INITIAL STATE ENCOUNTEREND')
+        if self.log_weights:
+          print('NEW INITIAL STATE ENCOUNTEREND')
         self.V[self.goal][s_cur] = self.init_heuristic(ts_cur)
     
     for act in range(size): 
@@ -615,17 +630,22 @@ class RuleObeyingPolicy(policy.Policy):
       Q[act]  = self.get_estimated_return(ts_next, s_next, act, available, ts_cur)
 
     self.V[self.goal][s_cur] = Q
-    print('SUUMMARY:')
-    print(f"{Q}")
+
     boltzi = self.get_boltzmann_act(Q)
-    print(f'next action: {boltzi}')
+    if self.log_weights:
+      print('SUUMMARY:')
+      print(f"{Q}")
+      print(f'next action: {boltzi}')
+    
     return boltzi
   
   def init_heuristic(self, timestep: AgentTimestep) -> np.array:
     size = self.action_spec.num_values 
     Q = np.full(size, -np.inf)
-    print()
-    print(f"{timestep.observation['POSITION']} for {self.hash_ts(timestep)}")
+
+    if self.log_weights:
+      print()
+      print(f"{timestep.observation['POSITION']} for {self.hash_ts(timestep)}")
 
     # print(f'init {timestep.observation["POSITION"]}:')
 
@@ -642,7 +662,8 @@ class RuleObeyingPolicy(policy.Policy):
         #future_apples = [apple for apple in self.pos_all_cur_apples if apple not in cur_apples]
         r_cur_apples = self.get_discounted_reward(self.pos_all_cur_apples, pos)
         #r_fut_apples = self.get_discounted_reward(future_apples, pos)
-        print(f"len cur_apples: {len(self.pos_all_cur_apples)}, reward: {r_cur_apples}")
+        if self.log_weights:
+          print(f"len cur_apples: {len(self.pos_all_cur_apples)}, reward: {r_cur_apples}")
         r_eaten_apples = self.obligation_reward if act == 10 and observation['INVENTORY'] > 0 else 0
         reward = r_cur_apples + r_eaten_apples #+ r_fut_apples
 
@@ -659,17 +680,21 @@ class RuleObeyingPolicy(policy.Policy):
         if action != "MOVE_ACTION" and r_fulfilled_obl == 0:
           reward -= self.default_action_cost # assume all actions are valid
 
-        print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
+        if self.log_weights:
+          print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
 
       Q[act] = reward
 
-    print(Q)
+    if self.log_weights:
+      print(Q)
 
     return Q
   
   def get_cur_obl_pos(self, observation: dict) -> list:
     if self.goal == 'clean':
-      return list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
+      water = list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
+      unreachable = self.in_unreachable_water(observation)
+      return [pos for pos in water if pos not in unreachable]
     else:
       return  self.get_agent_list(observation)
     
@@ -687,6 +712,17 @@ class RuleObeyingPolicy(policy.Policy):
     for pos in target_pos:
       reward -= self.manhattan_dis(pos, own_pos) * dis_rate
     return reward
+  
+  def in_unreachable_water(self, obs: AgentTimestep) -> list:
+    unreachable = []
+    surroundings = obs['SURROUNDINGS']
+    for i in range(len(surroundings)):
+      for j in range(len(surroundings[0])):
+        if surroundings[i][j] == -1 or surroundings[i][j] == -2:
+          if not surroundings[+2][j] == 0:
+            unreachable.append(tuple((i, j)))
+
+    return unreachable
 
   def manhattan_dis(self, pos_cur, pos_goal) -> int:
     return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1]) * 0.1
@@ -702,7 +738,6 @@ class RuleObeyingPolicy(policy.Policy):
     # Clip q_values to prevent overflow or underflow
     q_values = np.clip(q_values, -20, 20)
 
-    print(f'TAU AT BOLTZMANN: {self.tau}')
     # Compute softmax probabilities
     exp_q_values = np.exp(q_values / self.tau)
     probs = exp_q_values / np.sum(exp_q_values)
@@ -711,9 +746,6 @@ class RuleObeyingPolicy(policy.Policy):
     if np.any(np.isnan(probs)):
         print("Warning: NaN values detected in probabilities. Using uniform distribution.")
         probs = np.ones_like(q_values) / len(q_values)
-
-    print(f'probs after conversion: {probs}')
-    print()
 
     action = np.random.choice(len(q_values), p=probs) 
     return action
@@ -729,8 +761,9 @@ class RuleObeyingPolicy(policy.Policy):
 
     cost = self.compliance_cost if act in available else self.violation_cost # rule violation
 
-    print()
-    print(f'{ts_cur.observation["POSITION"]} for {act} to {ts_next.observation["POSITION"]} gives\t{r_forward} + {r_cur} - {cost}; {s_next}')
+    if self.log_weights:
+      print()
+      print(f'{ts_cur.observation["POSITION"]} for {act} to {ts_next.observation["POSITION"]} gives\t{r_forward} + {r_cur} - {cost}; {s_next}')
 
     return r_forward + r_cur - cost
   

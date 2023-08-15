@@ -39,6 +39,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 env: dm_env.Environment,
                 player_idx: int,
                 log_output: bool,
+                log_weights: bool,
                 look: shapes,
                 num_players: int,
                 role: str = "free",
@@ -65,6 +66,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.role = role
         self.look = look
         self.log_output = log_output
+        self.log_weights = log_weights
         self.action_spec = env.action_spec()[0]
         self.selection_mode = selection_mode
         self.num_players = num_players
