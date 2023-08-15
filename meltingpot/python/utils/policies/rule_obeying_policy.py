@@ -41,7 +41,7 @@ class RuleObeyingPolicy(policy.Policy):
   DEFAULT_MAX_DEPTH = 20
   DEFAULT_COMPLIANCE_COST = 0.1
   DEFAULT_VIOLATION_COST = 0.4
-  DEFAULT_TAU = 0.1
+  DEFAULT_TAU = 0.2
   DEFAULT_N_STEPS = 1
   DEFAULT_GAMMA = 0.9999
   DEFAULT_N_ROLLOUTS = 2
@@ -261,6 +261,8 @@ class RuleObeyingPolicy(policy.Policy):
   
   def update_last_actions(self, obs: dict, action: int) -> None:
     """Updates the "last done x" section"""
+    x, y = obs['POSITION']
+
     # Create a dictionary to store the counters for each action
     last_counters = {
         7: 'last_zapped',
@@ -271,14 +273,35 @@ class RuleObeyingPolicy(policy.Policy):
     for counter_name in last_counters.values():
         setattr(self, counter_name, getattr(self, counter_name) + 1)
 
+    # make sure the stuff actually happens!
     if action in last_counters:
-      setattr(self, last_counters[action], 0)
+      if action == 8:
+        if obs['ORIENTATION'] == 0:
+          if self.hit_dirt(obs, x, y):
+            self.last_cleaned = 0
+      elif action == 11:
+        if self.role == "farmer": # other roles don't pay
+          if not self.payees == None:
+            for payee in self.payees:
+              if self.is_close_to_agent(obs, payee):
+                self.last_payed = 0
+      elif action == 7:
+        for riot in self.riots:
+          if self.is_close_to_agent(obs, riot):
+            self.last_zapped = 0
 
     # Update the observations with the updated counters
     self.get_bool_action(observation=obs, action=action)
     obs['SINCE_AGENT_LAST_ZAPPED'] = self.last_zapped
     obs['SINCE_AGENT_LAST_CLEANED'] = self.last_cleaned
     obs['SINCE_AGENT_LAST_PAYED'] = self.last_payed
+
+  def hit_dirt(self, obs, x, y) -> bool:
+    for i in range(x-2, x+2):
+      for j in range(y, y+3):
+        if obs['SURROUNDINGS'][i][j] == -1 or obs['SURROUNDINGS'][i][j] == -2:
+          return True
+    return False
 
   def get_bool_action(self, observation, action) -> None:
     # keep sorted
@@ -413,7 +436,9 @@ class RuleObeyingPolicy(policy.Policy):
       if not self.exceeds_map(x, y):
         if not self.is_water_in_front(observation, x, y):
           if observation['ORIENTATION'] == 0:
-            if observation['SURROUNDINGS'][x][y-1] == -1 or observation['SURROUNDINGS'][x][y-2] == -1:
+            if observation['SURROUNDINGS'][x][y-1] == -1 \
+              or observation['SURROUNDINGS'][x][y-2] == -1 \
+                or observation['SURROUNDINGS'][x][y-3] == -1:
               last_cleaned_time = 0
               num_cleaners = 1
 
@@ -433,6 +458,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def compute_eat_pay(self, action, action_name, 
                                 cur_inventory, observation):
+
     payed_time = observation['SINCE_AGENT_LAST_PAYED']
     reward = 0
     if action >= 10: # eat and pay
@@ -679,9 +705,12 @@ class RuleObeyingPolicy(policy.Policy):
         action = self.get_action_name(action=act)
         if action != "MOVE_ACTION" and r_fulfilled_obl == 0:
           reward -= self.default_action_cost # assume all actions are valid
-
+        
         if self.log_weights:
           print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
+
+      if act == 0:
+        reward -= 0.1
 
       Q[act] = reward
 
@@ -692,9 +721,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def get_cur_obl_pos(self, observation: dict) -> list:
     if self.goal == 'clean':
-      water = list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
-      unreachable = self.in_unreachable_water(observation)
-      return [pos for pos in water if pos not in unreachable]
+      return list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
     else:
       return  self.get_agent_list(observation)
     
@@ -719,7 +746,7 @@ class RuleObeyingPolicy(policy.Policy):
     for i in range(len(surroundings)):
       for j in range(len(surroundings[0])):
         if surroundings[i][j] == -1 or surroundings[i][j] == -2:
-          if not surroundings[+2][j] == 0:
+          if not surroundings[i][j+3] == 0:
             unreachable.append(tuple((i, j)))
 
     return unreachable
