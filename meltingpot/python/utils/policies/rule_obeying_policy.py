@@ -102,8 +102,9 @@ class RuleObeyingPolicy(policy.Policy):
     self.pos_all_apples = []
     if self.role == 'farmer':
       self.payees = None
-    # TODO condition on set of active rules
-    self.V = {'apple': {}, 'clean': {}, 'pay': {}, 'zap': {}} # nested policy dict
+    goals = ['apple', 'clean', 'pay', 'zap']
+    hash_types = ['full', 'partial']
+    self.V = {goal: {hash_type: {} for hash_type in hash_types} for goal in goals}
     self.ts_start = None
     self.goal = None
     self.x_max = 15
@@ -139,20 +140,59 @@ class RuleObeyingPolicy(policy.Policy):
             "PAY_ACTION"
           ]
     
-    self.relevant_keys = [
-            'POSITION', 
-            'ORIENTATION',
-            'NUM_APPLES_AROUND',
-            'EAT_ACTION',
-            'POSITION_OTHERS',
+    self.relevant_keys = {
+      'full': [
+            'AGENT_ATE',
+            'AGENT_CLAIMED',
+            'AGENT_CLEANED',
+            'AGENT_PAYED',
+            'AGENT_ZAPPED',
+            'CUR_CELL_HAS_APPLE', 
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
             'INVENTORY',
+            'NUM_APPLES_AROUND',
+            'ORIENTATION',
+            'POSITION', 
             'SINCE_AGENT_LAST_CLEANED',
             'SINCE_AGENT_LAST_PAYED',
             'SINCE_AGENT_LAST_ZAPPED',
-            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'SURROUNDINGS',
+            'WATER_LOCATION', # maybe take out again
+            'POSITION_OTHERS',
+          ],
+      'apple': [
+            'AGENT_ATE',
             'CUR_CELL_HAS_APPLE', 
-            'AGENT_CLEANED'
-        ]
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'INVENTORY',
+            'NUM_APPLES_AROUND',
+            'ORIENTATION',
+            'POSITION', 
+            'SURROUNDINGS',
+          ],
+        'clean': [
+            'AGENT_CLEANED',
+            'CUR_CELL_HAS_APPLE', 
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'NUM_APPLES_AROUND',
+            'ORIENTATION',
+            'POSITION', 
+            'SINCE_AGENT_LAST_CLEANED',
+            'SURROUNDINGS',
+            'POSITION_OTHERS',
+          ],
+        'zap': [
+            'AGENT_ZAPPED',
+            'CUR_CELL_HAS_APPLE', 
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'NUM_APPLES_AROUND',
+            'ORIENTATION',
+            'POSITION', 
+            'SINCE_AGENT_LAST_ZAPPED',
+            'SURROUNDINGS',
+            'POSITION_OTHERS',
+          ],
+      }
         
   def step(self, 
            timestep: dm_env.TimeStep,
@@ -197,8 +237,8 @@ class RuleObeyingPolicy(policy.Policy):
       self.goal = 'apple'
   
   def has_policy(self, ts_cur: AgentTimestep) -> bool:
-    s_next = self.hash_ts(ts_cur)
-    if s_next in self.V[self.goal].keys():
+    s_next, type = self.hash_ts(ts_cur)
+    if s_next in self.V[self.goal][type].keys():
       return True
     return False
   
@@ -542,9 +582,13 @@ class RuleObeyingPolicy(policy.Policy):
     
     return None
 
-  def get_ts_hash_key(self, obs, reward):
+  def get_ts_hash_key(self, obs: dict, reward: float, full_hash: bool):
     # Convert the dictionary to a tuple of key-value pairs
-    items = tuple((key, value) for key, value in obs.items() if key in self.relevant_keys)
+    relevant_keys = self.relevant_keys[self.goal]
+    if full_hash:
+      relevant_keys = self.relevant_keys['full']
+
+    items = tuple((key, value) for key, value in obs.items() if key in relevant_keys)
     sorted_items = sorted(items, key=lambda x: x[0])
     list_bytes = pickle.dumps(sorted_items + [reward])
     hash_key = hashlib.sha256(list_bytes).hexdigest() 
@@ -586,9 +630,16 @@ class RuleObeyingPolicy(policy.Policy):
 
   def hash_ts(self, timestep: AgentTimestep):
     """Computes hash for the given timestep observation."""
-    # Convert observation to tuple format
-    hash_key = self.get_ts_hash_key(timestep.observation, timestep.reward)
-    return hash_key
+
+    full_hash = self.get_ts_hash_key(timestep.observation, timestep.reward, full_hash=True)
+    if full_hash in self.V[self.goal]['full']:
+      return full_hash, 'full'
+    
+    partial_hash = self.get_ts_hash_key(timestep.observation, timestep.reward, full_hash=False)
+    if partial_hash in self.V[self.goal]['partial']:
+      return partial_hash, 'partial'
+    
+    return full_hash, 'full'
   
   # from https://github.com/JuliaPlanners/SymbolicPlanners.jl/blob/master/src/planners/rtdp.jl
   def rtdp(self, ts_start: AgentTimestep) -> None:
@@ -611,12 +662,12 @@ class RuleObeyingPolicy(policy.Policy):
     return
   
   def get_best_act(self, ts_cur: AgentTimestep) -> int:
-    hash = self.hash_ts(ts_cur)
-    if hash in self.V[self.goal].keys():
+    hash, type = self.hash_ts(ts_cur)
+    if hash in self.V[self.goal][type].keys():
       if self.log_output:
         print(f'position: {ts_cur.observation["POSITION"]}')
-        print(self.V[self.goal][hash])
-      return np.argmax(self.V[self.goal][hash]) # no null action
+        print(self.V[self.goal][type][hash])
+      return np.argmax(self.V[self.goal][type][hash]) # no null action
     else:
       best_act, _ = self.update(ts_cur)
       return best_act
@@ -629,16 +680,16 @@ class RuleObeyingPolicy(policy.Policy):
 
     # TODO: change to available_action_history()
     available = self.available_actions(ts_cur.observation)
-    s_cur = self.hash_ts(ts_cur)
+    s_cur, type = self.hash_ts(ts_cur)
 
     if self.log_weights:
       print(f'NEW UPDATE FOR STATE {s_cur}')
 
     # initialize best optimistic guess for cur state
-    if s_cur not in self.V[self.goal].keys():
+    if s_cur not in self.V[self.goal][type].keys():
       if self.log_weights:
         print('NEW INITIAL STATE ENCOUNTEREND')
-      self.V[self.goal][s_cur] = self.init_heuristic(ts_cur)
+      self.V[self.goal][type][s_cur] = self.init_heuristic(ts_cur)
     
     for act in range(size): 
       ts_next = self.env_step(ts_cur, act, self._index)
@@ -647,14 +698,14 @@ class RuleObeyingPolicy(policy.Policy):
       if self.exceeds_map(pos[0], pos[1]):
         continue
 
-      s_next = self.hash_ts(ts_next)
+      s_next, type = self.hash_ts(ts_next)
       # initialize best optimistic guess for next state
-      if s_next not in self.V[self.goal].keys():
-        self.V[self.goal][s_next] = self.init_heuristic(ts_next)
+      if s_next not in self.V[self.goal][type].keys():
+        self.V[self.goal][type][s_next] = self.init_heuristic(ts_next)
 
-      Q[act]  = self.get_estimated_return(ts_next, s_next, act, available, ts_cur)
+      Q[act]  = self.get_estimated_return(ts_next, s_next, act, available, type, ts_cur)
 
-    self.V[self.goal][s_cur] = Q
+    self.V[self.goal][type][s_cur] = Q
 
     if s_cur not in self.hash_count:
       self.hash_count[s_cur] = 1
@@ -783,8 +834,8 @@ class RuleObeyingPolicy(policy.Policy):
     action = np.random.choice(len(q_values), p=probs) 
     return action
 
-  def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list, ts_cur: AgentTimestep) -> float:
-    r_forward = max(self.V[self.goal][s_next]) / self.gamma
+  def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list, type: str, ts_cur: AgentTimestep) -> float:
+    r_forward = max(self.V[self.goal][type][s_next]) / self.gamma
     r_cur = ts_next.reward
 
     if self.current_obligation != None:

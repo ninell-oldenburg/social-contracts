@@ -104,8 +104,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.q_value_log = {}
         if self.role == 'farmer':
             self.payees = None
-        # TODO condition on set of active rules
-        self.V = {'apple': {}, 'clean': {}, 'pay': {}, 'zap': {}} # nested policy dict
+        goals = ['apple', 'clean', 'pay', 'zap']
+        hash_types = ['full', 'partial']
+        self.V = {goal: {hash_type: {} for hash_type in hash_types} for goal in goals}
         self.ts_start = None
         self.goal = None
         self.x_max = 15
@@ -152,7 +153,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
           ]
         
         # keep sorted
-        self.relevant_keys = [
+        self.relevant_keys = {
+      'full': [
             'AGENT_ATE',
             'AGENT_CLAIMED',
             'AGENT_CLEANED',
@@ -170,7 +172,40 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'SURROUNDINGS',
             'WATER_LOCATION', # maybe take out again
             'POSITION_OTHERS',
-        ]
+          ],
+      'apple': [
+            'AGENT_ATE',
+            'CUR_CELL_HAS_APPLE', 
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'INVENTORY',
+            'NUM_APPLES_AROUND',
+            'ORIENTATION',
+            'POSITION', 
+            'SURROUNDINGS',
+          ],
+        'clean': [
+            'AGENT_CLEANED',
+            'CUR_CELL_HAS_APPLE', 
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'NUM_APPLES_AROUND',
+            'ORIENTATION',
+            'POSITION', 
+            'SINCE_AGENT_LAST_CLEANED',
+            'SURROUNDINGS',
+            'POSITION_OTHERS',
+          ],
+        'zap': [
+            'AGENT_ZAPPED',
+            'CUR_CELL_HAS_APPLE', 
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'NUM_APPLES_AROUND',
+            'ORIENTATION',
+            'POSITION', 
+            'SINCE_AGENT_LAST_ZAPPED',
+            'SURROUNDINGS',
+            'POSITION_OTHERS',
+          ],
+      }
     
     def step(self) -> list:
         """
