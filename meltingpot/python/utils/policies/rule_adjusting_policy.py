@@ -264,9 +264,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         if not self.has_policy(self.ts_start):
             self.rtdp(ts_cur)
-
-        if self.goal == "pay":
-            print('position others: ' + str(ts_cur.observation['POSITION_OTHERS']))
         
         return self.get_best_act(self.ts_start)
     

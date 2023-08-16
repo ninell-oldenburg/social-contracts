@@ -474,7 +474,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def compute_zap(self, observation, x, y):
     last_zapped = observation['SINCE_AGENT_LAST_ZAPPED']
-    riots = observation['RIOTS']
+    riots = observation['RIOTS'] if not observation['RIOTS'] == None else []
     if not self.exceeds_map(x, y):
       for riot in riots:
         if self.is_close_to_agent(observation, riot):
@@ -775,7 +775,13 @@ class RuleObeyingPolicy(policy.Policy):
       else:
         pos_cur_obl = self.get_cur_obl_pos(observation)
         r_cur_obl = self.get_discounted_reward(pos_cur_obl, pos)
-        r_fulfilled_obl = self.obligation_reward if self.current_obligation.satisfied(observation) else 0
+        try:
+          r_fulfilled_obl = self.obligation_reward if self.current_obligation.satisfied(observation) else 0
+        except TypeError:
+          # Handle the exception here, for example:
+          r_fulfilled_obl = 0
+          print(f"Warning: Observation was None at timestep {timestep.observation}")
+          print()
         reward = r_cur_obl + r_fulfilled_obl
         
         if self.log_weights:

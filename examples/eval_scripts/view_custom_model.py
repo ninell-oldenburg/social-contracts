@@ -49,7 +49,8 @@ def main(roles,
           log_output=True, 
           log_weights=False,
           save_csv=True,
-          plot_q_vals=False, 
+          plot_q_vals=False,
+          tau=0.1,
           ):
 
   level_name = get_name_from_rules(rules)
@@ -80,6 +81,7 @@ def main(roles,
                                     potential_prohibitions=POTENTIAL_PROHIBITIONS,
                                     active_prohibitions=DEFAULT_PROHIBITIONS,
                                     active_obligations=DEFAULT_OBLIGATIONS,
+                                    tau=tau,
                                     ))
     """else:
     bots.append(RuleLearningPolicy(env=env, 
@@ -337,52 +339,52 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 0
   episodes = 200
   num_iteration = 10
-  """# Possible values for tau and gamma you want to test
-  taus = [0.6]
-  gammas = [0.999, 0.9999]
-  num_runs = 10
+  # Possible values for tau and gamma you want to test
+  taus = [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0, 1.2, 1.5]
+  # gammas = [0.999, 0.9999]
+  num_runs = 5
   
   # Initialize results
-  results = {(tau, gamma): {'cleaner': 0, 'farmer': 0, 'free': 0} for tau in taus for gamma in gammas}
+  results = {tau: {'cleaner': 0, 'farmer': 0, 'free': 0} for tau in taus}
   
   for run in range(num_runs):
       print(f"Run number: {run+1}")
       for tau in taus:
-          for gamma in gammas:
-              print(f"Running for tau={tau} and gamma={gamma}")
-  """
+          #for gamma in gammas:
+              #print(f"Running for tau={tau} and gamma={gamma}")
     
-  settings, data_dict = main(roles=roles,
-                              rules=DEFAULT_RULES,
-                              env_seed=1,
-                              episodes=episodes,
-                              num_iteration=1,
-                              create_video=False,
-                              log_output=True,
-                              log_weights=False,
-                              save_csv=False,
-                              plot_q_vals=True,
-                              )
+        settings, data_dict = main(roles=roles,
+                                    rules=DEFAULT_RULES,
+                                    env_seed=1,
+                                    episodes=episodes,
+                                    num_iteration=1,
+                                    create_video=False,
+                                    log_output=False,
+                                    log_weights=False,
+                                    save_csv=False,
+                                    plot_q_vals=False,
+                                    tau=tau,
+                                    )
   
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
   print(sum(data_dict['free']))
-"""
-  results[(tau, gamma)]['cleaner'] += sum(data_dict['cleaner'])
-  results[(tau, gamma)]['farmer'] += sum(data_dict['farmer'])
-  results[(tau, gamma)]['free'] += sum(data_dict['free'])
+
+  results[tau]['cleaner'] += sum(data_dict['cleaner'])
+  results[tau]['farmer'] += sum(data_dict['farmer'])
+  results[tau]['free'] += sum(data_dict['free'])
               
   # Calculate averages
-  for (tau, gamma), scores in results.items():
+  for tau, scores in results.items():
       scores['cleaner'] /= num_runs
       scores['farmer'] /= num_runs
       scores['free'] /= num_runs
   
   # Print or process averaged results as desired
-  for (tau, gamma), scores in results.items():
-      print(f"For tau={tau} and gamma={gamma}:")
+  for tau, scores in results.items():
+      print(f"For tau={tau}:")
       print(f"cleaner: {scores['cleaner']:.2f}, farmer: {scores['farmer']:.2f}, free: {scores['free']:.2f}")
-"""
+      print()

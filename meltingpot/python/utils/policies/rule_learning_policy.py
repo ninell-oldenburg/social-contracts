@@ -164,14 +164,17 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         if rule_is_active: # Obligation is active
             if self.could_be_satisfied(rule, past_timestep, player_idx):
-                if rule.satisfied(next_obs): # Agent obeyed the obligation
-                    # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)
-                    p_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
-                    return np.log(p_action)
-                else: # Agent disobeyed the obligation
-                    # P(disobedient action | rule = true) = (0 * p_obey) + 1/n_actions * (1-p_obey)  
-                    p_action = (1-self.p_obey)/(self.num_actions)
-                    return np.log(p_action)
+                try:
+                    if rule.satisfied(next_obs): # Agent obeyed the obligation
+                        # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)
+                        p_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
+                        return np.log(p_action)
+                    else: # Agent disobeyed the obligation
+                        # P(disobedient action | rule = true) = (0 * p_obey) + 1/n_actions * (1-p_obey)  
+                        p_action = (1-self.p_obey)/(self.num_actions)
+                        return np.log(p_action)
+                except:
+                    return np.log(1/(self.num_actions))
             else: # Obligation is not active, or has expired
                 return np.log(1/(self.num_actions))
         else: # Obligation is not active, or has expired
@@ -234,9 +237,11 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         """Returns True is an obligation could be satisfied."""
         for action in range(self.action_spec.num_values):
             next_timestep = super().env_step(past_timestep, action, idx)
-            if rule.satisfied(next_timestep.observation):
-                return True
-            
+            try:
+                if rule.satisfied(next_timestep.observation):
+                    return True
+            except TypeError:
+                return False
         return False
     
     def threshold_rules(self):
