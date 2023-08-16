@@ -331,15 +331,15 @@ class RuleObeyingPolicy(policy.Policy):
         if obs['ORIENTATION'] == 0:
           if self.hit_dirt(obs, x, y):
             self.last_cleaned = 0
+
       elif action == 11:
-        print(f'ACTION 11, MY ROLE: {self.role}')
         if self.role == "farmer": # other roles don't pay
-          print(f'ROLE == FARMER, MY PAYEES: {self.payees}')
-          if not self.payees == None:
-            for payee in self.payees:
-              if self.is_close_to_agent(obs, payee):
-                self.last_payed = 0
-                print('YAY')
+          if obs['INVENTORY'] != 0:
+            if not self.payees == None:
+              for payee in self.payees:
+                if self.is_close_to_agent(obs, payee):
+                  self.last_payed = 0
+
       elif action == 7:
         for riot in self.riots:
           if self.is_close_to_agent(obs, riot):
@@ -759,7 +759,7 @@ class RuleObeyingPolicy(policy.Policy):
       if self.exceeds_map(pos[0], pos[1]):
         continue
 
-      if self.is_agent_in_position(observation, pos):
+      if self.is_agent_in_position(observation, pos) or self.is_water(observation, pos):
         reward -= self.default_action_cost
     
       if self.goal == "apple":
@@ -769,9 +769,6 @@ class RuleObeyingPolicy(policy.Policy):
         r_eaten_apples = self.obligation_reward if act == 10 and observation['INVENTORY'] > 0 else 0
         reward = r_cur_apples + r_eaten_apples #+ r_fut_apples
 
-        #if self.get_action_name(action=act) != "MOVE_ACTION":
-          #reward -= self.default_action_cost # assume all actions are valid
-
         if self.log_weights:
           print(f"len cur_apples: {len(self.pos_all_cur_apples)}, reward: {r_cur_apples}")
 
@@ -780,10 +777,6 @@ class RuleObeyingPolicy(policy.Policy):
         r_cur_obl = self.get_discounted_reward(pos_cur_obl, pos)
         r_fulfilled_obl = self.obligation_reward if self.current_obligation.satisfied(observation) else 0
         reward = r_cur_obl + r_fulfilled_obl
-
-        action = self.get_action_name(action=act)
-        #if action != "MOVE_ACTION" and r_fulfilled_obl == 0:
-          #reward -= self.default_action_cost # assume all actions are valid
         
         if self.log_weights:
           print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
@@ -802,7 +795,8 @@ class RuleObeyingPolicy(policy.Policy):
       return  self.get_agent_list(observation)
     
   def get_agent_list(self, observation: dict) -> list:
-    agent_idx = observation['ALWAYS_PAYING_TO'] if self.goal == "pay" else self.riots # zap
+    agent_idx = observation['ALWAYS_PAYING_TO'] if self.goal == "pay" and observation['INVENTORY'] != 0 else []
+    agent_idx = self.riots if self.goal == "zap" else agent_idx
     agents_pos = []
     for agent in agent_idx:
       if agent != 0:
@@ -869,6 +863,9 @@ class RuleObeyingPolicy(policy.Policy):
         r_cur = self.obligation_reward
 
     cost = self.compliance_cost if act in available else self.violation_cost # rule violation
+
+    if self.is_agent_in_position(observation, pos) or self.is_water(observation, pos):
+      r_cur -= self.default_action_cost
 
     if self.log_weights:
       print()
