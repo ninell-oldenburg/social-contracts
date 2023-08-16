@@ -67,12 +67,9 @@ from meltingpot.python.utils.substrates import colors
 from meltingpot.python.utils.substrates import game_object_utils
 from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.substrates import specs
+from meltingpot.python.utils.policies.rule_adjusting_policy import APPLE_RESPAWN_RADIUS, REGROWTH_PROBABILITIES, OBSERVATION_RADIUS, REMOVE_HIT_PLAYER, PENALTY_FOR_BEING_ZAPPED
 
 PrefabConfig = game_object_utils.PrefabConfig
-
-APPLE_RESPAWN_RADIUS = 2.0
-REGROWTH_PROBABILITIES = [0.02, 0.05, 0.07, 0.09]
-OBSERVATION_RADIUS = 15 # defines radius that agents can observe
 
 ASCII_MAP = """
 WWWWWWWWWWWWWWWWWWWWWWW
@@ -1013,7 +1010,7 @@ def create_avatar_object(player_idx: int,
               "kwargs": {
                   "amount": 1.0,
                   "beamLength": 3,
-                  "beamRadius": 2,
+                  "beamRadius": 1,
                   "agentRole": role,
               }
           },
@@ -1075,8 +1072,9 @@ def create_avatar_object(player_idx: int,
                   "beamLength": 3,
                   "beamRadius": 1,
                   "framesTillRespawn": 4,
-                  "penaltyForBeingZapped": 0,
+                  "penaltyForBeingZapped": PENALTY_FOR_BEING_ZAPPED,
                   "rewardForZapping": 0,
+                  "removeHitPlayer": REMOVE_HIT_PLAYER,
               }
           },
           {
