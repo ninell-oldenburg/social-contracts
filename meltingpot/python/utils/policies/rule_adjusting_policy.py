@@ -26,6 +26,13 @@ OBSERVATION_RADIUS = 15 # defines radius that agents can observe
 REMOVE_HIT_PLAYER = False # let them die when zapped
 PENALTY_FOR_BEING_ZAPPED = 1 # violation cost
 
+ROLE_SPRITE_DICT = {
+   'free': shapes.CUTE_AVATAR,
+   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
+   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
+   'learner': shapes.CUTE_AVATAR,
+   }
+
 # AGENT CLASS
 DEFAULT_MAX_DEPTH = 20
 DEFAULT_COMPLIANCE_COST = 0.1

@@ -67,7 +67,7 @@ from meltingpot.python.utils.substrates import colors
 from meltingpot.python.utils.substrates import game_object_utils
 from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.substrates import specs
-from meltingpot.python.utils.policies.rule_adjusting_policy import APPLE_RESPAWN_RADIUS, REGROWTH_PROBABILITIES, OBSERVATION_RADIUS, REMOVE_HIT_PLAYER, PENALTY_FOR_BEING_ZAPPED
+from meltingpot.python.utils.policies.rule_adjusting_policy import ROLE_SPRITE_DICT, APPLE_RESPAWN_RADIUS, REGROWTH_PROBABILITIES, OBSERVATION_RADIUS, REMOVE_HIT_PLAYER, PENALTY_FOR_BEING_ZAPPED
 
 PrefabConfig = game_object_utils.PrefabConfig
 
@@ -546,13 +546,6 @@ ACTION_SET = (
     EAT,
     PAY,
 )
-
-ROLE_SPRITE_DICT = {
-   'free': shapes.CUTE_AVATAR,
-   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
-   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
-   'learner': shapes.CUTE_AVATAR,
-   }
 
 def get_brush_palette(
     base_color: shapes.Color) -> Mapping[str, shapes.ColorRGBA]:

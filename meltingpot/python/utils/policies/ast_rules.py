@@ -1,6 +1,6 @@
 import ast
 import types
-from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
+from meltingpot.python.utils.policies.rule_adjusting_policy import ROLE_SPRITE_DICT
 
 class EnvironmentRule():
     def __init__(self, precondition):
