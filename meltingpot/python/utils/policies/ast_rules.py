@@ -1,6 +1,13 @@
 import ast
 import types
-from meltingpot.python.utils.policies.rule_adjusting_policy import ROLE_SPRITE_DICT
+from meltingpot.python.utils.substrates import shapes
+
+ROLE_SPRITE_DICT = {
+   'free': shapes.CUTE_AVATAR,
+   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
+   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
+   'learner': shapes.CUTE_AVATAR,
+   }
 
 class EnvironmentRule():
     def __init__(self, precondition):

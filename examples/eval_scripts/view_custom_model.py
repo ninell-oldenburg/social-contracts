@@ -143,8 +143,7 @@ def main(roles,
     pygame.display.update()
     clock.tick(fps)
 
-    example_bot = bots[0]
-    timestep_list = [example_bot.add_non_physical_info(timestep, actions, i) for i in range(len(bots))]
+    timestep_list = [bot.add_non_physical_info(timestep, actions, i) for i, bot in enumerate(bots)]
 
     for i, bot in enumerate(bots):            
       # cum_reward[i] += timestep_bot.reward

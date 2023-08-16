@@ -181,6 +181,17 @@ class RuleObeyingPolicy(policy.Policy):
             'SURROUNDINGS',
             'POSITION_OTHERS',
           ],
+          'pay': [
+            'AGENT_PAYED',
+            'CUR_CELL_HAS_APPLE', 
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'NUM_APPLES_AROUND',
+            'ORIENTATION',
+            'POSITION', 
+            'SINCE_AGENT_LAST_PAYED',
+            'SURROUNDINGS',
+            'POSITION_OTHERS',
+          ],
         'zap': [
             'AGENT_ZAPPED',
             'CUR_CELL_HAS_APPLE', 
@@ -321,11 +332,14 @@ class RuleObeyingPolicy(policy.Policy):
           if self.hit_dirt(obs, x, y):
             self.last_cleaned = 0
       elif action == 11:
+        print(f'ACTION 11, MY ROLE: {self.role}')
         if self.role == "farmer": # other roles don't pay
+          print(f'ROLE == FARMER, MY PAYEES: {self.payees}')
           if not self.payees == None:
             for payee in self.payees:
               if self.is_close_to_agent(obs, payee):
                 self.last_payed = 0
+                print('YAY')
       elif action == 7:
         for riot in self.riots:
           if self.is_close_to_agent(obs, riot):
@@ -722,6 +736,10 @@ class RuleObeyingPolicy(policy.Policy):
     
     return boltzi
   
+  def is_agent_in_position(self, observation: dict, pos) -> bool:
+    surroundings = observation['SURROUNDINGS']
+    return surroundings[pos[0], pos[1]] > 0
+  
   def init_heuristic(self, timestep: AgentTimestep) -> np.array:
     size = self.action_spec.num_values 
     Q = np.full(size, -np.inf)
@@ -741,17 +759,21 @@ class RuleObeyingPolicy(policy.Policy):
       if self.exceeds_map(pos[0], pos[1]):
         continue
 
+      if self.is_agent_in_position(observation, pos):
+        reward -= self.default_action_cost
+    
       if self.goal == "apple":
         #future_apples = [apple for apple in self.pos_all_cur_apples if apple not in cur_apples]
         r_cur_apples = self.get_discounted_reward(self.pos_all_cur_apples, pos)
         #r_fut_apples = self.get_discounted_reward(future_apples, pos)
-        if self.log_weights:
-          print(f"len cur_apples: {len(self.pos_all_cur_apples)}, reward: {r_cur_apples}")
         r_eaten_apples = self.obligation_reward if act == 10 and observation['INVENTORY'] > 0 else 0
         reward = r_cur_apples + r_eaten_apples #+ r_fut_apples
 
-        if self.get_action_name(action=act) != "MOVE_ACTION":
-          reward -= self.default_action_cost # assume all actions are valid
+        #if self.get_action_name(action=act) != "MOVE_ACTION":
+          #reward -= self.default_action_cost # assume all actions are valid
+
+        if self.log_weights:
+          print(f"len cur_apples: {len(self.pos_all_cur_apples)}, reward: {r_cur_apples}")
 
       else:
         pos_cur_obl = self.get_cur_obl_pos(observation)
@@ -760,8 +782,8 @@ class RuleObeyingPolicy(policy.Policy):
         reward = r_cur_obl + r_fulfilled_obl
 
         action = self.get_action_name(action=act)
-        if action != "MOVE_ACTION" and r_fulfilled_obl == 0:
-          reward -= self.default_action_cost # assume all actions are valid
+        #if action != "MOVE_ACTION" and r_fulfilled_obl == 0:
+          #reward -= self.default_action_cost # assume all actions are valid
         
         if self.log_weights:
           print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
@@ -835,12 +857,15 @@ class RuleObeyingPolicy(policy.Policy):
     return action
 
   def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list, type: str, ts_cur: AgentTimestep) -> float:
+    observation = ts_next.observation
+    pos = observation['POSITION']
+
     r_forward = max(self.V[self.goal][type][s_next]) / self.gamma
     r_cur = ts_next.reward
 
     if self.current_obligation != None:
       r_cur = 0
-      if self.current_obligation.satisfied(ts_next.observation):
+      if self.current_obligation.satisfied(observation):
         r_cur = self.obligation_reward
 
     cost = self.compliance_cost if act in available else self.violation_cost # rule violation

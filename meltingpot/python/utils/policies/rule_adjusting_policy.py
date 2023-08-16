@@ -3,9 +3,6 @@ import dm_env
 from collections import deque
 
 import numpy as np
-
-from copy import deepcopy
-
 import random
 
 from meltingpot.python.utils.substrates import shapes
@@ -26,18 +23,11 @@ OBSERVATION_RADIUS = 15 # defines radius that agents can observe
 REMOVE_HIT_PLAYER = False # let them die when zapped
 PENALTY_FOR_BEING_ZAPPED = 1 # violation cost
 
-ROLE_SPRITE_DICT = {
-   'free': shapes.CUTE_AVATAR,
-   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
-   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
-   'learner': shapes.CUTE_AVATAR,
-   }
-
 # AGENT CLASS
 DEFAULT_MAX_DEPTH = 20
 DEFAULT_COMPLIANCE_COST = 0.1
 DEFAULT_VIOLATION_COST = 0.4
-DEFAULT_TAU = 0.000
+DEFAULT_TAU = 0.1
 DEFAULT_N_STEPS = 1
 DEFAULT_GAMMA = 0.9999
 DEFAULT_N_ROLLOUTS = 3
@@ -47,6 +37,13 @@ DEFAULT_THRESHOLD = 0.8
 DEFAULT_ACTION_COST = 1.0
 DEFAULT_INIT_PRIOR = 0.2
 DEFAULT_P_OBEY = 0.9
+
+ROLE_SPRITE_DICT = {
+   'free': shapes.CUTE_AVATAR,
+   'cleaner': shapes.CUTE_AVATAR_W_SHORTS,
+   'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
+   'learner': shapes.CUTE_AVATAR,
+   }
 
 class RuleAdjustingPolicy(RuleLearningPolicy):
 
@@ -206,6 +203,16 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'ORIENTATION',
             'POSITION', 
             'SINCE_AGENT_LAST_CLEANED',
+            'SURROUNDINGS',
+          ],
+          'pay': [
+            'AGENT_PAYED',
+            'CUR_CELL_HAS_APPLE', 
+            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'NUM_APPLES_AROUND',
+            'ORIENTATION',
+            'POSITION', 
+            'SINCE_AGENT_LAST_PAYED',
             'SURROUNDINGS',
             'POSITION_OTHERS',
           ],
