@@ -376,8 +376,8 @@ class RuleObeyingPolicy(policy.Policy):
 
   def hit_dirt(self, obs, x, y) -> bool:
     for i in range(x-2, x+2):
-      for j in range(y-3, y):
-        if obs['SURROUNDINGS'][i][j] == -1 or obs['SURROUNDINGS'][i][j] == -2:
+      for j in range(y-2, y):
+        if obs['SURROUNDINGS'][i][j] == -1:
           return True
     return False
 
@@ -513,11 +513,11 @@ class RuleObeyingPolicy(policy.Policy):
     if not self.role == 'farmer':
       # if facing north and is at water
       if not self.exceeds_map(x, y):
-        if not self.is_water_in_front(observation, x, y):
-          if observation['ORIENTATION'] == 0:
-            if self.hit_dirt(observation, x, y):
-              last_cleaned_time = 0
-              num_cleaners = 1
+        #if not self.is_water_in_front(observation, x, y):
+        if observation['ORIENTATION'] == 0:
+          if self.hit_dirt(observation, x, y):
+            last_cleaned_time = 0
+            num_cleaners = 1
 
     return last_cleaned_time, num_cleaners
   
@@ -752,8 +752,8 @@ class RuleObeyingPolicy(policy.Policy):
 
         reward = r_cur_apples + r_eat_apple + r_fut_apples
 
-        if self.log_weights:
-          print(f"len cur_apples: {len(pos_cur_apples)}, reward: {r_cur_apples}")
+        #if self.log_weights:
+          #print(f"len cur_apples: {len(pos_cur_apples)}, reward: {r_cur_apples}")
 
       else:
         pos_cur_obl = self.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx=-1)
@@ -769,7 +769,8 @@ class RuleObeyingPolicy(policy.Policy):
         reward = r_cur_obl + r_fulfilled_obl + r_fut_obl
         
         if self.log_weights:
-          print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
+          print(f"len pos_fut_obl: {len(pos_fut_obl)}, reward: {r_fut_obl}, fulfilled: {r_fulfilled_obl}")
+          # print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
 
       Q[act] = reward
 
@@ -808,7 +809,7 @@ class RuleObeyingPolicy(policy.Policy):
         respawn_rate = self.dirt_spawn_prob * (self.num_players / 4) # Set default, lua equivalent
         if respawn_type == 'apple': # Lua equivalent
           respawn_rate = self.dirt_fraction * self.get_apples(obs, pos[0], pos[1])
-        reward += self.apple_reward * respawn_rate * self.gamma**n_steps_to_reward # Positive reward for eating apple
+        reward += self.apple_reward * respawn_rate * self.gamma**(n_steps_to_reward-1) # Positive reward for eating apple
       
         for i in range(n_steps_to_reward): # Negative reward 
           reward -= self.default_action_cost * self.gamma**i
