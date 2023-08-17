@@ -248,8 +248,8 @@ class RuleObeyingPolicy(policy.Policy):
       self.goal = 'apple'
   
   def has_policy(self, ts_cur: AgentTimestep) -> bool:
-    s_next, type = self.hash_ts(ts_cur)
-    if s_next in self.V[self.goal][type].keys():
+    s_next = self.hash_ts(ts_cur)
+    if s_next in self.V[self.goal].keys():
       return True
     return False
   
@@ -269,20 +269,18 @@ class RuleObeyingPolicy(policy.Policy):
       self.update_surroundings(new_pos, ts.observation, idx)
     ts.observation = self.update_obs_without_coordinates(ts.observation)
     ts.observation['RIOTS'] = self.update_riots(actions, ts.observation)
-    self.set_apple_growth_rate(ts.observation)
+    self.set_interpolation_and_dirt_fraction(ts.observation)
 
     return ts
   
-  def set_apple_growth_rate(self, obs: dict) -> float:
+  def set_interpolation_and_dirt_fraction(self, obs: dict) -> float:
     dirt_count = np.sum(obs['SURROUNDINGS'] == -1)
     clean_count = np.sum(obs['SURROUNDINGS'] == -2)
-    dirt_fraction = dirt_count / (dirt_count + clean_count)
+    self.dirt_fraction = dirt_count / (dirt_count + clean_count)
 
     depletion = self.threshold_depletion
     restoration = self.threshold_restoration
-    interpolation = (dirt_fraction - depletion) / (restoration - depletion)
-
-    self.apple_growth_rate = interpolation
+    self.interpolation = (self.dirt_fraction - depletion) / (restoration - depletion)
   
   def update_riots(self, actions: list, obs: dict) -> None:
     """Updating the list of riots for every action that has been taken by all agents"""
@@ -293,7 +291,7 @@ class RuleObeyingPolicy(policy.Policy):
           zapped_agent = self.get_zapped_agent(player_who_zapped, obs)
           if not zapped_agent == None:
             if zapped_agent in self.riots:
-              self.riots = self.riots.remove(zapped_agent)
+              self.riots.remove(zapped_agent)
       
     return self.riots
 
@@ -441,7 +439,6 @@ class RuleObeyingPolicy(policy.Policy):
       cur_pos = observation['POSITION']
       reward = 0
       action_name = None
-
       observation['RIOTS'] = self.riots
 
       # 2. Simulate changes to observation based on action
@@ -506,7 +503,7 @@ class RuleObeyingPolicy(policy.Policy):
       for riot in riots:
         if self.is_close_to_agent(observation, riot):
           last_zapped = 0
-          riots = riots.remove(riot)
+          riots.remove(riot)
 
     return last_zapped, riots
 
@@ -623,64 +620,21 @@ class RuleObeyingPolicy(policy.Policy):
     
     return None
 
-  def get_ts_hash_key(self, obs: dict, reward: float, full_hash: bool):
+  def get_ts_hash_key(self, obs: dict, reward: float):
     # Convert the dictionary to a tuple of key-value pairs
-    relevant_keys = self.relevant_keys[self.goal]
-    if full_hash:
-      relevant_keys = self.relevant_keys['full']
+    relevant_keys = self.relevant_keys['full'] # define keys
 
-    items = tuple((key, value) for key, value in obs.items() if key in relevant_keys)
+    items = tuple((key, value) for key, value in obs.items() if key in relevant_keys) # extract
     sorted_items = sorted(items, key=lambda x: x[0])
-    list_bytes = pickle.dumps(sorted_items + [reward])
-    hash_key = hashlib.sha256(list_bytes).hexdigest() 
 
-    """# Check for potential collision
-    if hash_key in self.hash_table:
-      existing_obs = self.hash_table[hash_key]
-      new_obs = obs
-        
-      mismatch_found = False  # Flag to indicate if a mismatch is found
-
-      # Compare the observations
-      for key in existing_obs.keys():
-
-        if key in ["WORLD.RGB", "PROPERTY", "READY_TO_SHOOT", "TOTAL_NUM_CLEANERS"]:
-          continue
-        
-        if isinstance(existing_obs[key], np.ndarray):
-          if not np.array_equal(existing_obs[key], new_obs[key]):
-            print(f"Key: {key}")
-            print("Stored Value:", existing_obs[key])
-            print("New Value:", new_obs[key])
-            mismatch_found = True
-        else:
-          if existing_obs[key] != new_obs[key]:
-            print(f"Key: {key}")
-            print("Stored Value:", existing_obs[key])
-            print("New Value:", new_obs[key])
-            mismatch_found = True
-        
-      if mismatch_found:
-        raise ValueError(f"Hash collision detected for key {hash_key}")
-    
-    else:
-      # Store the timestep in the hash_table
-      self.hash_table[hash_key] = obs"""
+    list_bytes = pickle.dumps(sorted_items + [reward]) # make byte arrays
+    hash_key = hashlib.sha256(list_bytes).hexdigest()  # hash
 
     return hash_key
 
   def hash_ts(self, timestep: AgentTimestep):
     """Computes hash for the given timestep observation."""
-
-    full_hash = self.get_ts_hash_key(timestep.observation, timestep.reward, full_hash=True)
-    if full_hash in self.V[self.goal]['full']:
-      return full_hash, 'full'
-    
-    partial_hash = self.get_ts_hash_key(timestep.observation, timestep.reward, full_hash=False)
-    if partial_hash in self.V[self.goal]['partial']:
-      return partial_hash, 'partial'
-    
-    return full_hash, 'full'
+    return self.get_ts_hash_key(timestep.observation, timestep.reward)
   
   # from https://github.com/JuliaPlanners/SymbolicPlanners.jl/blob/master/src/planners/rtdp.jl
   def rtdp(self, ts_start: AgentTimestep) -> None:
@@ -703,12 +657,12 @@ class RuleObeyingPolicy(policy.Policy):
     return
   
   def get_best_act(self, ts_cur: AgentTimestep) -> int:
-    hash, type = self.hash_ts(ts_cur)
-    if hash in self.V[self.goal][type].keys():
+    hash = self.hash_ts(ts_cur)
+    if hash in self.V[self.goal].keys():
       if self.log_output:
         print(f'position: {ts_cur.observation["POSITION"]}')
-        print(self.V[self.goal][type][hash])
-      return np.argmax(self.V[self.goal][type][hash]) # no null action
+        print(self.V[self.goal][hash])
+      return np.argmax(self.V[self.goal][hash]) # no null action
     else:
       best_act, _ = self.update(ts_cur)
       return best_act
@@ -721,16 +675,16 @@ class RuleObeyingPolicy(policy.Policy):
 
     # TODO: change to available_action_history()
     available = self.available_actions(ts_cur.observation)
-    s_cur, type = self.hash_ts(ts_cur)
+    s_cur = self.hash_ts(ts_cur)
 
     if self.log_weights:
       print(f'NEW UPDATE FOR STATE {s_cur}')
 
     # initialize best optimistic guess for cur state
-    if s_cur not in self.V[self.goal][type].keys():
+    if s_cur not in self.V[self.goal].keys():
       if self.log_weights:
         print('NEW INITIAL STATE ENCOUNTEREND')
-      self.V[self.goal][type][s_cur] = self.init_heuristic(ts_cur)
+      self.V[self.goal][s_cur] = self.init_heuristic(ts_cur)
     
     for act in range(size): 
       ts_next = self.env_step(ts_cur, act, self._index)
@@ -739,14 +693,14 @@ class RuleObeyingPolicy(policy.Policy):
       if self.exceeds_map(pos[0], pos[1]):
         continue
 
-      s_next, type = self.hash_ts(ts_next)
+      s_next = self.hash_ts(ts_next)
       # initialize best optimistic guess for next state
-      if s_next not in self.V[self.goal][type].keys():
-        self.V[self.goal][type][s_next] = self.init_heuristic(ts_next)
+      if s_next not in self.V[self.goal].keys():
+        self.V[self.goal][s_next] = self.init_heuristic(ts_next)
 
       Q[act]  = self.get_estimated_return(ts_next, s_next, act, available, type, ts_cur)
 
-    self.V[self.goal][type][s_cur] = Q
+    self.V[self.goal][s_cur] = Q
 
     if s_cur not in self.hash_count:
       self.hash_count[s_cur] = 1
@@ -775,8 +729,6 @@ class RuleObeyingPolicy(policy.Policy):
       print()
       print(f"{timestep.observation['POSITION']} for {self.hash_ts(timestep)}")
 
-    # print(f'init {timestep.observation["POSITION"]}:')
-
     for act in range(size):
       ts_next = self.env_step(timestep, act, self._index)
       observation = ts_next.observation
@@ -790,34 +742,29 @@ class RuleObeyingPolicy(policy.Policy):
         reward -= self.default_action_cost
     
       if self.goal == "apple":
-        r_eaten_apples = self.obligation_reward if act == 10 and observation['INVENTORY'] > 0 else 0
-        pos_eaten_apple = pos if act == 10 and observation['INVENTORY'] > 0 else 0
+        pos_eaten_apple = tuple((pos[0], pos[1])) if act == 10 and observation['INVENTORY'] > 0 else 0
         pos_cur_apples = self.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx=-3)
-        pos_future_apples = [apple for apple in self.pos_all_possible_apples if apple not in pos_cur_apples and not pos_eaten_apple]
-        r_cur_apples = self.get_discounted_reward(pos_cur_apples, pos)
-        r_fut_apples = self.get_discounted_reward(pos_future_apples, pos, dis_rate=self.apple_growth_rate)
-        reward = r_cur_apples + r_eaten_apples + r_fut_apples
+        pos_fut_apples = [apple for apple in self.pos_all_possible_apples if apple not in pos_cur_apples and apple != pos_eaten_apple]
+
+        r_eat_apple = self.apple_reward if act == 10 and observation['INVENTORY'] > 0 else 0
+        r_cur_apples = self.get_discounted_reward(pos_cur_apples, pos, observation)
+        r_fut_apples = self.get_discounted_reward(pos_fut_apples, pos, observation, respawn_type='apple')
+
+        reward = r_cur_apples + r_eat_apple + r_fut_apples
 
         if self.log_weights:
-          print(f"len cur_apples: {len(self.pos_all_cur_apples)}, reward: {r_cur_apples}")
+          print(f"len cur_apples: {len(pos_cur_apples)}, reward: {r_cur_apples}")
 
       else:
-        r_fut_obl = 0
         pos_cur_obl = self.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx=-1)
-        r_cur_obl = self.get_discounted_reward(pos_cur_obl, pos)
-          
-        try:
-          r_fulfilled_obl = self.obligation_reward if self.current_obligation.satisfied(observation) else 0
-        except TypeError:
-          # Handle the exception here, for example:
-          r_fulfilled_obl = 0
-          print(f"Current obligation: {self.current_obligation.make_str_repr()}")
-          print(f"RIOTS AT INIT: {observation['RIOTS']}, type: {type(observation['RIOTS'])}")
-          print()
 
+        r_cur_obl = self.get_discounted_reward(pos_cur_obl, pos, observation)
+        r_fulfilled_obl = self.obligation_reward if self.current_obligation.satisfied(observation) else 0
+
+        r_fut_obl = 0
         if self.goal == 'clean':
-          pos_fut_obl = [dirt for dirt in self.pos_all_possible_dirt if dirt not in pos_cur_obl and not pos_eaten_apple]
-          r_fut_obl = self.get_discounted_reward(pos_fut_obl, pos, dis_rate=self.dirt_spawn_prob)
+          pos_fut_obl = [dirt for dirt in self.pos_all_possible_dirt if dirt not in pos_cur_obl]
+          r_fut_obl = self.get_discounted_reward(pos_fut_obl, pos, observation, respawn_type='dirt')
 
         reward = r_cur_obl + r_fulfilled_obl + r_fut_obl
         
@@ -847,11 +794,29 @@ class RuleObeyingPolicy(policy.Policy):
 
     return agents_pos
 
-  def get_discounted_reward(self, target_pos, own_pos, dis_rate=1) -> float:
+  def get_discounted_reward(self, target_pos, own_pos, obs, respawn_type=None) -> float:
     reward = 0.0
+
     for pos in target_pos:
-      reward -= self.manhattan_dis(pos, own_pos) * dis_rate
+      n_steps_to_reward = int(self.manhattan_dis(pos, own_pos))
+
+      if respawn_type == None: # Consider only currently existing objects
+        reward += self.apple_reward * self.gamma**(n_steps_to_reward-1) # Positive reward for eating apple
+        reward -= self.default_action_cost * self.gamma**n_steps_to_reward # Cost of eating action
+      
+      else: # Future objects
+        respawn_rate = self.dirt_spawn_prob * (self.num_players / 4) # Set default, lua equivalent
+        if respawn_type == 'apple': # Lua equivalent
+          respawn_rate = self.dirt_fraction * self.get_apples(obs, pos[0], pos[1])
+        reward += self.apple_reward * respawn_rate * self.gamma**n_steps_to_reward # Positive reward for eating apple
+      
+        for i in range(n_steps_to_reward): # Negative reward 
+          reward -= self.default_action_cost * self.gamma**i
+
     return reward
+
+  def manhattan_dis(self, pos_cur, pos_goal) -> int:
+    return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1])
   
   def in_unreachable_water(self, obs: AgentTimestep) -> list:
     unreachable = []
@@ -897,7 +862,7 @@ class RuleObeyingPolicy(policy.Policy):
     observation = ts_next.observation
     pos = observation['POSITION']
 
-    r_forward = max(self.V[self.goal][type][s_next]) / self.gamma
+    r_forward = max(self.V[self.goal][s_next]) * self.gamma
     r_cur = ts_next.reward
 
     if self.current_obligation != None:

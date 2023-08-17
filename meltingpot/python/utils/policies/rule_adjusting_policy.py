@@ -35,6 +35,7 @@ DEFAULT_N_STEPS = 1
 DEFAULT_GAMMA = 0.9999
 DEFAULT_N_ROLLOUTS = 3
 DEFAULT_OBLIGATION_REWARD = 1
+DEFAULT_APPLE_REWARD = 1
 DEFAULT_SELECTION_MODE = "threshold"
 DEFAULT_THRESHOLD = 0.8
 DEFAULT_ACTION_COST = 0.1
@@ -72,6 +73,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 gamma: float = DEFAULT_GAMMA,
                 n_rollouts: int = DEFAULT_N_ROLLOUTS,
                 obligation_reward: int = DEFAULT_OBLIGATION_REWARD,
+                apple_reward: int = DEFAULT_APPLE_REWARD,
                 default_action_cost: float = DEFAULT_ACTION_COST,
                 init_prior: float = DEFAULT_INIT_PRIOR,
                 p_obey: float = DEFAULT_P_OBEY,
@@ -106,6 +108,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.gamma = gamma
         self.n_rollouts = n_rollouts
         self.obligation_reward = obligation_reward
+        self.apple_reward = apple_reward
         self.max_depth = max_depth
         self.default_action_cost = default_action_cost
         self.init_prior = init_prior
@@ -126,13 +129,13 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         if self.role == 'farmer':
             self.payees = None
         goals = ['apple', 'clean', 'pay', 'zap']
-        hash_types = ['full', 'partial']
-        self.V = {goal: {hash_type: {} for hash_type in hash_types} for goal in goals}
+        self.V = {goal: {} for goal in goals}
         self.ts_start = None
         self.goal = None
         self.x_max = 15
         self.y_max = 15
-        self.apple_growth_rate = 0.5
+        self.dirt_fraction = 0.5
+        self.interpolation = 0.5
 
         # non-physical info
         self.last_zapped = 0
@@ -195,7 +198,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'WATER_LOCATION', # maybe take out again
             'POSITION_OTHERS',
           ],
-      'apple': [
+        'apple': [
             'AGENT_ATE',
             'CUR_CELL_HAS_APPLE', 
             'CUR_CELL_IS_FOREIGN_PROPERTY', 
