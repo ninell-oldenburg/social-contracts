@@ -67,8 +67,7 @@ from meltingpot.python.utils.substrates import colors
 from meltingpot.python.utils.substrates import game_object_utils
 from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.substrates import specs
-
-from meltingpot.python.utils.policies.rule_adjusting_policy import ROLE_SPRITE_DICT, APPLE_RESPAWN_RADIUS, REGROWTH_PROBABILITIES, OBSERVATION_RADIUS, REMOVE_HIT_PLAYER, PENALTY_FOR_BEING_ZAPPED
+from meltingpot.python.utils.policies.rule_adjusting_policy import ROLE_SPRITE_DICT, APPLE_RESPAWN_RADIUS, REGROWTH_PROBABILITIES, OBSERVATION_RADIUS, REMOVE_HIT_PLAYER, PENALTY_FOR_BEING_ZAPPED, THRESHOLD_APPLE_DEPLETION, THRESHOLD_APPLE_RESTAURATION
 
 PrefabConfig = game_object_utils.PrefabConfig
 
@@ -821,8 +820,8 @@ def create_apple_prefab(regrowth_radius=-1.0,  # pylint: disable=dangerous-defau
                   "radius": regrowth_radius,
                   "regrowthProbabilities": regrowth_probabilities,
                   "maxAppleGrowthRate": 1,
-                  "thresholdDepletion": 0.7,
-                  "thresholdRestoration": 0.1,
+                  "thresholdDepletion": THRESHOLD_APPLE_DEPLETION,
+                  "thresholdRestoration": THRESHOLD_APPLE_RESTAURATION,
               }
           },
       ]

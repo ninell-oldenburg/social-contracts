@@ -47,7 +47,7 @@ class RuleGenerator():
         self.actions = actions
         self.bools = features["bool"]
         self.discretes = features["discrete"]
-        self.looks = features["categorical"][ "AGENT_LOOK"]
+        self.looks = features["categorical"]["AGENT_LOOK"]
         self.features = self.bools + list(self.discretes.keys())
 
     def generate_rules_of_length(self, target_length):

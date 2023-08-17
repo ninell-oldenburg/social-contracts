@@ -269,30 +269,49 @@ class RuleObeyingPolicy(policy.Policy):
       self.update_surroundings(new_pos, ts.observation, idx)
     ts.observation = self.update_obs_without_coordinates(ts.observation)
     ts.observation['RIOTS'] = self.update_riots(actions, ts.observation)
+    ts.observation['APPLE_GROWTH_RATE'] = self.get_apple_growth_rate(ts.observation)
 
     return ts
   
-  def update_riots(self, actions: list, obs: dict) -> list:
-    for i, action in enumerate(actions):
+  def get_apple_growth_rate(self, obs: dict) -> float:
+    dirt = np.sum(obs['SURROUNDINGS'] == -1)
+    non_dirt = np.sum(obs['SURROUNDINGS'] == -2)
+    
+  
+  def update_riots(self, actions: list, obs: dict) -> None:
+    """Updating the list of riots for every action that has been taken by all agents"""
+    for i, action in enumerate(actions): # we need to compute it for all agents
       if action == 7:
         player_who_zapped = i
-        zapped_agent = self.get_zapped_agent(player_who_zapped, obs)
-        if zapped_agent in self.riots:
-          self.riots = self.riots.remove(zapped_agent)
-    
+        if len(self.riots) > 0: # stored in the list
+          zapped_agent = self.get_zapped_agent(player_who_zapped, obs)
+          if not zapped_agent == None:
+            if zapped_agent in self.riots:
+              self.riots = self.riots.remove(zapped_agent)
+      
     return self.riots
+
 
   def get_zapped_agent(self, player_who_zapped: int, obs: dict) -> int:
     if self.log_output:
       print('player_who_zapped: ' + str(player_who_zapped))
       print('position others: ' + str(obs['POSITION_OTHERS']))
-    x, y = obs['POSITION_OTHERS'][player_who_zapped][0], obs['POSITION_OTHERS'][player_who_zapped][1]
+
+    x, y = 0, 0
+    if 0 <= player_who_zapped < len(obs['POSITION_OTHERS']):
+      x, y = obs['POSITION_OTHERS'][player_who_zapped][0], obs['POSITION_OTHERS'][player_who_zapped][1]
+    else:
+      print("Invalid player index:", player_who_zapped)
+
+    # x, y = obs['POSITION_OTHERS'][player_who_zapped][0], obs['POSITION_OTHERS'][player_who_zapped][1]
     for i in range(x-1, x+2):
       for j in range(y-1, y+2):
         if not self.exceeds_map(i, j):
           if obs['SURROUNDINGS'][i][j] > 0:
             if obs['SURROUNDINGS'][i][j] != player_who_zapped:
-              return obs['SURROUNDINGS'][i][j]
+              if self.is_facing_agent(obs, (i, j)):
+                return obs['SURROUNDINGS'][i][j]
+    return None
   
   def update_obs_without_coordinates(self, obs: dict) -> dict:
     cur_pos = np.copy(obs['POSITION'])
@@ -417,6 +436,8 @@ class RuleObeyingPolicy(policy.Policy):
       reward = 0
       action_name = None
 
+      observation['RIOTS'] = self.riots
+
       # 2. Simulate changes to observation based on action
       if action <= 4: # MOVE ACTIONS
         if action == 0 and self.role == 'cleaner':
@@ -474,7 +495,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def compute_zap(self, observation, x, y):
     last_zapped = observation['SINCE_AGENT_LAST_ZAPPED']
-    riots = observation['RIOTS'] if not observation['RIOTS'] == None else []
+    riots = observation['RIOTS']
     if not self.exceeds_map(x, y):
       for riot in riots:
         if self.is_close_to_agent(observation, riot):
@@ -780,7 +801,8 @@ class RuleObeyingPolicy(policy.Policy):
         except TypeError:
           # Handle the exception here, for example:
           r_fulfilled_obl = 0
-          print(f"Warning: Observation was None at timestep {timestep.observation}")
+          print(f"Current obligation: {self.current_obligation.make_str_repr()}")
+          print(f"RIOTS: {observation['RIOTS']}, type: {type(observation['RIOTS'])}")
           print()
         reward = r_cur_obl + r_fulfilled_obl
         
@@ -865,8 +887,11 @@ class RuleObeyingPolicy(policy.Policy):
 
     if self.current_obligation != None:
       r_cur = 0
-      if self.current_obligation.satisfied(observation):
-        r_cur = self.obligation_reward
+      try:
+        if self.current_obligation.satisfied(observation):
+          r_cur = self.obligation_reward
+      except:
+        r_cur = 0
 
     cost = self.compliance_cost if act in available else self.violation_cost # rule violation
 
