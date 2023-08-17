@@ -24,6 +24,7 @@ REMOVE_HIT_PLAYER = False # let them die when zapped
 PENALTY_FOR_BEING_ZAPPED = 1 # violation cost
 THRESHOLD_APPLE_DEPLETION = 0.7
 THRESHOLD_APPLE_RESTAURATION = 0.1
+DIRT_SPAWN_PROB = 0.2 # TODO to be unified
 
 # AGENT CLASS
 DEFAULT_MAX_DEPTH = 20
@@ -73,7 +74,10 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 obligation_reward: int = DEFAULT_OBLIGATION_REWARD,
                 default_action_cost: float = DEFAULT_ACTION_COST,
                 init_prior: float = DEFAULT_INIT_PRIOR,
-                p_obey: float = DEFAULT_P_OBEY) -> None:
+                p_obey: float = DEFAULT_P_OBEY,
+                threshold_depletion: float = THRESHOLD_APPLE_DEPLETION,
+                threshold_restoration: float = THRESHOLD_APPLE_RESTAURATION,
+                dirt_spawn_prob: float = DIRT_SPAWN_PROB) -> None:
         
         # CALLING PARAMETERS
         self._index = player_idx
@@ -106,13 +110,16 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.default_action_cost = default_action_cost
         self.init_prior = init_prior
         self.p_obey = p_obey
+        self.threshold_depletion = threshold_depletion
+        self.threshold_restoration = threshold_restoration
+        self.dirt_spawn_prob = dirt_spawn_prob
         
         # GLOBAL INITILIZATIONS
         self.history = deque(maxlen=10)
         self.step_counter = 0
         self.payees = []
         self.riots = []
-        self.pos_all_cur_apples = []
+        self.pos_all_possible_dirt = []
         self.pos_all_possible_apples = []
         self.hash_count = {}
         self.q_value_log = {}
@@ -125,6 +132,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.goal = None
         self.x_max = 15
         self.y_max = 15
+        self.apple_growth_rate = 0.5
 
         # non-physical info
         self.last_zapped = 0
@@ -246,7 +254,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         if ts_cur.step_type == dm_env.StepType.FIRST:
             self.pos_all_possible_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
-        self.pos_all_cur_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
+            self.pos_all_possible_dirt = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -1)))
 
         # Check if any of the obligations are active
         self.current_obligation = None

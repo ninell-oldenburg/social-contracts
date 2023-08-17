@@ -269,14 +269,20 @@ class RuleObeyingPolicy(policy.Policy):
       self.update_surroundings(new_pos, ts.observation, idx)
     ts.observation = self.update_obs_without_coordinates(ts.observation)
     ts.observation['RIOTS'] = self.update_riots(actions, ts.observation)
-    ts.observation['APPLE_GROWTH_RATE'] = self.get_apple_growth_rate(ts.observation)
+    self.set_apple_growth_rate(ts.observation)
 
     return ts
   
-  def get_apple_growth_rate(self, obs: dict) -> float:
-    dirt = np.sum(obs['SURROUNDINGS'] == -1)
-    non_dirt = np.sum(obs['SURROUNDINGS'] == -2)
-    
+  def set_apple_growth_rate(self, obs: dict) -> float:
+    dirt_count = np.sum(obs['SURROUNDINGS'] == -1)
+    clean_count = np.sum(obs['SURROUNDINGS'] == -2)
+    dirt_fraction = dirt_count / (dirt_count + clean_count)
+
+    depletion = self.threshold_depletion
+    restoration = self.threshold_restoration
+    interpolation = (dirt_fraction - depletion) / (restoration - depletion)
+
+    self.apple_growth_rate = interpolation
   
   def update_riots(self, actions: list, obs: dict) -> None:
     """Updating the list of riots for every action that has been taken by all agents"""
@@ -784,27 +790,36 @@ class RuleObeyingPolicy(policy.Policy):
         reward -= self.default_action_cost
     
       if self.goal == "apple":
-        #future_apples = [apple for apple in self.pos_all_cur_apples if apple not in cur_apples]
-        r_cur_apples = self.get_discounted_reward(self.pos_all_cur_apples, pos)
-        #r_fut_apples = self.get_discounted_reward(future_apples, pos)
         r_eaten_apples = self.obligation_reward if act == 10 and observation['INVENTORY'] > 0 else 0
-        reward = r_cur_apples + r_eaten_apples #+ r_fut_apples
+        pos_eaten_apple = pos if act == 10 and observation['INVENTORY'] > 0 else 0
+        pos_cur_apples = self.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx=-3)
+        pos_future_apples = [apple for apple in self.pos_all_possible_apples if apple not in pos_cur_apples and not pos_eaten_apple]
+        r_cur_apples = self.get_discounted_reward(pos_cur_apples, pos)
+        r_fut_apples = self.get_discounted_reward(pos_future_apples, pos, dis_rate=self.apple_growth_rate)
+        reward = r_cur_apples + r_eaten_apples + r_fut_apples
 
         if self.log_weights:
           print(f"len cur_apples: {len(self.pos_all_cur_apples)}, reward: {r_cur_apples}")
 
       else:
-        pos_cur_obl = self.get_cur_obl_pos(observation)
+        r_fut_obl = 0
+        pos_cur_obl = self.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx=-1)
         r_cur_obl = self.get_discounted_reward(pos_cur_obl, pos)
+          
         try:
           r_fulfilled_obl = self.obligation_reward if self.current_obligation.satisfied(observation) else 0
         except TypeError:
           # Handle the exception here, for example:
           r_fulfilled_obl = 0
           print(f"Current obligation: {self.current_obligation.make_str_repr()}")
-          print(f"RIOTS: {observation['RIOTS']}, type: {type(observation['RIOTS'])}")
+          print(f"RIOTS AT INIT: {observation['RIOTS']}, type: {type(observation['RIOTS'])}")
           print()
-        reward = r_cur_obl + r_fulfilled_obl
+
+        if self.goal == 'clean':
+          pos_fut_obl = [dirt for dirt in self.pos_all_possible_dirt if dirt not in pos_cur_obl and not pos_eaten_apple]
+          r_fut_obl = self.get_discounted_reward(pos_fut_obl, pos, dis_rate=self.dirt_spawn_prob)
+
+        reward = r_cur_obl + r_fulfilled_obl + r_fut_obl
         
         if self.log_weights:
           print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
@@ -852,8 +867,8 @@ class RuleObeyingPolicy(policy.Policy):
   def manhattan_dis(self, pos_cur, pos_goal) -> int:
     return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1]) * 0.1
 
-  def get_cur_apple_pos(self, surroundings: np.array) -> list:
-    return list(zip(*np.where(surroundings== -3)))
+  def get_cur_obj_pos(self, surroundings: np.array, object_idx: int) -> list:
+    return list(zip(*np.where(surroundings== object_idx)))
   
   def get_boltzmann_act(self, q_values: list) -> int:
 
