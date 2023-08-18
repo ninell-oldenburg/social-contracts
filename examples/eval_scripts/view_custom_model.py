@@ -339,7 +339,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 0
   episodes = 200
   num_iteration = 10
   # Possible values for tau and gamma you want to test
@@ -353,8 +353,6 @@ if __name__ == "__main__":
   for run in range(num_runs):
       print(f"Run number: {run+1}")
       for tau in taus:
-          #for gamma in gammas:
-              #print(f"Running for tau={tau} and gamma={gamma}")
     
         settings, data_dict = main(roles=roles,
                                     rules=DEFAULT_RULES,
@@ -368,14 +366,10 @@ if __name__ == "__main__":
                                     plot_q_vals=False,
                                     tau=0.9,
                                     )
-  
-  print(sum(data_dict['cleaner']))
-  print(sum(data_dict['farmer']))
-  print(sum(data_dict['free']))
 
-  results[tau]['cleaner'] += sum(data_dict['cleaner'])
-  results[tau]['farmer'] += sum(data_dict['farmer'])
-  results[tau]['free'] += sum(data_dict['free'])
+        results[tau]['cleaner'] += sum(data_dict['cleaner'])
+        results[tau]['farmer'] += sum(data_dict['farmer'])
+        results[tau]['free'] += sum(data_dict['free'])
               
   # Calculate averages
   for tau, scores in results.items():
@@ -388,3 +382,7 @@ if __name__ == "__main__":
       print(f"For tau={tau}:")
       print(f"cleaner: {scores['cleaner']:.2f}, farmer: {scores['farmer']:.2f}, free: {scores['free']:.2f}")
       print()
+
+  print(sum(data_dict['cleaner']))
+  print(sum(data_dict['farmer']))
+  print(sum(data_dict['free']))

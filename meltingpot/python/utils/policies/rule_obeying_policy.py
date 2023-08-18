@@ -103,8 +103,7 @@ class RuleObeyingPolicy(policy.Policy):
     if self.role == 'farmer':
       self.payees = None
     goals = ['apple', 'clean', 'pay', 'zap']
-    hash_types = ['full', 'partial']
-    self.V = {goal: {hash_type: {} for hash_type in hash_types} for goal in goals}
+    self.V = {goal: {} for goal in goals}
     self.ts_start = None
     self.goal = None
     self.x_max = 15
@@ -356,6 +355,7 @@ class RuleObeyingPolicy(policy.Policy):
             self.last_cleaned = 0
 
       elif action == 11:
+        print(f'attempting pay action: {self.role}, inventory: {obs["INVENTORY"]}, payees: {self.payees}, my inedx: {self._index}')
         if self.role == "farmer": # other roles don't pay
           if obs['INVENTORY'] != 0:
             if not self.payees == None:
@@ -560,7 +560,7 @@ class RuleObeyingPolicy(policy.Policy):
     else:
       for i in range(len(observation['ALWAYS_PAYING_TO'])):
         if observation['ALWAYS_PAYING_TO'][i] != 0:
-          payees.append(observation['ALWAYS_PAYING_TO'][i])
+          payees.append(i)
     return payees
   
   def is_close_to_agent(self, observation, payee):
@@ -622,7 +622,7 @@ class RuleObeyingPolicy(policy.Policy):
 
   def get_ts_hash_key(self, obs: dict, reward: float):
     # Convert the dictionary to a tuple of key-value pairs
-    relevant_keys = self.relevant_keys['full'] # define keys
+    relevant_keys = self.relevant_keys[self.goal] # define keys
 
     items = tuple((key, value) for key, value in obs.items() if key in relevant_keys) # extract
     sorted_items = sorted(items, key=lambda x: x[0])
@@ -752,25 +752,25 @@ class RuleObeyingPolicy(policy.Policy):
 
         reward = r_cur_apples + r_eat_apple + r_fut_apples
 
-        #if self.log_weights:
-          #print(f"len cur_apples: {len(pos_cur_apples)}, reward: {r_cur_apples}")
+        if self.log_weights:
+          print(f"len cur_apples: {len(pos_cur_apples)}, reward: {r_cur_apples}")
 
       else:
-        pos_cur_obl = self.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx=-1)
+        pos_cur_obl = self.get_cur_obl_pos(observation)
 
         r_cur_obl = self.get_discounted_reward(pos_cur_obl, pos, observation)
         r_fulfilled_obl = self.obligation_reward if self.current_obligation.satisfied(observation) else 0
 
-        r_fut_obl = 0
+        """r_fut_obl = 0
         if self.goal == 'clean':
           pos_fut_obl = [dirt for dirt in self.pos_all_possible_dirt if dirt not in pos_cur_obl]
-          r_fut_obl = self.get_discounted_reward(pos_fut_obl, pos, observation, respawn_type='dirt')
+          r_fut_obl = self.get_discounted_reward(pos_fut_obl, pos, observation, respawn_type='dirt')"""
 
-        reward = r_cur_obl + r_fulfilled_obl + r_fut_obl
+        reward = r_cur_obl + r_fulfilled_obl # + r_fut_obl
         
         if self.log_weights:
-          print(f"len pos_fut_obl: {len(pos_fut_obl)}, reward: {r_fut_obl}, fulfilled: {r_fulfilled_obl}")
-          # print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
+          # print(f"len pos_fut_obl: {len(pos_fut_obl)}, reward: {r_fut_obl}, fulfilled: {r_fulfilled_obl}")
+          print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
 
       Q[act] = reward
 
@@ -781,9 +781,10 @@ class RuleObeyingPolicy(policy.Policy):
   
   def get_cur_obl_pos(self, observation: dict) -> list:
     if self.goal == 'clean':
+      return self.pos_all_possible_dirt
       return list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
     else:
-      return  self.get_agent_list(observation)
+      return self.get_agent_list(observation)
     
   def get_agent_list(self, observation: dict) -> list:
     agent_idx = observation['ALWAYS_PAYING_TO'] if self.goal == "pay" and observation['INVENTORY'] != 0 else []
@@ -797,20 +798,21 @@ class RuleObeyingPolicy(policy.Policy):
 
   def get_discounted_reward(self, target_pos, own_pos, obs, respawn_type=None) -> float:
     reward = 0.0
+    r_amount = self.apple_reward if self.goal == 'apple' else self.obligation_reward
 
     for pos in target_pos:
       n_steps_to_reward = int(self.manhattan_dis(pos, own_pos))
 
       if respawn_type == None: # Consider only currently existing objects
-        reward += self.apple_reward * self.gamma**(n_steps_to_reward-1) # Positive reward for eating apple
-        reward -= self.default_action_cost * self.gamma**n_steps_to_reward # Cost of eating action
+        reward += r_amount * self.gamma**(n_steps_to_reward-1) # Positive reward for eating apple
+        reward -= self.default_action_cost * self.gamma**(n_steps_to_reward-1) # Cost of eating action
       
       else: # Future objects
-        respawn_rate = self.dirt_spawn_prob * (self.num_players / 4) # Set default, lua equivalent
+        # respawn_rate = self.dirt_spawn_prob * (self.num_players / 4) # Set default, lua equivalent
         if respawn_type == 'apple': # Lua equivalent
           respawn_rate = self.dirt_fraction * self.get_apples(obs, pos[0], pos[1])
-        reward += self.apple_reward * respawn_rate * self.gamma**(n_steps_to_reward-1) # Positive reward for eating apple
-      
+
+        reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward-1) # Positive reward for eating apple
         for i in range(n_steps_to_reward): # Negative reward 
           reward -= self.default_action_cost * self.gamma**i
 

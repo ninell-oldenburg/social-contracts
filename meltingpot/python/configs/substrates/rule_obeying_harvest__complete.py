@@ -1003,7 +1003,7 @@ def create_avatar_object(player_idx: int,
               "kwargs": {
                   "amount": 1.0,
                   "beamLength": 3,
-                  "beamRadius": 1,
+                  "beamRadius": 2,
                   "agentRole": role,
               }
           },
