@@ -71,7 +71,8 @@ class RuleObeyingPolicy(policy.Policy):
     """
 
     # CALLING PARAMETER
-    self._index = player_idx
+    self.py_index = player_idx
+    self.lua_index = player_idx+1
     self.role = role
     self.look = look
     self.log_output = log_output
@@ -100,8 +101,6 @@ class RuleObeyingPolicy(policy.Policy):
     self.q_value_log = {}
     self.hash_count = {}
     self.pos_all_apples = []
-    if self.role == 'farmer':
-      self.payees = None
     goals = ['apple', 'clean', 'pay', 'zap']
     self.V = {goal: {} for goal in goals}
     self.ts_start = None
@@ -219,7 +218,7 @@ class RuleObeyingPolicy(policy.Policy):
       if timestep == timestep.first():
         self.pos_all_apples = list(zip(*np.where(timestep.observation['SURROUNDINGS']== -3)))
 
-      ts_cur = self.add_non_physical_info(timestep=timestep, actions=actions, idx=self._index)
+      ts_cur = self.add_non_physical_info(timestep=timestep, actions=actions, idx=self.py_index)
       self.ts_start = ts_cur
 
       # Check if any of the obligations are active
@@ -232,10 +231,12 @@ class RuleObeyingPolicy(policy.Policy):
       self.set_goal()
                
       if self.log_output:
-        print(f"player: {self._index} obligation active?: {self.current_obligation != None}")
+        print(f"player: {self.lua_index} obligation active?: {self.current_obligation != None}")
 
       if not self.has_policy(ts_cur):
         self.rtdp(ts_cur)
+
+      self.last_inventory = ts_cur.observation['INVENTORY']
       
       # return [self.get_best_act(ts_cur)]
       return self.get_optimal_path(ts_cur)
@@ -355,13 +356,12 @@ class RuleObeyingPolicy(policy.Policy):
             self.last_cleaned = 0
 
       elif action == 11:
-        print(f'attempting pay action: {self.role}, inventory: {obs["INVENTORY"]}, payees: {self.payees}, my inedx: {self._index}')
+        print(f'attempting pay action: inventory: {obs["INVENTORY"]}, last inventory: {self.last_inventory}')
         if self.role == "farmer": # other roles don't pay
-          if obs['INVENTORY'] != 0:
-            if not self.payees == None:
-              for payee in self.payees:
-                if self.is_close_to_agent(obs, payee):
-                  self.last_payed = 0
+          if self.last_inventory > 0:
+            for payee in self.payees:
+              if self.is_close_to_agent(obs, payee):
+                self.last_payed = 0
 
       elif action == 7:
         for riot in self.riots:
@@ -400,7 +400,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def update_and_append_history(self, timestep: dm_env.TimeStep, actions: list) -> None:
     """Append current timestep obsetvation to observation history."""
-    ts_cur = self.add_non_physical_info(timestep, actions, self._index)
+    ts_cur = self.add_non_physical_info(timestep, actions, self.py_index)
     self.history.append(ts_cur.observation)
 
   def maybe_collect_apple(self, observation) -> float:
@@ -571,6 +571,7 @@ class RuleObeyingPolicy(policy.Policy):
       for j in range(y_start, y_stop):
         if not self.exceeds_map(i, j):
           if observation['SURROUNDINGS'][i][j] == payee:
+            print(F"FOUND PAYEE {payee}")
             return self.is_facing_agent(observation, (i, j))
     return False
   
@@ -674,7 +675,7 @@ class RuleObeyingPolicy(policy.Policy):
         # greedy rollout giving the next best action
         next_act = self.update(ts_cur)
         # taking nest best action
-        ts_cur = self.env_step(ts_cur, next_act, self._index)
+        ts_cur = self.env_step(ts_cur, next_act, self.py_index)
 
     # post-rollout update
     while len(visited) > 0:
@@ -714,7 +715,7 @@ class RuleObeyingPolicy(policy.Policy):
       self.V[self.goal][s_cur] = self.init_heuristic(ts_cur)
     
     for act in range(size): 
-      ts_next = self.env_step(ts_cur, act, self._index)
+      ts_next = self.env_step(ts_cur, act, self.py_index)
 
       pos = ts_next.observation['POSITION']
       if self.exceeds_map(pos[0], pos[1]):
@@ -757,7 +758,7 @@ class RuleObeyingPolicy(policy.Policy):
       print(f"{timestep.observation['POSITION']} for {self.hash_ts(timestep)}")
 
     for act in range(size):
-      ts_next = self.env_step(timestep, act, self._index)
+      ts_next = self.env_step(timestep, act, self.py_index)
       observation = ts_next.observation
       pos = observation['POSITION']
       reward = 0.0
@@ -788,12 +789,12 @@ class RuleObeyingPolicy(policy.Policy):
         r_cur_obl = self.get_discounted_reward(pos_cur_obl, pos, observation)
         r_fulfilled_obl = self.obligation_reward if self.current_obligation.satisfied(observation) else 0
 
-        """r_fut_obl = 0
+        r_fut_obl = 0
         if self.goal == 'clean':
           pos_fut_obl = [dirt for dirt in self.pos_all_possible_dirt if dirt not in pos_cur_obl]
-          r_fut_obl = self.get_discounted_reward(pos_fut_obl, pos, observation, respawn_type='dirt')"""
+          r_fut_obl = self.get_discounted_reward(pos_fut_obl, pos, observation, respawn_type='dirt')
 
-        reward = r_cur_obl + r_fulfilled_obl # + r_fut_obl
+        reward = r_cur_obl + r_fulfilled_obl + r_fut_obl
         
         if self.log_weights:
           # print(f"len pos_fut_obl: {len(pos_fut_obl)}, reward: {r_fut_obl}, fulfilled: {r_fulfilled_obl}")
@@ -808,7 +809,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def get_cur_obl_pos(self, observation: dict) -> list:
     if self.goal == 'clean':
-      return self.pos_all_possible_dirt
+      # return self.pos_all_possible_dirt
       return list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
     else:
       return self.get_agent_list(observation)
@@ -823,7 +824,6 @@ class RuleObeyingPolicy(policy.Policy):
       if not agent == 0: # len(agent_idx) == num_agents, one-hot-encoded for payees
         agents_pos += list(zip(*np.where(observation['SURROUNDINGS'] == agent)))
 
-    print(f'agent pos at get_agent_list: {agents_pos}')
     return agents_pos
 
   def get_discounted_reward(self, target_pos, own_pos, obs, respawn_type=None) -> float:
@@ -834,15 +834,14 @@ class RuleObeyingPolicy(policy.Policy):
       n_steps_to_reward = int(self.manhattan_dis(pos, own_pos))
 
       if respawn_type == None: # Consider only currently existing objects
-        reward += r_amount * self.gamma**(n_steps_to_reward-1) # Positive reward for eating apple
-        reward -= self.default_action_cost * self.gamma**(n_steps_to_reward-1) # Cost of eating action
+        reward += r_amount * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
+        reward -= self.default_action_cost * self.gamma**(n_steps_to_reward) # Cost of eating action
       
       else: # Future objects
-        # respawn_rate = self.dirt_spawn_prob * (self.num_players / 4) # Set default, lua equivalent
+        respawn_rate = self.dirt_spawn_prob # * (self.num_players / 4) # Set default, lua equivalent
         if respawn_type == 'apple': # Lua equivalent
           respawn_rate = self.dirt_fraction * self.get_apples(obs, pos[0], pos[1])
-
-        reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward-1) # Positive reward for eating apple
+        reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
         for i in range(n_steps_to_reward): # Negative reward 
           reward -= self.default_action_cost * self.gamma**i
 
@@ -861,9 +860,6 @@ class RuleObeyingPolicy(policy.Policy):
             unreachable.append(tuple((i, j)))
 
     return unreachable
-
-  def manhattan_dis(self, pos_cur, pos_goal) -> int:
-    return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1]) * 0.1
 
   def get_cur_obj_pos(self, surroundings: np.array, object_idx: int) -> list:
     return list(zip(*np.where(surroundings== object_idx)))
@@ -900,11 +896,8 @@ class RuleObeyingPolicy(policy.Policy):
 
     if self.current_obligation != None:
       r_cur = 0
-      try:
-        if self.current_obligation.satisfied(observation):
-          r_cur = self.obligation_reward
-      except:
-        r_cur = 0
+      if self.current_obligation.satisfied(observation):
+        r_cur = self.obligation_reward
 
     cost = self.compliance_cost if act in available else self.violation_cost # rule violation
 
@@ -1043,11 +1036,10 @@ class RuleObeyingPolicy(policy.Policy):
       CUR_CELL_IS_FOREIGN_PROPERTY: True if current cell does not
           belong to current agent.
     """
-    own_idx = self._index+1
     property_idx = int(observation['PROPERTY'][x][y])
     observation['AGENT_HAS_STOLEN'] = True
 
-    if property_idx != own_idx and property_idx != 0:
+    if property_idx != self.lua_index and property_idx != 0:
       observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = True
       if observation['STOLEN_RECORDS'][property_idx-1] != 1:
         observation['AGENT_HAS_STOLEN'] = False

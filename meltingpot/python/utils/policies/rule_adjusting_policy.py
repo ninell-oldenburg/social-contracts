@@ -29,11 +29,11 @@ DIRT_SPAWN_PROB = 0.2 # TODO to be unified
 # AGENT CLASS
 DEFAULT_MAX_DEPTH = 20
 DEFAULT_COMPLIANCE_COST = 0.1
-DEFAULT_VIOLATION_COST = 0.9
-DEFAULT_TAU = 0.1
+DEFAULT_VIOLATION_COST = 0.5
+DEFAULT_TAU = 0.5
 DEFAULT_N_STEPS = 1
-DEFAULT_GAMMA = 0.9999
-DEFAULT_N_ROLLOUTS = 3
+DEFAULT_GAMMA = 0.99
+DEFAULT_N_ROLLOUTS = 2
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
 DEFAULT_SELECTION_MODE = "threshold"
@@ -82,7 +82,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 dirt_spawn_prob: float = DIRT_SPAWN_PROB) -> None:
         
         # CALLING PARAMETERS
-        self._index = player_idx
+        self.py_index = player_idx
+        self.lua_index = player_idx + 1
         self.role = role
         self.look = look
         self.log_output = log_output
@@ -120,6 +121,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         # GLOBAL INITILIZATIONS
         self.history = deque(maxlen=10)
         self.step_counter = 0
+        self.last_inventory = 0
         self.payees = []
         self.riots = []
         self.pos_all_possible_dirt = []
@@ -127,8 +129,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.hash_table = {}
         self.hash_count = {}
         self.q_value_log = {}
-        if self.role == 'farmer':
-            self.payees = None
         goals = ['apple', 'clean', 'pay', 'zap']
         self.V = {goal: {} for goal in goals}
         self.ts_start = None
@@ -249,36 +249,41 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         End of episode defined in dm_env.TimeStep.
         """
 
-        self.x_max = self.history[-1][self._index].observation['WORLD.RGB'].shape[1] / 8
-        self.y_max = self.history[-1][self._index].observation['WORLD.RGB'].shape[0] / 8 - 5 # inventory
+        self.x_max = self.history[-1][self.py_index].observation['WORLD.RGB'].shape[1] / 8
+        self.y_max = self.history[-1][self.py_index].observation['WORLD.RGB'].shape[0] / 8 - 5 # inventory
 
-        ts_cur = self.history[-1][self._index]
+        ts_cur = self.history[-1][self.py_index]
         self.ts_start = ts_cur
         self.ts_start.observation = self.custom_deepcopy(ts_cur.observation)
 
         if ts_cur.step_type == dm_env.StepType.FIRST:
             self.pos_all_possible_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
             self.pos_all_possible_dirt = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -1)))
-            self.payees = [i+1 for i, agent_one_hot in enumerate(ts_cur.observation['ALWAYS_PAYING_TO']) if agent_one_hot == 1]
+            if self.role == "farmer":
+                self.payees = [i+1 for i, agent_one_hot in enumerate(ts_cur.observation['ALWAYS_PAYING_TO']) if agent_one_hot == 1]
 
         # Check if any of the obligations are active
         self.current_obligation = None
         for obligation in self.obligations:
-            cur_history = [ts[self._index].observation for ts in self.history]
+            cur_history = [ts[self.py_index].observation for ts in self.history]
             if obligation.holds_in_history(cur_history):
                 self.current_obligation = obligation
                 break
             
         self.set_goal()
+
+        print(f'NEW INVENTORY: {ts_cur.observation["INVENTORY"]}')
                 
         if self.log_output:
-            print(f"player: {self._index} obligation active?: {self.current_obligation != None}")
+            print(f"player: {self.lua_index} obligation active?: {self.current_obligation != None}")
 
         if self.step_counter >= self.n_steps:
             self.rtdp(ts_cur)
 
         if not self.has_policy(self.ts_start):
             self.rtdp(ts_cur)
+
+        self.last_inventory = ts_cur.observation["INVENTORY"]
         
         return self.get_best_act(self.ts_start)
     
@@ -291,7 +296,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         observations and actions."""
         for player_idx in range(len(actions)):
             # Assumption: players are not updating on their own actions
-            if not player_idx == self._index:
+            if not player_idx == self.py_index:
                 # Compute the posterior of each rule
                 self.compute_posterior(player_idx, actions[player_idx])
 
@@ -299,7 +304,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
     def maybe_mark_riot(self, player_idx, rule):
         """Saves the ones who are violating rules in the global riots variable."""
-        if not player_idx == self._index:
+        if not player_idx == self.py_index:
             if rule in self.active_rules:
                 self.riots.append(player_idx)
 
