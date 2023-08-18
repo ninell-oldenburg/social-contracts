@@ -339,13 +339,13 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 0
   episodes = 200
   num_iteration = 10
   # Possible values for tau and gamma you want to test
   taus = [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0, 1.2, 1.5]
   # gammas = [0.999, 0.9999]
-  num_runs = 1
+  num_runs = 10
   
   # Initialize results
   results = {tau: {'cleaner': 0, 'farmer': 0, 'free': 0} for tau in taus}
@@ -364,7 +364,7 @@ if __name__ == "__main__":
                                     log_weights=False,
                                     save_csv=False,
                                     plot_q_vals=False,
-                                    tau=0.9,
+                                    tau=0.5,
                                     )
 
         results[tau]['cleaner'] += sum(data_dict['cleaner'])

@@ -630,6 +630,35 @@ class RuleObeyingPolicy(policy.Policy):
     list_bytes = pickle.dumps(sorted_items + [reward]) # make byte arrays
     hash_key = hashlib.sha256(list_bytes).hexdigest()  # hash
 
+    """if hash_key in self.hash_table:
+      existing_obs = self.hash_table[hash_key]
+      new_obs = obs
+        
+      mismatch_found = False  # Flag to indicate if a mismatch is found
+      # Compare the observations
+      for key in existing_obs.keys():
+        if key not in relevant_keys:
+          continue
+        
+        if isinstance(existing_obs[key], np.ndarray):
+          if not np.array_equal(existing_obs[key], new_obs[key]):
+            print(f"Key: {key}")
+            print("Stored Value:", existing_obs[key])
+            print("New Value:", new_obs[key])
+            mismatch_found = True
+        else:
+          if existing_obs[key] != new_obs[key]:
+            print(f"Key: {key}")
+            print("Stored Value:", existing_obs[key])
+            print("New Value:", new_obs[key])
+            mismatch_found = True
+        
+      if mismatch_found:
+        print(f"Hash collision detected for key {hash_key}")
+
+    else:
+      self.hash_table[hash_key] = obs"""
+
     return hash_key
 
   def hash_ts(self, timestep: AgentTimestep):

@@ -124,6 +124,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.riots = []
         self.pos_all_possible_dirt = []
         self.pos_all_possible_apples = []
+        self.hash_table = {}
         self.hash_count = {}
         self.q_value_log = {}
         if self.role == 'farmer':
