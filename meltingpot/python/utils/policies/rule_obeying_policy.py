@@ -544,8 +544,6 @@ class RuleObeyingPolicy(policy.Policy):
         cur_inventory -= 1 # eat
       if action_name == "PAY_ACTION":
         if self.role == "farmer": # other roles don't pay
-          if self.payees == None:
-            self.payees = self.get_payees(observation)
           for payee in self.payees:
             if self.is_close_to_agent(observation, payee):
               cur_inventory -= 1 # pay
@@ -553,7 +551,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     return reward, cur_inventory, payed_time
 
-  def get_payees(self, observation):
+  """def get_payees(self, observation):
     payees = []
     if isinstance(observation['ALWAYS_PAYING_TO'], np.int32):
       payees.append(observation['ALWAYS_PAYING_TO'])
@@ -561,7 +559,7 @@ class RuleObeyingPolicy(policy.Policy):
       for i in range(len(observation['ALWAYS_PAYING_TO'])):
         if observation['ALWAYS_PAYING_TO'][i] != 0:
           payees.append(i)
-    return payees
+    return payees"""
   
   def is_close_to_agent(self, observation, payee):
     x_start = observation['POSITION'][0]-1
@@ -624,10 +622,10 @@ class RuleObeyingPolicy(policy.Policy):
     # Convert the dictionary to a tuple of key-value pairs
     relevant_keys = self.relevant_keys[self.goal] # define keys
 
-    items = tuple((key, value) for key, value in obs.items() if key in relevant_keys) # extract
-    sorted_items = sorted(items, key=lambda x: x[0])
+    items = list(obs[key] for key in sorted(obs.keys()) if key in sorted(relevant_keys)) # extract
+    #sorted_items = sorted(items, key=lambda x: x[0])
 
-    list_bytes = pickle.dumps(sorted_items + [reward]) # make byte arrays
+    list_bytes = pickle.dumps(items + [reward]) # make byte arrays
     hash_key = hashlib.sha256(list_bytes).hexdigest()  # hash
 
     """if hash_key in self.hash_table:
@@ -814,15 +812,18 @@ class RuleObeyingPolicy(policy.Policy):
       return list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
     else:
       return self.get_agent_list(observation)
-    
+        
   def get_agent_list(self, observation: dict) -> list:
-    agent_idx = observation['ALWAYS_PAYING_TO'] if self.goal == "pay" and observation['INVENTORY'] != 0 else []
-    agent_idx = self.riots if self.goal == "zap" else agent_idx
+    agent_idx_vec = self.payees if self.goal == "pay" and observation['INVENTORY'] != 0 else []
+    if self.goal == "zap":
+      agent_idx_vec = self.riots
+    
     agents_pos = []
-    for agent in agent_idx:
-      if agent != 0:
+    for agent in agent_idx_vec:
+      if not agent == 0: # len(agent_idx) == num_agents, one-hot-encoded for payees
         agents_pos += list(zip(*np.where(observation['SURROUNDINGS'] == agent)))
 
+    print(f'agent pos at get_agent_list: {agents_pos}')
     return agents_pos
 
   def get_discounted_reward(self, target_pos, own_pos, obs, respawn_type=None) -> float:

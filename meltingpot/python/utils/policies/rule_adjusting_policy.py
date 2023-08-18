@@ -29,7 +29,7 @@ DIRT_SPAWN_PROB = 0.2 # TODO to be unified
 # AGENT CLASS
 DEFAULT_MAX_DEPTH = 20
 DEFAULT_COMPLIANCE_COST = 0.1
-DEFAULT_VIOLATION_COST = 0.4
+DEFAULT_VIOLATION_COST = 0.9
 DEFAULT_TAU = 0.1
 DEFAULT_N_STEPS = 1
 DEFAULT_GAMMA = 0.9999
@@ -259,6 +259,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         if ts_cur.step_type == dm_env.StepType.FIRST:
             self.pos_all_possible_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
             self.pos_all_possible_dirt = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -1)))
+            self.payees = [i+1 for i, agent_one_hot in enumerate(ts_cur.observation['ALWAYS_PAYING_TO']) if agent_one_hot == 1]
 
         # Check if any of the obligations are active
         self.current_obligation = None
