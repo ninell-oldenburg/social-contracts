@@ -96,6 +96,9 @@ function DensityRegrow:updateBasedOnPollution()
   
   local dirtFraction = dirtCount / (dirtCount + cleanCount)
 
+  print('LUA DIRT COUNT AND LUA CLEAN COUNT')
+  print(dirtCount, cleanCount)
+
   local depletion = self._config.thresholdDepletion
   local restoration = self._config.thresholdRestoration
   local interpolation = (dirtFraction - depletion) / (restoration - depletion)
@@ -103,6 +106,9 @@ function DensityRegrow:updateBasedOnPollution()
   -- the interpolation factor above 1.0, but we disallow that.
   interpolation = math.min(interpolation, 1.0)
   local probability = self._config.maxAppleGrowthRate * interpolation
+
+  print('PROBABILITY, DIRT_FRACTION, INTERPOLATION')
+  print(probability, dirtFraction, interpolation)
 
   if random:uniformReal(0.0, 1.0) < probability then
     self.gameObject:setState(self._config.liveState)
@@ -1217,14 +1223,20 @@ function Surroundings:setDirtLocations()
   local mapSize = self._config.mapSize
   for i=1, mapSize[1] do
     for j=1, mapSize[2] do
-      local potentialDirt = self.transform:queryPosition('overlay', {i, j})
-      if potentialDirt ~= nil and potentialDirt:hasComponent('DirtTracker') then
-        if potentialDirt:getState() == 'dirt' then
+      local actualDirt = self.transform:queryPosition('overlay', {i, j})
+      if actualDirt ~= nil and actualDirt:hasComponent('DirtTracker') then
+        if actualDirt:getState() == 'dirt' then
           self.surroundings(i, j):val(-1) -- dirt
         end
       end
-      local potentialWater = self.transform:queryPosition('upperPhysical', {i, j})
-      if potentialWater ~= nil and string.find(potentialWater:getState(), 'water') then
+      local potentialDirt = self.transform:queryPosition('logic', {i, j})
+      if potentialDirt ~= nil and potentialDirt:hasComponent('DirtTracker') then
+        if potentialDirt:getState() == 'dirtWait' then
+          self.surroundings(i, j):val(-4) -- potentialDirt
+        end
+      end
+      local water = self.transform:queryPosition('upperPhysical', {i, j})
+      if water ~= nil and string.find(water:getState(), 'water') then
         if self.surroundings(i, j):val() == 0 then
           self.surroundings(i, j):val(-2) -- water
         end

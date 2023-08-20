@@ -275,8 +275,12 @@ class RuleObeyingPolicy(policy.Policy):
   
   def set_interpolation_and_dirt_fraction(self, obs: dict) -> float:
     dirt_count = np.sum(obs['SURROUNDINGS'] == -1)
-    clean_count = np.sum(obs['SURROUNDINGS'] == -2)
+    clean_count = np.sum(obs['SURROUNDINGS'] == -4)
+
+    print(obs['SURROUNDINGS'])
     self.dirt_fraction = dirt_count / (dirt_count + clean_count)
+
+    print(f'dirt_count: {dirt_count}, clean_count: {clean_count}')
 
     depletion = self.threshold_depletion
     restoration = self.threshold_restoration
@@ -571,7 +575,6 @@ class RuleObeyingPolicy(policy.Policy):
       for j in range(y_start, y_stop):
         if not self.exceeds_map(i, j):
           if observation['SURROUNDINGS'][i][j] == payee:
-            print(F"FOUND PAYEE {payee}")
             return self.is_facing_agent(observation, (i, j))
     return False
   
@@ -829,6 +832,7 @@ class RuleObeyingPolicy(policy.Policy):
   def get_discounted_reward(self, target_pos, own_pos, obs, respawn_type=None) -> float:
     reward = 0.0
     r_amount = self.apple_reward if self.goal == 'apple' else self.obligation_reward
+    apple_regrowth_rate = self.get_regrowth_rate()
 
     for pos in target_pos:
       n_steps_to_reward = int(self.manhattan_dis(pos, own_pos))
@@ -838,14 +842,20 @@ class RuleObeyingPolicy(policy.Policy):
         reward -= self.default_action_cost * self.gamma**(n_steps_to_reward) # Cost of eating action
       
       else: # Future objects
-        respawn_rate = self.dirt_spawn_prob # * (self.num_players / 4) # Set default, lua equivalent
-        if respawn_type == 'apple': # Lua equivalent
-          respawn_rate = self.dirt_fraction * self.get_apples(obs, pos[0], pos[1])
+        respawn_rate = apple_regrowth_rate if respawn_type == 'apple' else self.dirt_spawn_prob # * (self.num_players / 4) # Set default, lua equivalent          
         reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
         for i in range(n_steps_to_reward): # Negative reward 
           reward -= self.default_action_cost * self.gamma**i
 
     return reward
+  
+  def get_regrowth_rate(self) -> float:
+    interpolation = min(self.interpolation, 1.0)
+    print('INTERPOLATION')
+    probability = self.max_apple_growth_rate * interpolation
+    print(probability, self.dirt_fraction, interpolation)
+    print(self.max_apple_growth_rate * interpolation)
+    return self.max_apple_growth_rate * interpolation
 
   def manhattan_dis(self, pos_cur, pos_goal) -> int:
     return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1])

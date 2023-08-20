@@ -17,11 +17,12 @@ generator = RuleGenerator()
 POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_length(2)
 
 # ENVIRONMENT COMPONENTS
-APPLE_RESPAWN_RADIUS = 2.0
+APPLE_RESPAWN_RADIUS = 1.0
 REGROWTH_PROBABILITIES = [0.02, 0.05, 0.07, 0.09]
 OBSERVATION_RADIUS = 15 # defines radius that agents can observe
 REMOVE_HIT_PLAYER = False # let them die when zapped
 PENALTY_FOR_BEING_ZAPPED = 1 # violation cost
+MAX_APPLE_GROWTH_RATE = 1
 THRESHOLD_APPLE_DEPLETION = 0.7
 THRESHOLD_APPLE_RESTAURATION = 0.1
 DIRT_SPAWN_PROB = 0.2 # TODO to be unified
@@ -77,8 +78,10 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 default_action_cost: float = DEFAULT_ACTION_COST,
                 init_prior: float = DEFAULT_INIT_PRIOR,
                 p_obey: float = DEFAULT_P_OBEY,
+                regrowth_probabilities: list = REGROWTH_PROBABILITIES,
                 threshold_depletion: float = THRESHOLD_APPLE_DEPLETION,
                 threshold_restoration: float = THRESHOLD_APPLE_RESTAURATION,
+                max_apple_growth_rate: float = MAX_APPLE_GROWTH_RATE,
                 dirt_spawn_prob: float = DIRT_SPAWN_PROB) -> None:
         
         # CALLING PARAMETERS
@@ -114,8 +117,10 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.default_action_cost = default_action_cost
         self.init_prior = init_prior
         self.p_obey = p_obey
+        self.regrowth_probabilities = regrowth_probabilities
         self.threshold_depletion = threshold_depletion
         self.threshold_restoration = threshold_restoration
+        self.max_apple_growth_rate = max_apple_growth_rate
         self.dirt_spawn_prob = dirt_spawn_prob
         
         # GLOBAL INITILIZATIONS
