@@ -277,10 +277,7 @@ class RuleObeyingPolicy(policy.Policy):
     dirt_count = np.sum(obs['SURROUNDINGS'] == -3)
     clean_count = np.sum(obs['SURROUNDINGS'] == -4)
 
-    print(obs['SURROUNDINGS'])
     self.dirt_fraction = dirt_count / (dirt_count + clean_count)
-
-    print(f'dirt_count: {dirt_count}, clean_count: {clean_count}')
 
     depletion = self.threshold_depletion
     restoration = self.threshold_restoration
@@ -851,11 +848,8 @@ class RuleObeyingPolicy(policy.Policy):
   
   def get_regrowth_rate(self) -> float:
     interpolation = min(self.interpolation, 1.0)
-    print('INTERPOLATION')
     probability = self.max_apple_growth_rate * interpolation
-    print(probability, self.dirt_fraction, interpolation)
-    print(self.max_apple_growth_rate * interpolation)
-    return self.max_apple_growth_rate * interpolation
+    return probability
 
   def manhattan_dis(self, pos_cur, pos_goal) -> int:
     return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1])
@@ -865,7 +859,7 @@ class RuleObeyingPolicy(policy.Policy):
     surroundings = obs['SURROUNDINGS']
     for i in range(len(surroundings)):
       for j in range(len(surroundings[0])):
-        if surroundings[i][j] == -3 or surroundings[i][j] == -2:
+        if surroundings[i][j] <= -2:
           if not surroundings[i][j+3] == 0:
             unreachable.append(tuple((i, j)))
 

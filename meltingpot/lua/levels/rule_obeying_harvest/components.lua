@@ -96,9 +96,6 @@ function DensityRegrow:updateBasedOnPollution()
   
   local dirtFraction = dirtCount / (dirtCount + cleanCount)
 
-  print('LUA DIRT COUNT AND LUA CLEAN COUNT')
-  print(dirtCount, cleanCount)
-
   local depletion = self._config.thresholdDepletion
   local restoration = self._config.thresholdRestoration
   local interpolation = (dirtFraction - depletion) / (restoration - depletion)
@@ -106,9 +103,6 @@ function DensityRegrow:updateBasedOnPollution()
   -- the interpolation factor above 1.0, but we disallow that.
   interpolation = math.min(interpolation, 1.0)
   local probability = self._config.maxAppleGrowthRate * interpolation
-
-  print('PROBABILITY, DIRT_FRACTION, INTERPOLATION')
-  print(probability, dirtFraction, interpolation)
 
   if random:uniformReal(0.0, 1.0) < probability then
     self.gameObject:setState(self._config.liveState)
