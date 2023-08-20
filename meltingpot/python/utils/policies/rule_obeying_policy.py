@@ -216,7 +216,7 @@ class RuleObeyingPolicy(policy.Policy):
       self.y_max = len(timestep.observation['WORLD.RGB'][0]) / 8
 
       if timestep == timestep.first():
-        self.pos_all_apples = list(zip(*np.where(timestep.observation['SURROUNDINGS']== -3)))
+        self.pos_all_apples = list(zip(*np.where(timestep.observation['SURROUNDINGS']== -1)))
 
       ts_cur = self.add_non_physical_info(timestep=timestep, actions=actions, idx=self.py_index)
       self.ts_start = ts_cur
@@ -274,7 +274,7 @@ class RuleObeyingPolicy(policy.Policy):
     return ts
   
   def set_interpolation_and_dirt_fraction(self, obs: dict) -> float:
-    dirt_count = np.sum(obs['SURROUNDINGS'] == -1)
+    dirt_count = np.sum(obs['SURROUNDINGS'] == -3)
     clean_count = np.sum(obs['SURROUNDINGS'] == -4)
 
     print(obs['SURROUNDINGS'])
@@ -331,8 +331,8 @@ class RuleObeyingPolicy(policy.Policy):
   def update_observation(self, obs, x, y) -> dict:
     """Updates the observation with requested information."""
     obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
-    obs['WATER_LOCATION'] = list(zip(*np.where(obs['SURROUNDINGS'] == -1)))
-    obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -3 else False
+    obs['WATER_LOCATION'] = list(zip(*np.where(obs['SURROUNDINGS'] == -3)))
+    obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -1 else False
     self.make_territory_observation(obs, x, y)
     obs['POSITION_OTHERS'] = self.get_others(obs)
     # break
@@ -381,7 +381,7 @@ class RuleObeyingPolicy(policy.Policy):
   def hit_dirt(self, obs, x, y) -> bool:
     for i in range(x-2, x+2):
       for j in range(y-2, y):
-        if obs['SURROUNDINGS'][i][j] == -1:
+        if obs['SURROUNDINGS'][i][j] == -3:
           return True
     return False
 
@@ -413,7 +413,7 @@ class RuleObeyingPolicy(policy.Policy):
     has_apple = observation['CUR_CELL_HAS_APPLE']
     if self.exceeds_map(x, y):
       return 0, has_apple
-    if reward_map[x][y] == -3:
+    if reward_map[x][y] == -1:
       observation['SURROUNDINGS'][x][y] = 0
       return 1, False
     return 0, has_apple
@@ -492,7 +492,7 @@ class RuleObeyingPolicy(policy.Policy):
             observation['AGENT_ATE'] = True
 
       observation['INVENTORY'] = cur_inventory
-      observation['WATER_LOCATION'] = list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
+      observation['WATER_LOCATION'] = list(zip(*np.where(observation['SURROUNDINGS'] == -3)))
 
       next_timestep.step_type = dm_env.StepType.MID
       next_timestep.reward = reward
@@ -813,7 +813,7 @@ class RuleObeyingPolicy(policy.Policy):
   def get_cur_obl_pos(self, observation: dict) -> list:
     if self.goal == 'clean':
       # return self.pos_all_possible_dirt
-      return list(zip(*np.where(observation['SURROUNDINGS'] == -1)))
+      return list(zip(*np.where(observation['SURROUNDINGS'] == -3)))
     else:
       return self.get_agent_list(observation)
         
@@ -865,7 +865,7 @@ class RuleObeyingPolicy(policy.Policy):
     surroundings = obs['SURROUNDINGS']
     for i in range(len(surroundings)):
       for j in range(len(surroundings[0])):
-        if surroundings[i][j] == -1 or surroundings[i][j] == -2:
+        if surroundings[i][j] == -3 or surroundings[i][j] == -2:
           if not surroundings[i][j+3] == 0:
             unreachable.append(tuple((i, j)))
 
@@ -1033,7 +1033,7 @@ class RuleObeyingPolicy(policy.Policy):
     x_min, x_max = max(0, x - 1), min(len(surroundings), x + 2)
     y_min, y_max = max(0, y - 1), min(len(surroundings[0]), y + 2)
 
-    apple_mask = (surroundings[x_min:x_max, y_min:y_max] == -3)
+    apple_mask = (surroundings[x_min:x_max, y_min:y_max] == -1)
     apple_count = np.count_nonzero(apple_mask)
 
     return apple_count
@@ -1061,7 +1061,7 @@ class RuleObeyingPolicy(policy.Policy):
     x, y = pos[0], pos[1]
     if self.exceeds_map(x, y):
       return True
-    if observation["SURROUNDINGS"][x][y] == -1:
+    if observation["SURROUNDINGS"][x][y] == -3:
       return True
     if observation["SURROUNDINGS"][x][y] == -2:
       return True

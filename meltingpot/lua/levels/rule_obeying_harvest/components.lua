@@ -1226,7 +1226,7 @@ function Surroundings:setDirtLocations()
       local actualDirt = self.transform:queryPosition('overlay', {i, j})
       if actualDirt ~= nil and actualDirt:hasComponent('DirtTracker') then
         if actualDirt:getState() == 'dirt' then
-          self.surroundings(i, j):val(-1) -- dirt
+          self.surroundings(i, j):val(-3) -- dirt
         end
       end
       local potentialDirt = self.transform:queryPosition('logic', {i, j})
@@ -1297,7 +1297,7 @@ function Surroundings:update()
   for i=x, x_lim do
     for j=y, y_lim do
       if self.transform:queryPosition('appleLayer', {i, j}) ~= nil then
-        self.surroundings(i, j):val(-3) -- apples
+        self.surroundings(i, j):val(-1) -- apples
       end
 
       local resource = self.transform:queryPosition('resourceLayer', {i, j})
