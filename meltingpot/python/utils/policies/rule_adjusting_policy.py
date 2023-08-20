@@ -31,12 +31,13 @@ DIRT_SPAWN_PROB = 0.2 # TODO to be unified
 DEFAULT_MAX_DEPTH = 20
 DEFAULT_COMPLIANCE_COST = 0.1
 DEFAULT_VIOLATION_COST = 0.5
-DEFAULT_TAU = 0.5
+DEFAULT_TAU = 0.9
 DEFAULT_N_STEPS = 1
 DEFAULT_GAMMA = 0.99
 DEFAULT_N_ROLLOUTS = 2
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
+DEFAULT_COLLECT_APPLE_REWARD = 0.9
 DEFAULT_SELECTION_MODE = "threshold"
 DEFAULT_THRESHOLD = 0.8
 DEFAULT_ACTION_COST = 0.1
@@ -75,6 +76,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 n_rollouts: int = DEFAULT_N_ROLLOUTS,
                 obligation_reward: int = DEFAULT_OBLIGATION_REWARD,
                 apple_reward: int = DEFAULT_APPLE_REWARD,
+                collect_apple_reward: float = DEFAULT_COLLECT_APPLE_REWARD,
                 default_action_cost: float = DEFAULT_ACTION_COST,
                 init_prior: float = DEFAULT_INIT_PRIOR,
                 p_obey: float = DEFAULT_P_OBEY,
@@ -113,11 +115,13 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.n_rollouts = n_rollouts
         self.obligation_reward = obligation_reward
         self.apple_reward = apple_reward
+        self.collect_apple_reward = collect_apple_reward
         self.max_depth = max_depth
         self.default_action_cost = default_action_cost
         self.init_prior = init_prior
         self.p_obey = p_obey
         self.regrowth_probabilities = regrowth_probabilities
+        self.num_regrowth_probs = len(self.regrowth_probabilities)
         self.threshold_depletion = threshold_depletion
         self.threshold_restoration = threshold_restoration
         self.max_apple_growth_rate = max_apple_growth_rate
@@ -262,8 +266,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.ts_start.observation = self.custom_deepcopy(ts_cur.observation)
 
         if ts_cur.step_type == dm_env.StepType.FIRST:
-            self.pos_all_possible_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
-            self.pos_all_possible_dirt = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -1)))
+            self.pos_all_possible_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -1)))
+            self.pos_all_possible_dirt = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
             if self.role == "farmer":
                 self.payees = [i+1 for i, agent_one_hot in enumerate(ts_cur.observation['ALWAYS_PAYING_TO']) if agent_one_hot == 1]
 
@@ -276,8 +280,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 break
             
         self.set_goal()
-
-        print(f'NEW INVENTORY: {ts_cur.observation["INVENTORY"]}')
                 
         if self.log_output:
             print(f"player: {self.lua_index} obligation active?: {self.current_obligation != None}")

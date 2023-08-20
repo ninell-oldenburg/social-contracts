@@ -298,17 +298,13 @@ class RuleObeyingPolicy(policy.Policy):
 
 
   def get_zapped_agent(self, player_who_zapped: int, obs: dict) -> int:
-    if self.log_output:
-      print('player_who_zapped: ' + str(player_who_zapped))
-      print('position others: ' + str(obs['POSITION_OTHERS']))
-
+    """Returns the Lua index of an agent that was zapped"""
     x, y = 0, 0
     if 0 <= player_who_zapped < len(obs['POSITION_OTHERS']):
       x, y = obs['POSITION_OTHERS'][player_who_zapped][0], obs['POSITION_OTHERS'][player_who_zapped][1]
     else:
       print("Invalid player index:", player_who_zapped)
 
-    # x, y = obs['POSITION_OTHERS'][player_who_zapped][0], obs['POSITION_OTHERS'][player_who_zapped][1]
     for i in range(x-1, x+2):
       for j in range(y-1, y+2):
         if not self.exceeds_map(i, j):
@@ -328,11 +324,10 @@ class RuleObeyingPolicy(policy.Policy):
   def update_observation(self, obs, x, y) -> dict:
     """Updates the observation with requested information."""
     obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
-    obs['WATER_LOCATION'] = list(zip(*np.where(obs['SURROUNDINGS'] == -3)))
+    obs['WATER_LOCATION'] = list(zip(*np.where(obs['SURROUNDINGS'] <= -3)))
     obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -1 else False
     self.make_territory_observation(obs, x, y)
     obs['POSITION_OTHERS'] = self.get_others(obs)
-    # break
     return obs
   
   def update_last_actions(self, obs: dict, action: int) -> None:
@@ -357,7 +352,6 @@ class RuleObeyingPolicy(policy.Policy):
             self.last_cleaned = 0
 
       elif action == 11:
-        print(f'attempting pay action: inventory: {obs["INVENTORY"]}, last inventory: {self.last_inventory}')
         if self.role == "farmer": # other roles don't pay
           if self.last_inventory > 0:
             for payee in self.payees:
@@ -441,6 +435,7 @@ class RuleObeyingPolicy(policy.Policy):
       reward = 0
       action_name = None
       observation['RIOTS'] = self.riots
+      observation['COLLECTED_APPLE'] = False
 
       # 2. Simulate changes to observation based on action
       if action <= 4: # MOVE ACTIONS
@@ -452,6 +447,7 @@ class RuleObeyingPolicy(policy.Policy):
           new_pos = cur_pos # don't move to water
         observation['POSITION'] = new_pos
         new_inventory, has_apple = self.maybe_collect_apple(observation)
+        observation['COLLECTED_APPLE'] = True if new_inventory == 1 else False
         observation['CUR_CELL_HAS_APPLE'] = has_apple
         cur_inventory += new_inventory
         self.update_surroundings(new_pos, observation, idx)
@@ -489,7 +485,7 @@ class RuleObeyingPolicy(policy.Policy):
             observation['AGENT_ATE'] = True
 
       observation['INVENTORY'] = cur_inventory
-      observation['WATER_LOCATION'] = list(zip(*np.where(observation['SURROUNDINGS'] == -3)))
+      observation['WATER_LOCATION'] = list(zip(*np.where(observation['SURROUNDINGS'] <= -3)))
 
       next_timestep.step_type = dm_env.StepType.MID
       next_timestep.reward = reward
@@ -673,14 +669,15 @@ class RuleObeyingPolicy(policy.Policy):
       for _ in range(self.max_depth):
         visited.append(ts_cur)
         # greedy rollout giving the next best action
-        next_act = self.update(ts_cur)
+        next_act, neighbors = self.update(ts_cur)
+        visited += neighbors
         # taking nest best action
         ts_cur = self.env_step(ts_cur, next_act, self.py_index)
 
     # post-rollout update
     while len(visited) > 0:
       ts_cur = visited.pop()
-      _ = self.update(ts_cur)
+      _, _ = self.update(ts_cur)
 
     return
   
@@ -688,12 +685,12 @@ class RuleObeyingPolicy(policy.Policy):
     hash = self.hash_ts(ts_cur)
     if hash in self.V[self.goal].keys():
       if self.log_output:
-        print(f'position: {ts_cur.observation["POSITION"]}')
+        print(f'position: {ts_cur.observation["POSITION"]}, key: {hash}')
         print(self.V[self.goal][hash])
       return np.argmax(self.V[self.goal][hash]) # no null action
-    else:
-      best_act, _ = self.update(ts_cur)
-      return best_act
+    """else:
+      best_act = self.update(ts_cur)
+      return best_act"""
 
   def update(self, ts_cur: AgentTimestep) -> int:
     """Updates state-action pair value function 
@@ -710,21 +707,11 @@ class RuleObeyingPolicy(policy.Policy):
 
     # initialize best optimistic guess for cur state
     if s_cur not in self.V[self.goal].keys():
-      if self.log_weights:
-        print('NEW INITIAL STATE ENCOUNTEREND')
       self.V[self.goal][s_cur] = self.init_heuristic(ts_cur)
     
-    for act in range(size): 
+    for act in range(self.action_spec.num_values):
       ts_next = self.env_step(ts_cur, act, self.py_index)
-
-      pos = ts_next.observation['POSITION']
-      if self.exceeds_map(pos[0], pos[1]):
-        continue
-
-      s_next = self.hash_ts(ts_next)
-      # initialize best optimistic guess for next state
-      if s_next not in self.V[self.goal].keys():
-        self.V[self.goal][s_next] = self.init_heuristic(ts_next)
+      s_next = self.init_process_next_ts(ts_next)
 
       Q[act]  = self.get_estimated_return(ts_next, s_next, act, available, type, ts_cur)
 
@@ -743,11 +730,24 @@ class RuleObeyingPolicy(policy.Policy):
       print(f"{Q}")
       print(f'next action: {boltzi}')
     
-    return boltzi
+    return boltzi, visited
+  
+  def init_process_next_ts(self, ts_cur):
+    pos = ts_cur.observation['POSITION']
+    
+    if self.exceeds_map(pos[0], pos[1]):
+      return ''
+
+    s_next = self.hash_ts(ts_cur)
+    # initialize best optimistic guess for next state
+    if s_next not in self.V[self.goal].keys():
+      self.V[self.goal][s_next] = self.init_heuristic(ts_cur)
+
+    return s_next
   
   def is_agent_in_position(self, observation: dict, pos) -> bool:
     surroundings = observation['SURROUNDINGS']
-    return surroundings[pos[0], pos[1]] > 0
+    return surroundings[pos[0], pos[1]] > 0 and surroundings[pos[0], pos[1]] != self.lua_index
   
   def init_heuristic(self, timestep: AgentTimestep) -> np.array:
     size = self.action_spec.num_values 
@@ -762,7 +762,7 @@ class RuleObeyingPolicy(policy.Policy):
       observation = ts_next.observation
       pos = observation['POSITION']
       reward = 0.0
-      
+
       if self.exceeds_map(pos[0], pos[1]):
         continue
 
@@ -771,17 +771,18 @@ class RuleObeyingPolicy(policy.Policy):
     
       if self.goal == "apple":
         pos_eaten_apple = tuple((pos[0], pos[1])) if act == 10 and observation['INVENTORY'] > 0 else 0
-        pos_cur_apples = self.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx=-3)
+        pos_cur_apples = self.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
         pos_fut_apples = [apple for apple in self.pos_all_possible_apples if apple not in pos_cur_apples and apple != pos_eaten_apple]
 
         r_eat_apple = self.apple_reward if act == 10 and observation['INVENTORY'] > 0 else 0
+        r_inv_apple = self.apple_reward * observation['INVENTORY'] * self.gamma**(observation['INVENTORY'])
         r_cur_apples = self.get_discounted_reward(pos_cur_apples, pos, observation)
         r_fut_apples = self.get_discounted_reward(pos_fut_apples, pos, observation, respawn_type='apple')
 
-        reward = r_cur_apples + r_eat_apple + r_fut_apples
+        reward = r_cur_apples + r_eat_apple + r_fut_apples + r_inv_apple
 
         if self.log_weights:
-          print(f"len cur_apples: {len(pos_cur_apples)}, reward: {r_cur_apples}")
+          print(f"len cur_apples: {len(pos_cur_apples)}, reward: {reward}, r_cur_apples: {r_cur_apples}, r_eat_apple: {r_eat_apple}, r_fut_apples: {r_fut_apples}, r_inventory_apple: {r_inventory_apple}")
 
       else:
         pos_cur_obl = self.get_cur_obl_pos(observation)
@@ -807,6 +808,31 @@ class RuleObeyingPolicy(policy.Policy):
 
     return Q
   
+  def get_discounted_reward(self, target_pos, own_pos, obs, respawn_type=None) -> float:
+    reward = 0.0
+    r_amount = self.apple_reward if self.goal == 'apple' else self.obligation_reward
+    dirt_conditioned_regrowth_rate = self.get_dirt_conditioned_regrowth_rate()
+
+    for pos in target_pos:
+      n_steps_to_reward = int(self.manhattan_dis(pos, own_pos))
+
+      if respawn_type == None: # Consider only currently existing objects
+        reward += r_amount * self.gamma**(n_steps_to_reward+1) # Positive reward for eating apple
+        reward -= self.default_action_cost * self.gamma**(n_steps_to_reward+1) # Cost of eating action
+      
+      else: # Future objects
+        respawn_rate = self.dirt_spawn_prob
+        if respawn_type == 'apple':
+          regrowth_prob_idx = min(self.get_apples(obs, pos[0], pos[1]), self.num_regrowth_probs-1)
+          respawn_rate = dirt_conditioned_regrowth_rate * self.regrowth_probabilities[regrowth_prob_idx]
+
+        reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
+      
+        for i in range(n_steps_to_reward): # Negative reward 
+          reward -= self.default_action_cost * self.gamma**i
+
+    return reward
+  
   def get_cur_obl_pos(self, observation: dict) -> list:
     if self.goal == 'clean':
       # return self.pos_all_possible_dirt
@@ -825,28 +851,8 @@ class RuleObeyingPolicy(policy.Policy):
         agents_pos += list(zip(*np.where(observation['SURROUNDINGS'] == agent)))
 
     return agents_pos
-
-  def get_discounted_reward(self, target_pos, own_pos, obs, respawn_type=None) -> float:
-    reward = 0.0
-    r_amount = self.apple_reward if self.goal == 'apple' else self.obligation_reward
-    apple_regrowth_rate = self.get_regrowth_rate()
-
-    for pos in target_pos:
-      n_steps_to_reward = int(self.manhattan_dis(pos, own_pos))
-
-      if respawn_type == None: # Consider only currently existing objects
-        reward += r_amount * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
-        reward -= self.default_action_cost * self.gamma**(n_steps_to_reward) # Cost of eating action
-      
-      else: # Future objects
-        respawn_rate = apple_regrowth_rate if respawn_type == 'apple' else self.dirt_spawn_prob # * (self.num_players / 4) # Set default, lua equivalent          
-        reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
-        for i in range(n_steps_to_reward): # Negative reward 
-          reward -= self.default_action_cost * self.gamma**i
-
-    return reward
   
-  def get_regrowth_rate(self) -> float:
+  def get_dirt_conditioned_regrowth_rate(self) -> float:
     interpolation = min(self.interpolation, 1.0)
     probability = self.max_apple_growth_rate * interpolation
     return probability
@@ -1055,9 +1061,7 @@ class RuleObeyingPolicy(policy.Policy):
     x, y = pos[0], pos[1]
     if self.exceeds_map(x, y):
       return True
-    if observation["SURROUNDINGS"][x][y] == -3:
-      return True
-    if observation["SURROUNDINGS"][x][y] == -2:
+    if observation["SURROUNDINGS"][x][y] <= -2:
       return True
     return False
 

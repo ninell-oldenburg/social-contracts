@@ -339,7 +339,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
   episodes = 200
   num_iteration = 10
   # Possible values for tau and gamma you want to test
@@ -361,7 +361,7 @@ if __name__ == "__main__":
                             num_iteration=1,
                             create_video=False,
                             log_output=True,
-                            log_weights=False,
+                            log_weights=True,
                             save_csv=False,
                             plot_q_vals=False,
                             tau=0.5,
