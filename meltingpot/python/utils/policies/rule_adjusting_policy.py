@@ -27,14 +27,16 @@ THRESHOLD_APPLE_DEPLETION = 0.7
 THRESHOLD_APPLE_RESTAURATION = 0.1
 DIRT_SPAWN_PROB = 0.2 # TODO to be unified
 
-# AGENT CLASS
+# RUN
+DEFAULT_N_STEPS = 1
+DEFAULT_N_ROLLOUTS = 5
+DEFAULT_TAU = 0
+DEFAULT_GAMMA = 0.999
 DEFAULT_MAX_DEPTH = 20
+
+# AGENT CLASS
 DEFAULT_COMPLIANCE_COST = 0.1
 DEFAULT_VIOLATION_COST = 0.5
-DEFAULT_TAU = 0.9
-DEFAULT_N_STEPS = 1
-DEFAULT_GAMMA = 0.99
-DEFAULT_N_ROLLOUTS = 2
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
 DEFAULT_COLLECT_APPLE_REWARD = 0.9
@@ -131,7 +133,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.history = deque(maxlen=10)
         self.step_counter = 0
         self.last_inventory = 0
-        self.payees = []
+        self.payees = None
         self.riots = []
         self.pos_all_possible_dirt = []
         self.pos_all_possible_apples = []
@@ -269,7 +271,10 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             self.pos_all_possible_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -1)))
             self.pos_all_possible_dirt = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
             if self.role == "farmer":
-                self.payees = [i+1 for i, agent_one_hot in enumerate(ts_cur.observation['ALWAYS_PAYING_TO']) if agent_one_hot == 1]
+                if not type(ts_cur.observation['ALWAYS_PAYING_TO']) == np.int32:
+                    self.payees = [i+1 for i, agent_one_hot in enumerate(ts_cur.observation['ALWAYS_PAYING_TO']) if agent_one_hot == 1]
+                else:
+                    self.payees = None
 
         # Check if any of the obligations are active
         self.current_obligation = None

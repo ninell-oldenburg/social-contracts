@@ -344,6 +344,9 @@ class RuleObeyingPolicy(policy.Policy):
     for counter_name in last_counters.values():
         setattr(self, counter_name, getattr(self, counter_name) + 1)
 
+    if self.payees == None:
+      self.last_payed = 0
+
     # make sure the stuff actually happens!
     if action in last_counters:
       if action == 8:
@@ -354,9 +357,10 @@ class RuleObeyingPolicy(policy.Policy):
       elif action == 11:
         if self.role == "farmer": # other roles don't pay
           if self.last_inventory > 0:
-            for payee in self.payees:
-              if self.is_close_to_agent(obs, payee):
-                self.last_payed = 0
+              if not self.payees == None:
+                for payee in self.payees:
+                  if self.is_close_to_agent(obs, payee):
+                    self.last_payed = 0
 
       elif action == 7:
         for riot in self.riots:
@@ -541,10 +545,11 @@ class RuleObeyingPolicy(policy.Policy):
         cur_inventory -= 1 # eat
       if action_name == "PAY_ACTION":
         if self.role == "farmer": # other roles don't pay
-          for payee in self.payees:
-            if self.is_close_to_agent(observation, payee):
-              cur_inventory -= 1 # pay
-              payed_time = 0
+          if not self.payees == None:
+            for payee in self.payees:
+              if self.is_close_to_agent(observation, payee):
+                cur_inventory -= 1 # pay
+                payed_time = 0
 
     return reward, cur_inventory, payed_time
 
@@ -669,15 +674,15 @@ class RuleObeyingPolicy(policy.Policy):
       for _ in range(self.max_depth):
         visited.append(ts_cur)
         # greedy rollout giving the next best action
-        next_act, neighbors = self.update(ts_cur)
-        visited += neighbors
+        next_act = self.update(ts_cur)
+        # visited += neighbors
         # taking nest best action
         ts_cur = self.env_step(ts_cur, next_act, self.py_index)
 
     # post-rollout update
     while len(visited) > 0:
       ts_cur = visited.pop()
-      _, _ = self.update(ts_cur)
+      _ = self.update(ts_cur)
 
     return
   
@@ -730,7 +735,7 @@ class RuleObeyingPolicy(policy.Policy):
       print(f"{Q}")
       print(f'next action: {boltzi}')
     
-    return boltzi, visited
+    return boltzi
   
   def init_process_next_ts(self, ts_cur):
     pos = ts_cur.observation['POSITION']
@@ -775,14 +780,15 @@ class RuleObeyingPolicy(policy.Policy):
         pos_fut_apples = [apple for apple in self.pos_all_possible_apples if apple not in pos_cur_apples and apple != pos_eaten_apple]
 
         r_eat_apple = self.apple_reward if act == 10 and observation['INVENTORY'] > 0 else 0
-        r_inv_apple = self.apple_reward * observation['INVENTORY'] * self.gamma**(observation['INVENTORY'])
+        r_inv_apple = self.apple_reward * observation['INVENTORY'] * self.gamma# **(observation['INVENTORY'])
+        r_inv_apple -= self.default_action_cost * observation['INVENTORY'] * self.gamma # **observation['INVENTORY']
         r_cur_apples = self.get_discounted_reward(pos_cur_apples, pos, observation)
         r_fut_apples = self.get_discounted_reward(pos_fut_apples, pos, observation, respawn_type='apple')
 
         reward = r_cur_apples + r_eat_apple + r_fut_apples + r_inv_apple
 
         if self.log_weights:
-          print(f"len cur_apples: {len(pos_cur_apples)}, reward: {reward}, r_cur_apples: {r_cur_apples}, r_eat_apple: {r_eat_apple}, r_fut_apples: {r_fut_apples}, r_inventory_apple: {r_inventory_apple}")
+          print(f"len cur_apples: {len(pos_cur_apples)}, reward: {reward}, r_cur_apples: {r_cur_apples}, r_eat_apple: {r_eat_apple}, r_fut_apples: {r_fut_apples}, r_inv_apple: {r_inv_apple}")
 
       else:
         pos_cur_obl = self.get_cur_obl_pos(observation)
@@ -817,8 +823,8 @@ class RuleObeyingPolicy(policy.Policy):
       n_steps_to_reward = int(self.manhattan_dis(pos, own_pos))
 
       if respawn_type == None: # Consider only currently existing objects
-        reward += r_amount * self.gamma**(n_steps_to_reward+1) # Positive reward for eating apple
-        reward -= self.default_action_cost * self.gamma**(n_steps_to_reward+1) # Cost of eating action
+        reward += r_amount * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
+        reward -= self.default_action_cost * self.gamma**(n_steps_to_reward) # Cost of eating action
       
       else: # Future objects
         respawn_rate = self.dirt_spawn_prob
@@ -829,7 +835,7 @@ class RuleObeyingPolicy(policy.Policy):
         reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
       
         for i in range(n_steps_to_reward): # Negative reward 
-          reward -= self.default_action_cost * self.gamma**i
+          reward -= self.default_action_cost * respawn_rate * self.gamma**i
 
     return reward
   
