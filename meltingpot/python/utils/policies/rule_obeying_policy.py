@@ -376,8 +376,9 @@ class RuleObeyingPolicy(policy.Policy):
   def hit_dirt(self, obs, x, y) -> bool:
     for i in range(x-2, x+2):
       for j in range(y-2, y):
-        if obs['SURROUNDINGS'][i][j] == -3:
-          return True
+        if not self.exceeds_map(i, j):
+          if obs['SURROUNDINGS'][i][j] == -3:
+            return True
     return False
 
   def get_bool_action(self, observation, action) -> None:
@@ -780,8 +781,8 @@ class RuleObeyingPolicy(policy.Policy):
         pos_fut_apples = [apple for apple in self.pos_all_possible_apples if apple not in pos_cur_apples and apple != pos_eaten_apple]
 
         r_eat_apple = self.apple_reward if act == 10 and observation['INVENTORY'] > 0 else 0
-        r_inv_apple = self.apple_reward * observation['INVENTORY'] * self.gamma# **(observation['INVENTORY'])
-        r_inv_apple -= self.default_action_cost * observation['INVENTORY'] * self.gamma # **observation['INVENTORY']
+        r_inv_apple = self.apple_reward * observation['INVENTORY'] * self.gamma**(observation['INVENTORY'])
+        r_inv_apple -= self.default_action_cost * observation['INVENTORY'] * self.gamma**(observation['INVENTORY'])
         r_cur_apples = self.get_discounted_reward(pos_cur_apples, pos, observation)
         r_fut_apples = self.get_discounted_reward(pos_fut_apples, pos, observation, respawn_type='apple')
 
