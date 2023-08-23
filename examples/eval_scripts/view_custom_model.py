@@ -91,7 +91,7 @@ def main(roles,
       bots.append(RuleAdjustingPolicy(env=env, 
                                     player_idx=i,
                                     log_output=log_output,
-                                    log_rule_prob_output=True,
+                                    log_rule_prob_output=False,
                                     log_weights=log_weights,
                                     look=ROLE_SPRITE_DICT[role],
                                     role=role, 
@@ -166,7 +166,7 @@ def main(roles,
         
       actions[i] = bot.step()
     
-    dead_apple_ratio = bots[-1].observation['DEAD_APPLE_RATIO'] # same for every player
+    dead_apple_ratio = bots[-1].history[-1][len(bots)-1].observation['DEAD_APPLE_RATIO'] # same for every player
     cur_beliefs = bots[-1].rule_beliefs
             
     if log_output:
