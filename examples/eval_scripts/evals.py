@@ -49,19 +49,23 @@ DEFAULT_ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1 + ('free',) *
 BASELINE_ROLES = ('free',) * 1 + ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1
 
 baseline_roles = ['free', 'cleaner', 'farmer', 'free']
-BASELINE_SCENARIOS = [('free',), ('cleaner',), ('farmer',)]
-TEST_SCENARIOS = []
+BASELINE_SCENARIOS = [('free',), ('cleaner',), ('farmer',), ('free',)]
+ALL_ROLE_COMB = []
 for i in range(1, len(baseline_roles) + 1):
     new_comb = list(itertools.combinations(baseline_roles, i))
     for comb in new_comb:
-        TEST_SCENARIOS.append(comb)
-        if i > 1:
-          lst = list(comb)
-          idx = lst.index('learner')
-          lst[idx] = 'free'
-          new_comb = tuple(lst)
-          BASELINE_SCENARIOS.append(new_comb)
+        ALL_ROLE_COMB.append(comb)
 
+unique_sorted_tuples = set()
+TEST_SCENARIOS = []
+for tup in ALL_ROLE_COMB:
+    # Convert tuple to a sorted tuple
+    sorted_tup = tuple(sorted(tup))
+    # Check if this sorted tuple hasn't been seen before
+    if sorted_tup not in unique_sorted_tuples:
+        unique_sorted_tuples.add(sorted_tup)
+        TEST_SCENARIOS.append(tup)
+        
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
 # STR_RULES = [rule.make_str_repr() for rule in DEFAULT_RULES]
 # Generate all possible combinations of the rules
@@ -83,15 +87,15 @@ print()
 for k in range(stats_relevance):
   for i in range(len(BASELINE_SCENARIOS)):
       roles = BASELINE_SCENARIOS[i]
-      cur_settings, cur_result = main(roles, 
-                                      episodes, 
-                                      num_iteration, 
-                                      rules, 
-                                      env_seed, 
-                                      create_video=True, 
-                                      log_output=True, 
+      cur_settings, cur_result = main(roles=DEFAULT_ROLES, 
+                                      episodes=400, 
+                                      num_iteration=k, 
+                                      rules=DEFAULT_RULES, 
+                                      env_seed=k, 
+                                      create_video=False, 
+                                      log_output=False, 
                                       log_weights=False,
-                                      save_csv=True,
+                                      save_csv=False,
                                       plot_q_vals=False,
                                       gamma=0.999,
                                       tau=1.5,
@@ -111,15 +115,15 @@ print()
 for k in range(stats_relevance):
   for i in range(len(TEST_SCENARIOS)):
       roles = TEST_SCENARIOS[i]
-      cur_settings, cur_result = main(roles, 
-                                      episodes, 
-                                      num_iteration, 
-                                      rules, 
-                                      env_seed, 
-                                      create_video=True, 
-                                      log_output=True, 
+      cur_settings, cur_result = main(roles=roles, 
+                                      episodes=400, 
+                                      num_iteration=k, 
+                                      rules=DEFAULT_RULES, 
+                                      env_seed=k, 
+                                      create_video=False, 
+                                      log_output=False, 
                                       log_weights=False,
-                                      save_csv=True,
+                                      save_csv=False,
                                       plot_q_vals=False,
                                       gamma=0.999,
                                       tau=1.5,
@@ -139,15 +143,15 @@ print()
 
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
-    cur_settings, cur_result = main(roles, 
-                                    episodes, 
-                                    num_iteration, 
-                                    rules, 
-                                    env_seed, 
-                                    create_video=True, 
-                                    log_output=True, 
+    cur_settings, cur_result = main(roles=DEFAULT_ROLES, 
+                                    episodes=400, 
+                                    num_iteration=k, 
+                                    rules=rule_set, 
+                                    env_seed=k, 
+                                    create_video=False, 
+                                    log_output=False, 
                                     log_weights=False,
-                                    save_csv=True,
+                                    save_csv=False,
                                     plot_q_vals=False,
                                     threshold_init_prior=0.8,
                                     learner_init_prior=0.2,

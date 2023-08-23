@@ -116,7 +116,7 @@ def main(roles,
   # actions = {key: [0] for key in range(len(bots))}
   actions = [0] * len(bots)
   # make headline of output dict#
-  ROLE_LIST = ['free', 'cleaner', 'farmer', 'free']
+  ROLE_LIST = ['free', 'cleaner', 'farmer', 'learner']
   ACTION_ROLE_LIST = [key + "_action" for key in config['roles']]
   data_dict = {
     (key.make_str_repr() if hasattr(key, 'make_str_repr') else key): [] 
@@ -165,7 +165,9 @@ def main(roles,
       bot.obligations, bot.prohibitions = bot.threshold_rules()
         
       actions[i] = bot.step()
-      # dead_apple_ratio = timestep_bot.observation['DEAD_APPLE_RATIO'] # same for every player
+    
+    dead_apple_ratio = bots[-1].observation['DEAD_APPLE_RATIO'] # same for every player
+    cur_beliefs = bots[-1].rule_beliefs
             
     if log_output:
       print('Actions: ' + str(actions)) 
@@ -261,10 +263,11 @@ def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dea
     if i < 4: # player rewards
       if key in all_roles: # key 0-3 are the name of the role
         j = get_index(key, all_roles, skip_first=False)
-        data_dict[key].append(reward_arr[j].item())
-        """if key == 'free' and all_roles.count(key) == 2:
+        if key == 'free' and all_roles.count(key) == 2:
           j1 = get_index(key, all_roles, skip_first=True)
-          data_dict['learner'].append(reward_arr[j1].item())   """       
+          data_dict['learner'].append(reward_arr[j1].item())    
+        else:
+          data_dict[key].append(reward_arr[j].item())
       else: 
         data_dict[key].append(0)
 
