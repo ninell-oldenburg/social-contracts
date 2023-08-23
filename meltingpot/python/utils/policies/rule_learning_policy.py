@@ -199,7 +199,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         else: # precondition doesn't hold
             p_action = 1/(self.num_actions-num_prohib_acts)
             return np.log(p_action)
-    
+        
     def get_prohib_action(self, observation, rule, cur_pos):
         prohib_acts = []
         for action in range(self.action_spec.num_values):
@@ -273,10 +273,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         return obligations, prohibitions
     
-    """def update_and_append_others_history(self, 
+    def update_and_append_others_history(self, 
                        all_timestep: list[dm_env.TimeStep]):
-        Appends timestep observation to current 
-        environent timestep to overall history.
+        """Appends timestep observation to current 
+        environent timestep to overall history."""
 
         for i, observation in enumerate(all_timestep.observation):
             cur_obs = super().deepcopy_dict(observation)
@@ -284,7 +284,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             x, y = cur_pos[0], cur_pos[1]
             all_timestep.observation[i] = super().update_observation(cur_obs, x, y)
 
-        self.others_history.append(all_timestep)"""
+        self.others_history.append(all_timestep)
         
     def step(self,
              timestep: dm_env.TimeStep):

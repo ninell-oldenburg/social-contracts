@@ -290,6 +290,12 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                     self.payees = [i+1 for i, agent_one_hot in enumerate(ts_cur.observation['ALWAYS_PAYING_TO']) if agent_one_hot == 1]
                 else:
                     self.payees = None
+            for rule_idx in range(len(self.potential_rules)):
+                rule = self.potential_rules[rule_idx]
+                if rule in self.potential_obligations:
+                    if not self.role_exists_for_rule(rule):
+                        print(rule.make_str_repr())
+                        self.rule_beliefs[rule_idx] = 0.0
 
         # Check if any of the obligations are active
         self.current_obligation = None
@@ -317,6 +323,19 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
     def append_to_history(self, timestep_list: list) -> None:
         """Apoends a list of timesteps to the agent's history"""
         self.history.append(timestep_list)
+    
+    def role_exists_for_rule(self, rule) -> bool:
+        for agent_history in self.history[-1]:
+            agent_look_name = self.get_look_for_value(agent_history.observation['AGENT_LOOK'])
+            if agent_look_name in rule.make_str_repr():
+                return True
+        return False
+    
+    def get_look_for_value(self, value_to_find):
+        for key, value in ROLE_SPRITE_DICT.items():
+            if ''.join(value).encode('utf-8') == value_to_find:
+                return key
+        return None
 
     def update_beliefs(self, actions: list) -> None:
         """Update the beliefs of the rules based on the 
