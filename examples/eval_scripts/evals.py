@@ -5,6 +5,7 @@ import time
 import datetime
 import matplotlib.pyplot as plt
 
+from meltingpot.python.utils.policies.rule_generation import RuleGenerator
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
 
 import itertools
@@ -41,6 +42,9 @@ plt.title('Bayesian Inference')
 plt.savefig(fname="update")
 plt.show()"""
 
+generator = RuleGenerator()
+POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_length(3)
+
 DEFAULT_ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1 + ('free',) * 1
 BASELINE_ROLES = ('free',) * 1 + ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1
 
@@ -50,9 +54,8 @@ TEST_SCENARIOS = []
 for i in range(1, len(baseline_roles) + 1):
     new_comb = list(itertools.combinations(baseline_roles, i))
     for comb in new_comb:
-      if 'learner' in comb:
-         TEST_SCENARIOS.append(comb)
-         if i > 1:
+        TEST_SCENARIOS.append(comb)
+        if i > 1:
           lst = list(comb)
           idx = lst.index('learner')
           lst[idx] = 'free'
@@ -68,9 +71,8 @@ for i in range(0, len(DEFAULT_RULES) + 1):
 
 start_time = time.time()
 
-stats_relevance = 13
+stats_relevance = 1
 
-"""
 print()
 print('*'*50)
 print('STARTING BASELINE SCENARIOS')
@@ -81,13 +83,19 @@ print()
 for k in range(stats_relevance):
   for i in range(len(BASELINE_SCENARIOS)):
       roles = BASELINE_SCENARIOS[i]
-      cur_settings, cur_result = main(roles=roles, 
-                                      episodes=200, 
-                                      num_iteration=i, 
-                                      rules=DEFAULT_RULES,
-                                      env_seed=k,
+      cur_settings, cur_result = main(roles, 
+                                      episodes, 
+                                      num_iteration, 
+                                      rules, 
+                                      env_seed, 
                                       create_video=True, 
-                                      log_output=False)
+                                      log_output=True, 
+                                      log_weights=False,
+                                      save_csv=True,
+                                      plot_q_vals=False,
+                                      gamma=0.999,
+                                      tau=1.5,
+                                      )
       cur_df = pd.DataFrame.from_dict(cur_result)
       path = f'examples/results/base/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
@@ -103,19 +111,25 @@ print()
 for k in range(stats_relevance):
   for i in range(len(TEST_SCENARIOS)):
       roles = TEST_SCENARIOS[i]
-      cur_settings, cur_result = main(roles=roles, 
-                                      episodes=200, 
-                                      num_iteration=i, 
-                                      rules=DEFAULT_RULES,
-                                      env_seed=k,
+      cur_settings, cur_result = main(roles, 
+                                      episodes, 
+                                      num_iteration, 
+                                      rules, 
+                                      env_seed, 
                                       create_video=True, 
-                                      log_output=False)
+                                      log_output=True, 
+                                      log_weights=False,
+                                      save_csv=True,
+                                      plot_q_vals=False,
+                                      gamma=0.999,
+                                      tau=1.5,
+                                      )
       cur_df = pd.DataFrame.from_dict(cur_result)
       path = f'examples/results/test/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
       print(f'ITERATION {k+1} TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
-"""
+
       
 print()
 print('*'*50)
