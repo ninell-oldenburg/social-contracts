@@ -5,6 +5,8 @@ from collections import deque
 import numpy as np
 import random
 
+from copy import deepcopy
+
 from meltingpot.python.utils.substrates import shapes
 
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
@@ -294,8 +296,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 rule = self.potential_rules[rule_idx]
                 if rule in self.potential_obligations:
                     if not self.role_exists_for_rule(rule):
-                        print(rule.make_str_repr())
-                        self.rule_beliefs[rule_idx] = 0.0
+                        if self.rule_beliefs[rule_idx] > self.threshold:
+                            self.rule_beliefs[rule_idx] = 0.0
 
         # Check if any of the obligations are active
         self.current_obligation = None
@@ -403,13 +405,14 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             if action in prohib_actions: # violation
                 # note rule violationg
                 self.maybe_mark_riot(player_idx, rule)
+                return np.log(0)
                 p_action = (1-self.p_obey)/(self.num_actions)
                 return np.log(p_action)
             else: # action not prohibited
-                p_action = self.p_obey + (1-self.p_obey)/(self.num_actions-num_prohib_acts)
-                # p_action = 1/(self.num_actions-num_prohib_acts)
+                # p_action = self.p_obey + (1-self.p_obey)/(self.num_actions-num_prohib_acts)
+                p_action = 1/(self.num_actions-num_prohib_acts)
                 return np.log(p_action)
         else: # precondition doesn't hold
             p_action = 1/(self.num_actions-num_prohib_acts)
             return np.log(p_action)
-        
+    

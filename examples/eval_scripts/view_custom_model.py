@@ -57,7 +57,7 @@ def main(roles,
   level_name = get_name_from_rules(rules)
   substrate_name = f'rule_obeying_harvest_{level_name}'
   num_bots = len(roles)
-  #num_focal_bots = num_bots - 1 # roles.count("learner")
+  num_focal_bots = num_bots - 1 # roles.count("learner")
 
   config = {'substrate': substrate_name,
             'roles': roles}
@@ -70,11 +70,11 @@ def main(roles,
   role_str = ''
   for i in range(len(roles)):
     role = config['roles'][i]
-    #if i < num_focal_bots:
-    bots.append(RuleAdjustingPolicy(env=env, 
+    if i < num_focal_bots:
+      bots.append(RuleAdjustingPolicy(env=env, 
                                     player_idx=i,
                                     log_output=log_output,
-                                    log_rule_prob_output=True,
+                                    log_rule_prob_output=False,
                                     log_weights=log_weights,
                                     look=ROLE_SPRITE_DICT[role],
                                     role=role, 
@@ -86,8 +86,8 @@ def main(roles,
                                     gamma=gamma,
                                     tau=tau
                                     ))
-   # else:
-  """bots.append(RuleAdjustingPolicy(env=env, 
+    else:
+      bots.append(RuleAdjustingPolicy(env=env, 
                                     player_idx=i,
                                     log_output=log_output,
                                     log_rule_prob_output=True,
@@ -101,7 +101,7 @@ def main(roles,
                                     active_obligations=[],
                                     gamma=gamma,
                                     tau=tau
-                                    ))"""
+                                    ))
       
   for role in set(roles):
     role_str += role # video name
@@ -348,7 +348,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 0
   episodes = 400
   # Possible values for tau and gamma you want to test
   # taus = [0.0, 0.1, 0.5, 1.0, 1.5]
