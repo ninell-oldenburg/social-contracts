@@ -273,10 +273,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         return obligations, prohibitions
     
-    def update_and_append_others_history(self, 
+    """def update_and_append_others_history(self, 
                        all_timestep: list[dm_env.TimeStep]):
-        """Appends timestep observation to current 
-        environent timestep to overall history."""
+        Appends timestep observation to current 
+        environent timestep to overall history.
 
         for i, observation in enumerate(all_timestep.observation):
             cur_obs = super().deepcopy_dict(observation)
@@ -284,7 +284,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             x, y = cur_pos[0], cur_pos[1]
             all_timestep.observation[i] = super().update_observation(cur_obs, x, y)
 
-        self.others_history.append(all_timestep)
+        self.others_history.append(all_timestep)"""
         
     def step(self,
              timestep: dm_env.TimeStep):
@@ -306,13 +306,3 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         # use parent class to compute best step
         return super().step(timestep)
-    
-    def get_position_list(self, observation) -> list:
-        position_list = [None]*self.num_total_agents
-        for i in range(observation['SURROUNDINGS'].shape[0]):
-            for j in range(observation['SURROUNDINGS'].shape[1]):
-                if observation['SURROUNDINGS'][i][j] > 0: # agent encountered
-                    agent_idx = observation['SURROUNDINGS'][i][j] 
-                    position_list[agent_idx-1] = (i, j)
-
-        return position_list

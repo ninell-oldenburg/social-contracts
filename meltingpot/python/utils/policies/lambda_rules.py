@@ -26,7 +26,7 @@ DEFAULT_OBLIGATIONS = [
   # If you're in the cleaner role, clean in a certain rhythm
   ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5),
   # If you recognize that someone violated a rule, zap them
-  ObligationRule(zap_precondition, zap_goal)
+  # ObligationRule(zap_precondition, zap_goal)
 ]
 
 CLEANING_RULES = [

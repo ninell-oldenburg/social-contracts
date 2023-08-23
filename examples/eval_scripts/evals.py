@@ -41,10 +41,10 @@ plt.title('Bayesian Inference')
 plt.savefig(fname="update")
 plt.show()"""
 
-DEFAULT_ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1 + ('learner',) * 1
+DEFAULT_ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1 + ('free',) * 1
 BASELINE_ROLES = ('free',) * 1 + ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1
 
-baseline_roles = ['free', 'cleaner', 'farmer', 'learner']
+baseline_roles = ['free', 'cleaner', 'farmer', 'free']
 BASELINE_SCENARIOS = [('free',), ('cleaner',), ('farmer',)]
 TEST_SCENARIOS = []
 for i in range(1, len(baseline_roles) + 1):
@@ -125,13 +125,21 @@ print()
 
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
-    cur_settings, cur_result = main(roles=BASELINE_ROLES, 
-                                      episodes=200, 
-                                      num_iteration=i, 
-                                      rules=rule_set, 
-                                      env_seed=k,
-                                      create_video=True, 
-                                      log_output=False)
+    cur_settings, cur_result = main(roles, 
+                                    episodes, 
+                                    num_iteration, 
+                                    rules, 
+                                    env_seed, 
+                                    create_video=True, 
+                                    log_output=True, 
+                                    log_weights=False,
+                                    save_csv=True,
+                                    plot_q_vals=False,
+                                    threshold_init_prior=0.8,
+                                    learner_init_prior=0.2,
+                                    gamma=0.999,
+                                    tau=1.5)
+    
     cur_df = pd.DataFrame.from_dict(cur_result)
     path = f'examples/results/rule_baseline/scenario{rule_set_idx+1}/trial{k+1}.csv'
     cur_df.to_csv(path_or_buf=path)

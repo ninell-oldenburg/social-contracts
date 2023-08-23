@@ -34,9 +34,9 @@ from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS,
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
 from meltingpot.python.utils.policies.lambda_rules import CLEANING_RULES, PICK_APPLE_RULES, TERRITORY_RULES
 from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
-from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
+# from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 from meltingpot.python.utils.policies.rule_adjusting_policy import RuleAdjustingPolicy
-from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
+# from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
 
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
 
@@ -50,50 +50,57 @@ def main(roles,
           log_weights=False,
           save_csv=True,
           plot_q_vals=False,
-          gamma=0.9999,
-          tau=0.5,
+          gamma=0.999,
+          tau=1.5,
           ):
 
   level_name = get_name_from_rules(rules)
   substrate_name = f'rule_obeying_harvest_{level_name}'
   num_bots = len(roles)
-  # num_focal_bots = num_bots - roles.count("learner")
+  #num_focal_bots = num_bots - 1 # roles.count("learner")
 
   config = {'substrate': substrate_name,
             'roles': roles}
 
   env = substrate.build(config['substrate'], roles=config['roles'], env_seed=env_seed)
 
-  obeyed_prohibitions, obeyed_obligations = split_rules(rules)
+  # obeyed_prohibitions, obeyed_obligations = split_rules(rules)
 
   bots = []
   role_str = ''
   for i in range(len(roles)):
     role = config['roles'][i]
-    """if i < num_focal_bots:"""
+    #if i < num_focal_bots:
     bots.append(RuleAdjustingPolicy(env=env, 
                                     player_idx=i,
                                     log_output=log_output,
+                                    log_rule_prob_output=True,
+                                    log_weights=log_weights,
+                                    look=ROLE_SPRITE_DICT[role],
+                                    role=role, 
+                                    num_players=num_bots,
+                                    potential_prohibitions=DEFAULT_PROHIBITIONS,
+                                    potential_obligations=DEFAULT_OBLIGATIONS,
+                                    active_prohibitions=DEFAULT_PROHIBITIONS,
+                                    active_obligations=DEFAULT_OBLIGATIONS,
+                                    gamma=gamma,
+                                    tau=tau
+                                    ))
+   # else:
+  """bots.append(RuleAdjustingPolicy(env=env, 
+                                    player_idx=i,
+                                    log_output=log_output,
+                                    log_rule_prob_output=True,
                                     log_weights=log_weights,
                                     look=ROLE_SPRITE_DICT[role],
                                     role=role, 
                                     num_players=num_bots,
                                     potential_obligations=POTENTIAL_OBLIGATIONS,
                                     potential_prohibitions=POTENTIAL_PROHIBITIONS,
-                                    active_prohibitions=DEFAULT_PROHIBITIONS,
-                                    active_obligations=DEFAULT_OBLIGATIONS,
+                                    active_prohibitions=[],
+                                    active_obligations=[],
                                     gamma=gamma,
                                     tau=tau
-                                    ))
-    """else:
-    bots.append(RuleLearningPolicy(env=env, 
-                                    look=ROLE_SPRITE_DICT[role],
-                                    role=role, 
-                                    player_idx=i,
-                                    # other_player_looks=other_player_looks,
-                                    num_focal_bots = num_focal_bots,
-                                    log_output=log_output,
-                                    selection_mode="threshold"
                                     ))"""
       
   for role in set(roles):
@@ -108,7 +115,7 @@ def main(roles,
   # actions = {key: [0] for key in range(len(bots))}
   actions = [0] * len(bots)
   # make headline of output dict#
-  ROLE_LIST = ['free', 'cleaner', 'farmer', 'learner']
+  ROLE_LIST = ['free', 'cleaner', 'farmer', 'free']
   ACTION_ROLE_LIST = [key + "_action" for key in config['roles']]
   data_dict = {
     (key.make_str_repr() if hasattr(key, 'make_str_repr') else key): [] 
@@ -122,7 +129,7 @@ def main(roles,
   fps = 5
 
   pygame.init()
-  start_time = time.time()  # Start the timer
+  # start_time = time.time()  # Start the timer
   clock = pygame.time.Clock()
   pygame.display.set_caption("DM Lab2d")
   obs_spec = env.observation_spec()
@@ -202,7 +209,7 @@ def main(roles,
   print(f"The key with the highest value is: {key_with_max_value}")
   print(f"Its value is: {bots[0].hash_count[key_with_max_value]}")
 
-  end_time = time.time()  # End the timer
+  # end_time = time.time()  # End the timer
 
   # return end_time - start_time, data_dict
   return settings, data_dict
@@ -341,38 +348,38 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 0
-  episodes = 200
+  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 0
+  episodes = 400
   # Possible values for tau and gamma you want to test
-  taus = [0.0, 0.1, 0.5, 1.0, 1.5]
-  gammas = [0.99, 0.999, 0.9999, 0.99999]
-  num_runs = 10
+  # taus = [0.0, 0.1, 0.5, 1.0, 1.5]
+  # gammas = [0.9, 0.99, 0.999, 0.9999, 0.99999]
+  num_runs = 1
   
   # Initialize results
-  results = {(gamma, tau): {'cleaner': 0, 'farmer': 0, 'free': 0} for gamma, tau in zip(gammas, taus)}
+  # results = {(gamma, tau): {'cleaner': 0, 'farmer': 0, 'free': 0} for gamma in gammas for tau in taus}
   
   for run in range(num_runs):
-      print(f"Run number: {run+1}")
+      """ print(f"Run number: {run+1}")
       for gamma in gammas:
-        for tau in taus:
+        for tau in taus:"""
     
-          settings, data_dict = main(roles=roles,
-                                    rules=DEFAULT_RULES,
-                                    env_seed=1,
-                                    episodes=episodes,
-                                    num_iteration=1,
-                                    create_video=False,
-                                    log_output=False,
-                                    log_weights=False,
-                                    save_csv=False,
-                                    plot_q_vals=False,
-                                    gamma=gamma,
-                                    tau=tau,
-                                    )
+      settings, data_dict = main(roles=roles,
+                                rules=DEFAULT_RULES,
+                                env_seed=1,
+                                episodes=episodes,
+                                num_iteration=1,
+                                create_video=False,
+                                log_output=False,
+                                log_weights=False,
+                                save_csv=False,
+                                plot_q_vals=False,
+                                gamma=0.999,
+                                tau=1.5,
+                                )
 
-          results[gamma, tau]['cleaner'] += sum(data_dict['cleaner'])
-          results[gamma, tau]['farmer'] += sum(data_dict['farmer'])
-          results[gamma, tau]['free'] += sum(data_dict['free'])
+      """results[(gamma, tau)]['cleaner'] += sum(data_dict['cleaner'])
+      results[(gamma, tau)]['farmer'] += sum(data_dict['farmer'])
+      results[(gamma, tau)]['free'] += sum(data_dict['free'])
 
   # Calculate averages
   for (gamma, tau), scores in results.items():
@@ -384,8 +391,83 @@ if __name__ == "__main__":
   for (gamma, tau), scores in results.items():
       print(f"For gamma={gamma}:")
       print(f"cleaner: {scores['cleaner']:.2f}, farmer: {scores['farmer']:.2f}, free: {scores['free']:.2f}")
-      print()
+      print()"""
 
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
   print(sum(data_dict['free']))
+
+  """For gamma=0.9, tau: 0.0:
+cleaner: 4.90, farmer: 5.20, free: 5.40
+
+For gamma=0.9 tau: 0.1:
+cleaner: 4.90, farmer: 8.70, free: 6.30
+
+For gamma=0.9 tau: 0.5:
+cleaner: 6.10, farmer: 5.30, free: 11.00
+
+For gamma=0.9 tau: 1.0:
+cleaner: 6.70, farmer: 8.10, free: 13.00
+
+For gamma=0.9 tau: 1.5:
+cleaner: 7.20, farmer: 6.90, free: 10.70
+
+For gamma=0.99 tau: 0.0:
+cleaner: 1.40, farmer: 0.40, free: 3.10
+
+For gamma=0.99 tau: 0.1:
+cleaner: 10.00, farmer: 3.50, free: 8.80
+
+For gamma=0.99 tau: 0.5:
+cleaner: 9.00, farmer: 3.80, free: 8.80
+
+For gamma=0.99 tau: 1.0:
+cleaner: 8.70, farmer: 3.80, free: 6.00
+
+For gamma=0.99 tau: 1.5:
+cleaner: 7.80, farmer: 4.00, free: 6.90
+
+For gamma=0.999 tau: 0.0:
+cleaner: 0.90, farmer: 2.80, free: 4.30
+
+For gamma=0.999 tau: 0.1:
+cleaner: 8.90, farmer: 2.30, free: 8.60
+
+For gamma=0.999 tau: 0.5:
+cleaner: 8.30, farmer: 4.60, free: 6.70
+
+For gamma=0.999 tau: 1.0:
+cleaner: 8.30, farmer: 7.30, free: 4.30
+
+For gamma=0.999 tau: 1.5:
+cleaner: 9.80, farmer: 5.00, free: 9.70
+
+For gamma=0.9999 tau: 0.0:
+cleaner: 2.20, farmer: 1.50, free: 1.60
+
+For gamma=0.9999 tau: 0.1:
+cleaner: 8.40, farmer: 5.10, free: 6.00
+
+For gamma=0.9999 tau: 0.5:
+cleaner: 11.60, farmer: 3.00, free: 8.50
+
+For gamma=0.9999 tau: 1.0:
+cleaner: 9.60, farmer: 5.50, free: 5.40
+
+For gamma=0.9999 tau: 1.5:
+cleaner: 10.60, farmer: 4.00, free: 5.50
+
+For gamma=0.99999 tau: 0.0:
+cleaner: 13.60, farmer: 0.70, free: 5.10
+
+For gamma=0.99999 tau: 0.1:
+cleaner: 13.10, farmer: 4.90, free: 8.00
+
+For gamma=0.99999 tau: 0.5:
+cleaner: 13.50, farmer: 4.40, free: 8.00
+
+For gamma=0.99999 tau: 1.0:
+cleaner: 11.60, farmer: 5.20, free: 7.70
+
+For gamma=0.99999 tau: 1.5:
+cleaner: 9.30, farmer: 4.50, free: 7.40"""

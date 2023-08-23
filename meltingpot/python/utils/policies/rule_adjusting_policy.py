@@ -14,7 +14,7 @@ from meltingpot.python.utils.policies.rule_generation import RuleGenerator
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
 
 generator = RuleGenerator()
-POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_length(2)
+POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_length(3)
 
 # ENVIRONMENT COMPONENTS
 APPLE_RESPAWN_RADIUS = 1.0
@@ -60,6 +60,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 env: dm_env.Environment,
                 player_idx: int,
                 log_output: bool,
+                log_rule_prob_output: bool,
                 log_weights: bool,
                 look: shapes,
                 num_players: int,
@@ -95,6 +96,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.role = role
         self.look = look
         self.log_output = log_output
+        self.log_rule_prob_output = log_rule_prob_output
         self.log_weights = log_weights
         self.action_spec = env.action_spec()[0]
         self.selection_mode = selection_mode
@@ -267,6 +269,18 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         ts_cur = self.history[-1][self.py_index]
         self.ts_start = ts_cur
         self.ts_start.observation = self.custom_deepcopy(ts_cur.observation)
+
+        if self.log_rule_prob_output:
+            print('='*50)
+            print('CURRENT RULES')
+            print('Obligations:')
+            for rule in self.obligations:
+                print(rule.make_str_repr())
+            print()
+            print('Prohibitions:')
+            for rule in self.prohibitions:
+                print(rule.make_str_repr())
+            print('='*50)
 
         if ts_cur.step_type == dm_env.StepType.FIRST:
             self.pos_all_possible_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -1)))
