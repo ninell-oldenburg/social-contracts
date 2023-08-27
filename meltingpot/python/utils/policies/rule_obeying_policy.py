@@ -229,6 +229,7 @@ class RuleObeyingPolicy(policy.Policy):
            break
          
       self.set_goal()
+      ts_cur.goal = self.goal
                
       if self.log_output:
         print(f"player: {self.lua_index} obligation active?: {self.current_obligation != None}")
@@ -238,8 +239,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       self.last_inventory = ts_cur.observation['INVENTORY']
       
-      # return [self.get_act(ts_cur)]
-      return self.get_optimal_path(ts_cur)
+      return self.get_act(ts_cur)
   
   def set_goal(self) -> None:
     if self.current_obligation != None:
@@ -687,14 +687,20 @@ class RuleObeyingPolicy(policy.Policy):
 
     return
   
-  def get_act(self, ts_cur: AgentTimestep) -> int:
+  def get_act(self, ts_cur: AgentTimestep, no_rules=False) -> int:
     hash = self.hash_ts(ts_cur)
-    if hash in self.V[self.goal].keys():
+    v_func = self.V[self.goal] if not no_rules else self.V_ruleless[self.goal]
+    if hash in v_func.keys():
       if self.log_output:
         print(f'position: {ts_cur.observation["POSITION"]}, key: {hash}')
-        print(self.V[self.goal][hash])
-      next_act = self.get_boltzmann_act(self.V[self.goal][hash])
+        print(v_func[hash])
+      next_act = self.get_boltzmann_act(v_func[hash])
       return next_act
+    
+  def get_action_prob(self, act: int, ts_cur: AgentTimestep,  no_rules=False) -> float:
+    hash = self.hash_ts(ts_cur)
+    v_func = self.V[self.goal] if not no_rules else self.V_ruleless[self.goal]
+    return v_func[hash][act]
 
   def update(self, ts_cur: AgentTimestep) -> int:
     """Updates state-action pair value function 
@@ -881,11 +887,7 @@ class RuleObeyingPolicy(policy.Policy):
   def get_cur_obj_pos(self, surroundings: np.array, object_idx: int) -> list:
     return list(zip(*np.where(surroundings== object_idx)))
   
-  def get_boltzmann_act(self, q_values: list) -> int:
-
-    if self.tau == 0:
-        return np.argmax(q_values)
-    
+  def compute_boltzmann(self, q_values: list):
     # Compute the log-softmax values
     max_q = np.max(q_values)
     stabilized_q_values = q_values - max_q
@@ -901,6 +903,13 @@ class RuleObeyingPolicy(policy.Policy):
         print("Warning: NaN values detected in probabilities. Using uniform distribution.")
         probs = np.ones_like(q_values) / len(q_values)
 
+    return probs
+  
+  def get_boltzmann_act(self, q_values: list) -> int:
+
+    if self.tau == 0:
+        return np.argmax(q_values)
+    probs = self.compute_boltzmann(q_values)
     action = np.random.choice(len(q_values), p=probs) 
     return action
 

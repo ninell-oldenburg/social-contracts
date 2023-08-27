@@ -410,22 +410,39 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         
     def comp_prohib_llh(self, player_idx, rule, action) -> float:
     
-        past_obs = self.history[-2][player_idx].observation
+        past_ts = self.history[-2][player_idx]
+        past_obs = past_ts.observation
         past_pos = np.copy(past_obs['POSITION'])
+        
+        goal = past_ts.goal
+        hash = self.hash_ts(past_ts)
 
+        # get prohibited actions according to the ongoing rule
         prohib_actions = self.get_prohib_action(past_obs, rule, past_pos)
         num_prohib_acts = len(prohib_actions)
-        if rule.holds_precondition(past_obs):
-            if action in prohib_actions: # violation
-                # note rule violationg
-                self.maybe_mark_riot(player_idx, rule)
+
+        # calculate chance of the action being violated
+        if rule.holds_precondition(past_obs): # if rule is active in a given situation
+            best_act = self.get_act(past_ts, no_rules=True)
+            boltzmann_dis = self.compute_boltzmann(self.V_ruleless[goal][hash])
+            boltzmann_prob_best_act = boltzmann_dis[best_act]
+            boltzmann_prob_action = boltzmann_dis[action]
+
+            if action == best_act:  # according to Boltzmann
+                return np.log(boltzmann_prob_best_act)
+            else:
+                return np.log(boltzmann_prob_action)
+
+            """if action in prohib_actions: # violation
+                self.maybe_mark_riot(player_idx, rule) # note violation
                 #return np.log(0)
                 p_action = (1-self.p_obey)/(self.num_actions)
                 return np.log(p_action)
             else: # action not prohibited
                 # p_action = self.p_obey + (1-self.p_obey)/(self.num_actions-num_prohib_acts)
                 p_action = 1/(self.num_actions-num_prohib_acts)
-                return np.log(p_action)
+                return np.log(p_action)"""
+            
         else: # precondition doesn't hold
             p_action = 1/(self.num_actions-num_prohib_acts)
             return np.log(p_action)

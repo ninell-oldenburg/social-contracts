@@ -6,6 +6,7 @@ class AgentTimestep():
         self.step_type = None
         self.reward = 0
         self.observation = {}
+        self.goal = "apple"
 
     def get_obs(self):
         return self.observation
