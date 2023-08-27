@@ -90,7 +90,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 threshold_depletion: float = THRESHOLD_APPLE_DEPLETION,
                 threshold_restoration: float = THRESHOLD_APPLE_RESTAURATION,
                 max_apple_growth_rate: float = MAX_APPLE_GROWTH_RATE,
-                dirt_spawn_prob: float = DIRT_SPAWN_PROB) -> None:
+                dirt_spawn_prob: float = DIRT_SPAWN_PROB,
+                is_learner: bool = False) -> None:
         
         # CALLING PARAMETERS
         self.py_index = player_idx
@@ -127,6 +128,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.default_action_cost = default_action_cost
         self.init_prior = init_prior
         self.p_obey = p_obey
+        self.is_learner = is_learner
         self.regrowth_probabilities = regrowth_probabilities
         self.num_regrowth_probs = len(self.regrowth_probabilities)
         self.threshold_depletion = threshold_depletion
@@ -147,6 +149,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.q_value_log = {}
         goals = ['apple', 'clean', 'pay', 'zap']
         self.V = {goal: {} for goal in goals}
+        self.V_ruleless = {goal: {} for goal in goals}
         self.ts_start = None
         self.goal = None
         self.x_max = 15
@@ -258,6 +261,17 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'POSITION_OTHERS',
           ],
       }
+        
+        # if i'm a learner
+        # look at other people's policy
+        # get the best action according to boltzman
+        #
+        # prohibitions:
+        #   look at best action without policy being true
+        #   look at best action with policy being true
+        # obligations:
+        #   i don't know
+
     
     def step(self) -> list:
         """
@@ -320,7 +334,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         self.last_inventory = ts_cur.observation["INVENTORY"]
         
-        return self.get_best_act(self.ts_start)
+        return self.get_act(self.ts_start)
     
     def append_to_history(self, timestep_list: list) -> None:
         """Apoends a list of timesteps to the agent's history"""
@@ -405,7 +419,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             if action in prohib_actions: # violation
                 # note rule violationg
                 self.maybe_mark_riot(player_idx, rule)
-                return np.log(0)
+                #return np.log(0)
                 p_action = (1-self.p_obey)/(self.num_actions)
                 return np.log(p_action)
             else: # action not prohibited

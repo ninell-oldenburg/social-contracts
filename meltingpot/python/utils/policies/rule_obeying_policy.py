@@ -238,7 +238,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       self.last_inventory = ts_cur.observation['INVENTORY']
       
-      # return [self.get_best_act(ts_cur)]
+      # return [self.get_act(ts_cur)]
       return self.get_optimal_path(ts_cur)
   
   def set_goal(self) -> None:
@@ -687,22 +687,21 @@ class RuleObeyingPolicy(policy.Policy):
 
     return
   
-  def get_best_act(self, ts_cur: AgentTimestep) -> int:
+  def get_act(self, ts_cur: AgentTimestep) -> int:
     hash = self.hash_ts(ts_cur)
     if hash in self.V[self.goal].keys():
       if self.log_output:
         print(f'position: {ts_cur.observation["POSITION"]}, key: {hash}')
         print(self.V[self.goal][hash])
-      return np.argmax(self.V[self.goal][hash]) # no null action
-    """else:
-      best_act = self.update(ts_cur)
-      return best_act"""
+      next_act = self.get_boltzmann_act(self.V[self.goal][hash])
+      return next_act
 
   def update(self, ts_cur: AgentTimestep) -> int:
     """Updates state-action pair value function 
     and returns the best action based on that."""
     size = self.action_spec.num_values 
     Q = np.full(size, -1.0)
+    Q_ruleless = np.full(size, -1.0)
 
     # TODO: change to available_action_history()
     available = self.available_actions(ts_cur.observation)
@@ -719,9 +718,10 @@ class RuleObeyingPolicy(policy.Policy):
       ts_next = self.env_step(ts_cur, act, self.py_index)
       s_next = self.init_process_next_ts(ts_next)
 
-      Q[act]  = self.get_estimated_return(ts_next, s_next, act, available, type, ts_cur)
+      Q[act], Q_ruleless[act]  = self.get_estimated_return(ts_next, s_next, act, available, type, ts_cur)
 
     self.V[self.goal][s_cur] = Q
+    self.V_ruleless[self.goal][s_cur] = Q_ruleless
 
     if s_cur not in self.hash_count:
       self.hash_count[s_cur] = 1
@@ -730,13 +730,13 @@ class RuleObeyingPolicy(policy.Policy):
       self.hash_count[s_cur] += 1
       self.q_value_log[s_cur].append(max(Q))
 
-    boltzi = self.get_boltzmann_act(Q)
+    next_act = self.get_boltzmann_act(Q)
     if self.log_weights:
       print('SUUMMARY:')
       print(f"{Q}")
-      print(f'next action: {boltzi}')
+      print(f'next action: {next_act}')
     
-    return boltzi
+    return next_act
   
   def init_process_next_ts(self, ts_cur):
     pos = ts_cur.observation['POSITION']
@@ -925,7 +925,10 @@ class RuleObeyingPolicy(policy.Policy):
       print()
       print(f'{ts_cur.observation["POSITION"]} for {act} to {ts_next.observation["POSITION"]} gives\t{r_forward} + {r_cur} - {cost}; {s_next}')
 
-    return r_forward + r_cur - cost
+    v_rules = r_forward + r_cur - cost
+    v_ruleless = r_forward + r_cur
+
+    return v_rules, v_ruleless
   
   """def a_star(self, s_start: int) -> list[int]:
     # Perform a A* search to generate plan.

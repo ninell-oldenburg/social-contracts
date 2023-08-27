@@ -85,7 +85,8 @@ def main(roles,
                                     active_prohibitions=DEFAULT_PROHIBITIONS,
                                     active_obligations=DEFAULT_OBLIGATIONS,
                                     gamma=gamma,
-                                    tau=tau
+                                    tau=tau,
+                                    is_learner=False,
                                     ))
     else:
       bots.append(RuleAdjustingPolicy(env=env, 
@@ -101,7 +102,8 @@ def main(roles,
                                     active_prohibitions=[],
                                     active_obligations=[],
                                     gamma=gamma,
-                                    tau=tau
+                                    tau=tau,
+                                    is_learner=True,
                                     ))
       
   for role in set(roles):
