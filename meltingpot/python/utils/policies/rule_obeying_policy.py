@@ -263,6 +263,7 @@ class RuleObeyingPolicy(policy.Policy):
     # not sure whether to subtract 1 or not
     ts.observation['POSITION'][0] = ts.observation['POSITION'][0]-1
     ts.observation['POSITION'][1] = ts.observation['POSITION'][1]-1
+    ts.observation['PY_INDEX'] = idx
     new_pos = ts.observation['POSITION']
     self.update_last_actions(ts.observation, actions[idx])
     if not self.is_water(ts.observation, new_pos):
@@ -326,7 +327,8 @@ class RuleObeyingPolicy(policy.Policy):
     obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
     obs['WATER_LOCATION'] = list(zip(*np.where(obs['SURROUNDINGS'] <= -3)))
     obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -1 else False
-    self.make_territory_observation(obs, x, y)
+    lua_idx = obs['PY_INDEX']
+    self.make_territory_observation(obs, x, y, lua_idx)
     obs['POSITION_OTHERS'] = self.get_others(obs)
     return obs
   
@@ -398,10 +400,10 @@ class RuleObeyingPolicy(policy.Policy):
     sorted_positive_indices = np.argwhere(positive_values_mask)[sorted_indices]
     return [(index[0], index[1]) for index in sorted_positive_indices]
   
-  def update_and_append_history(self, timestep: dm_env.TimeStep, actions: list) -> None:
-    """Append current timestep obsetvation to observation history."""
+  """def update_and_append_history(self, timestep: dm_env.TimeStep, actions: list) -> None:
+    Append current timestep obsetvation to observation history.
     ts_cur = self.add_non_physical_info(timestep, actions, self.py_index)
-    self.history.append(ts_cur.observation)
+    self.history.append(ts_cur.observation)"""
 
   def maybe_collect_apple(self, observation) -> float:
     x, y = observation['POSITION'][0], observation['POSITION'][1]
@@ -430,6 +432,7 @@ class RuleObeyingPolicy(policy.Policy):
       # 1. Unpack observations from timestep
       # TODO: this can be made faster, I believe
       observation = self.custom_deepcopy(timestep.observation)
+      observation['PY_INDEX'] = idx
       observation = self.update_obs_without_coordinates(observation)
       self.increase_action_steps(observation)
       self.get_bool_action(observation=observation, action=action)
@@ -621,10 +624,8 @@ class RuleObeyingPolicy(policy.Policy):
     
     return None
 
-  def get_ts_hash_key(self, obs: dict, reward: float):
-    # Convert the dictionary to a tuple of key-value pairs
-    relevant_keys = self.relevant_keys[self.goal] # define keys
-
+  def get_ts_hash_key(self, obs: dict, reward: float, goal: str) -> str:
+    relevant_keys = self.relevant_keys[goal] # define keys
     items = list(obs[key] for key in sorted(obs.keys()) if key in sorted(relevant_keys)) # extract
     #sorted_items = sorted(items, key=lambda x: x[0])
 
@@ -662,9 +663,9 @@ class RuleObeyingPolicy(policy.Policy):
 
     return hash_key
 
-  def hash_ts(self, timestep: AgentTimestep):
+  def hash_ts(self, ts: AgentTimestep):
     """Computes hash for the given timestep observation."""
-    return self.get_ts_hash_key(timestep.observation, timestep.reward)
+    return self.get_ts_hash_key(ts.observation, ts.reward, ts.goal)
   
   # from https://github.com/JuliaPlanners/SymbolicPlanners.jl/blob/master/src/planners/rtdp.jl
   def rtdp(self, ts_start: AgentTimestep) -> None:
@@ -710,7 +711,7 @@ class RuleObeyingPolicy(policy.Policy):
     Q_ruleless = np.full(size, -1.0)
 
     # TODO: change to available_action_history()
-    available = self.available_actions(ts_cur.observation)
+    available = self.available_actions(ts_cur.observation)    
     s_cur = self.hash_ts(ts_cur)
 
     if self.log_weights:
@@ -888,21 +889,22 @@ class RuleObeyingPolicy(policy.Policy):
     return list(zip(*np.where(surroundings== object_idx)))
   
   def compute_boltzmann(self, q_values: list):
-    # Compute the log-softmax values
-    max_q = np.max(q_values)
-    stabilized_q_values = q_values - max_q
-    log_probs = stabilized_q_values - self.tau * np.log(np.sum(np.exp(stabilized_q_values / self.tau)))
-    
-    # Convert log probabilities back to original scale
-    probs = np.exp(log_probs)
-    # Normalize the probabilities to ensure they sum to 1
-    probs /= probs.sum()
 
+    if self.tau == 0:
+      probs = np.zeros_like(q_values)
+      probs[np.argmax(q_values)] = 1.0
+      return probs
+    
+    max_q_value = np.max(q_values)
+    shifted_q_values = q_values - max_q_value
+    probs = np.exp(shifted_q_values / self.tau)    
+    probs /= probs.sum() # normalized
+    
     # Check and handle NaN values
     if np.any(np.isnan(probs)):
         print("Warning: NaN values detected in probabilities. Using uniform distribution.")
         probs = np.ones_like(q_values) / len(q_values)
-
+    
     return probs
   
   def get_boltzmann_act(self, q_values: list) -> int:
@@ -1057,7 +1059,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     return apple_count
     
-  def make_territory_observation(self, observation, x, y):
+  def make_territory_observation(self, observation, x, y, lua_idx):
     """
     Adds values for territory components to the observation dict.
       AGENT_HAS_STOLEN: if the owner of the current cell has stolen
@@ -1068,13 +1070,13 @@ class RuleObeyingPolicy(policy.Policy):
     property_idx = int(observation['PROPERTY'][x][y])
     observation['AGENT_HAS_STOLEN'] = True
 
-    if property_idx != self.lua_index and property_idx != 0:
-      observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = True
-      if observation['STOLEN_RECORDS'][property_idx-1] != 1:
-        observation['AGENT_HAS_STOLEN'] = False
-    else:
-      # free or own property
+    if lua_idx == 0 or property_idx == lua_idx:
       observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = False
+
+    else:
+      observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = True
+      if observation['STOLEN_RECORDS'][lua_idx-1] != 1:
+        observation['AGENT_HAS_STOLEN'] = False
 
   def is_water(self, observation, pos):
     x, y = pos[0], pos[1]

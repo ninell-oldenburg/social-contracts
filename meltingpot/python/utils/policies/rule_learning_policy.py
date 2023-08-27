@@ -111,11 +111,12 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         observations and actions."""
         for player_idx in range(self.num_focal_agents):
             # Compute the posterior of each rule
-            self.compute_posterior(player_idx, other_actions[player_idx])
+            past_ts = self.history[-2][player_idx]
+            self.compute_posterior(player_idx, other_actions[player_idx], past_ts)
 
         # print(self.rule_beliefs)
 
-    def compute_posterior(self, player_idx, player_act) -> None:
+    def compute_posterior(self, player_idx, player_act, past_ts) -> None:
         """Writes the posterior for a rule given an observation 
         and other agents' actions."""
 
@@ -123,10 +124,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
             # P(a | r = 1)
             if isinstance(rule, ProhibitionRule):
-                log_llh = self.comp_prohib_llh(player_idx, rule, player_act)
+                log_llh = self.comp_prohib_llh(player_idx, rule, player_act, past_ts)
     
             elif isinstance(rule, ObligationRule):
-                log_llh = self.comp_oblig_llh(player_idx, rule)
+                log_llh = self.comp_oblig_llh(player_idx, rule, past_ts)
                         
             # BAYESIAN UPDATING
             # P(r = 1)

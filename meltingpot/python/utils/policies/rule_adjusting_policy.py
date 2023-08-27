@@ -150,6 +150,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         goals = ['apple', 'clean', 'pay', 'zap']
         self.V = {goal: {} for goal in goals}
         self.V_ruleless = {goal: {} for goal in goals}
+        self.V_other_agents = None
+        self.V_ruleless_other_agents = None
         self.ts_start = None
         self.goal = None
         self.x_max = 15
@@ -280,11 +282,12 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         """
 
         self.x_max = self.history[-1][self.py_index].observation['WORLD.RGB'].shape[1] / 8
-        self.y_max = self.history[-1][self.py_index].observation['WORLD.RGB'].shape[0] / 8 - 5 # inventory
+        self.y_max = self.history[-1][self.py_index].observation['WORLD.RGB'].shape[0] / 8 - 5 # inventory display
 
         ts_cur = self.history[-1][self.py_index]
-        self.ts_start = ts_cur
-        self.ts_start.observation = self.custom_deepcopy(ts_cur.observation)
+
+        # self.ts_start = ts_cur
+        # self.ts_start.observation = self.custom_deepcopy(ts_cur.observation)
 
         if self.log_rule_prob_output:
             print('='*50)
@@ -322,6 +325,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 break
             
         self.set_goal()
+        ts_cur.goal = self.goal
                 
         if self.log_output:
             print(f"player: {self.lua_index} obligation active?: {self.current_obligation != None}")
@@ -329,12 +333,12 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         if self.step_counter >= self.n_steps:
             self.rtdp(ts_cur)
 
-        if not self.has_policy(self.ts_start):
+        if not self.has_policy(ts_cur):
             self.rtdp(ts_cur)
 
         self.last_inventory = ts_cur.observation["INVENTORY"]
         
-        return self.get_act(self.ts_start)
+        return self.get_act(ts_cur)
     
     def append_to_history(self, timestep_list: list) -> None:
         """Apoends a list of timesteps to the agent's history"""
@@ -360,7 +364,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             # Assumption: players are not updating on their own actions
             if not player_idx == self.py_index:
                 # Compute the posterior of each rule
-                self.compute_posterior(player_idx, actions[player_idx])
+                past_ts = self.history[-2][player_idx]
+                self.compute_posterior(player_idx, actions[player_idx], past_ts)
 
         # print(self.rule_beliefs)
 
@@ -370,13 +375,13 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             if rule in self.active_rules:
                 self.riots.append(player_idx)
 
-    def comp_oblig_llh(self, player_idx: int, rule: ObligationRule) -> float:
+    def comp_oblig_llh(self, player_idx: int, rule: ObligationRule, past_ts: AgentTimestep) -> float:
 
         # unpack appearance, observation, position of the player
         # player_look = self.player_looks[player_idx]
         player_history = [self.history[i][player_idx].observation for i in range(len(self.history))]
         next_obs = self.history[-1][player_idx].observation
-        past_timestep = self.history[-2][player_idx] # needs to be ts for env_step(ts)
+        past_timestep = past_ts # needs to be ts for env_step(ts)
 
         if rule.holds_in_history(player_history[:-2]):
             if rule not in self.nonself_active_obligations_count[player_idx].keys():
@@ -408,12 +413,11 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         else: # Obligation is not active, or has expired
             return np.log(1/(self.num_actions))
         
-    def comp_prohib_llh(self, player_idx, rule, action) -> float:
+    def comp_prohib_llh(self, player_idx, rule, action, past_ts) -> float:
     
-        past_ts = self.history[-2][player_idx]
         past_obs = past_ts.observation
         past_pos = np.copy(past_obs['POSITION'])
-        
+
         goal = past_ts.goal
         hash = self.hash_ts(past_ts)
 
@@ -424,7 +428,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         # calculate chance of the action being violated
         if rule.holds_precondition(past_obs): # if rule is active in a given situation
             best_act = self.get_act(past_ts, no_rules=True)
-            boltzmann_dis = self.compute_boltzmann(self.V_ruleless[goal][hash])
+            # TODO implment fallback action
+            boltzmann_dis = self.compute_boltzmann(self.V_ruleless_other_agents[player_idx][goal][hash])
             boltzmann_prob_best_act = boltzmann_dis[best_act]
             boltzmann_prob_action = boltzmann_dis[action]
 
