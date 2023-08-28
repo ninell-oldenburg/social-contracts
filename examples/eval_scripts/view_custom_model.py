@@ -165,11 +165,12 @@ def main(roles,
     for i, bot in enumerate(bots):            
       # cum_reward[i] += timestep_bot.reward
       bot.append_to_history(timestep_list)
+      actions[i] = bot.step()
+
+    for i, bot in enumerate(bots):
       if len(bot.history) > 1:
         bot.update_beliefs(actions)
       bot.obligations, bot.prohibitions = bot.threshold_rules()
-        
-      actions[i] = bot.step()
     
     dead_apple_ratio = bots[-1].history[-1][len(bots)-1].observation['DEAD_APPLE_RATIO'] # same for every player
     cur_beliefs = bots[-1].rule_beliefs
@@ -357,7 +358,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 0
   episodes = 400
   # Possible values for tau and gamma you want to test
   # taus = [0.0, 0.1, 0.5, 1.0, 1.5]
@@ -383,7 +384,7 @@ if __name__ == "__main__":
                                 save_csv=False,
                                 plot_q_vals=False,
                                 gamma=0.999,
-                                tau=0.1,
+                                tau=1.0,
                                 )
 
       """results[(gamma, tau)]['cleaner'] += sum(data_dict['cleaner'])

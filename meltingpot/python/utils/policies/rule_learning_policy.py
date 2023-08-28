@@ -124,7 +124,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
             # P(a | r = 1)
             if isinstance(rule, ProhibitionRule):
-                log_llh = self.comp_prohib_llh(player_idx, rule, player_act, past_ts)
+                log_llh = self.comp_prohib_llh(player_idx, rule, player_act)
     
             elif isinstance(rule, ObligationRule):
                 log_llh = self.comp_oblig_llh(player_idx, rule, past_ts)

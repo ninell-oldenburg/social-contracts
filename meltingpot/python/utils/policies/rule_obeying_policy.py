@@ -239,7 +239,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       self.last_inventory = ts_cur.observation['INVENTORY']
       
-      return self.get_act(ts_cur)
+      return self.get_act(ts_cur, self.py_index)
   
   def set_goal(self) -> None:
     if self.current_obligation != None:
@@ -266,9 +266,9 @@ class RuleObeyingPolicy(policy.Policy):
     ts.observation['PY_INDEX'] = idx
     new_pos = ts.observation['POSITION']
     self.update_last_actions(ts.observation, actions[idx])
+    ts.observation = self.update_obs_without_coordinates(ts.observation)
     if not self.is_water(ts.observation, new_pos):
       self.update_surroundings(new_pos, ts.observation, idx)
-    ts.observation = self.update_obs_without_coordinates(ts.observation)
     ts.observation['RIOTS'] = self.update_riots(actions, ts.observation)
     self.set_interpolation_and_dirt_fraction(ts.observation)
 
@@ -454,6 +454,7 @@ class RuleObeyingPolicy(policy.Policy):
         if self.is_water(observation, new_pos):
           new_pos = cur_pos # don't move to water
         observation['POSITION'] = new_pos
+        observation['CUR_CELL_HAS_APPLE'] = True if observation['SURROUNDINGS'][new_pos[0]][new_pos[1]] == -1 else False
         new_inventory, has_apple = self.maybe_collect_apple(observation)
         observation['COLLECTED_APPLE'] = True if new_inventory == 1 else False
         observation['CUR_CELL_HAS_APPLE'] = has_apple
@@ -688,6 +689,11 @@ class RuleObeyingPolicy(policy.Policy):
 
     return
   
+  def get_best_act(self, ts_cur: AgentTimestep) -> int:
+    hash = self.hash_ts(ts_cur)
+    goal = ts_cur.goal
+    return np.argmax(self.V[goal][hash])
+  
   def get_act(self, ts_cur: AgentTimestep, idx: int, no_rules=False, others=False) -> int:
     hash = self.hash_ts(ts_cur)
     goal = ts_cur.goal
@@ -766,7 +772,9 @@ class RuleObeyingPolicy(policy.Policy):
     s_next = self.hash_ts(ts_cur)
     # initialize best optimistic guess for next state
     if s_next not in self.V[self.goal].keys():
-      self.V[self.goal][s_next] = self.init_heuristic(ts_cur)
+      Q = self.init_heuristic(ts_cur)
+      self.V[self.goal][s_next] = Q
+      self.V_ruleless[self.goal][s_next] = Q
 
     return s_next
   
@@ -902,24 +910,17 @@ class RuleObeyingPolicy(policy.Policy):
   
   def compute_boltzmann(self, q_values: list):
 
-    if self.tau == 0:
-      probs = np.zeros_like(q_values)
-      probs[np.argmax(q_values)] = 1.0
-      return probs
-    
-    max_q_value = np.max(q_values)
-    shifted_q_values = q_values - max_q_value
-    if not self.tau == 0:
-      probs = np.exp(shifted_q_values / self.tau)
-    else:
-      probs = np.exp(shifted_q_values)
+    # TODO if stochastically picking the argmax, then take the q_vals to the power of 2
+    mean_q_value = np.mean(q_values)
+    transform_q_values = (q_values - mean_q_value) / np.std(q_values)
+    probs = np.exp(transform_q_values / self.tau)
     probs /= probs.sum() # normalized
     
     # Check and handle NaN values
     if np.any(np.isnan(probs)):
         print("Warning: NaN values detected in probabilities. Using uniform distribution.")
         probs = np.ones_like(q_values) / len(q_values)
-    
+
     return probs
   
   def get_boltzmann_act(self, q_values: list) -> int:
@@ -1035,7 +1036,7 @@ class RuleObeyingPolicy(policy.Policy):
       if self.check_all(new_obs, action_name):
           actions.append(action)
 
-    return actions    
+    return actions
   
   def update_coordinates_by_action(self, action, cur_pos, observation):
     x, y = cur_pos[0], cur_pos[1]

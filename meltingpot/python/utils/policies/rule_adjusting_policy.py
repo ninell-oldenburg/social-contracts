@@ -333,8 +333,12 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             self.rtdp(ts_cur)
 
         self.last_inventory = ts_cur.observation["INVENTORY"]
+
+        print(f'I AM {self.py_index}')
+        print(f'self.v_ruleless: {self.V_ruleless["apple"]}')
         
-        return self.get_act(ts_cur, self.py_index)
+        # return self.get_act(ts_cur, self.py_index)
+        return self.get_best_act(ts_cur)
     
     def append_to_history(self, timestep_list: list) -> None:
         """Apoends a list of timesteps to the agent's history"""
@@ -412,44 +416,68 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         else: # Obligation is not active, or has expired
             return np.log(1/(self.num_actions))
         
-    def comp_prohib_llh(self, player_idx, rule, action, past_ts) -> float:
-    
-        past_obs = past_ts.observation
-        past_pos = np.copy(past_obs['POSITION'])
+    def comp_prohib_llh(self, player_idx, rule, action) -> float:
 
-        goal = past_ts.goal
-        hash = self.hash_ts(past_ts)
+        this_ts = self.history[-1][player_idx]
+        this_obs = this_ts.observation
+        this_pos = this_obs['POSITION']
+
+        goal = this_ts.goal
+        hash = self.hash_ts(this_ts)
 
         # get prohibited actions according to the ongoing rule
-        prohib_actions = self.get_prohib_action(past_obs, rule, past_pos)
+        prohib_actions = self.get_prohib_action(this_obs, rule, this_pos)
+
         num_prohib_acts = len(prohib_actions)
+        is_violation = True if action in prohib_actions else False
 
-        # calculate chance of the action being violated
-        if rule.holds_precondition(past_obs): # if rule is active in a given situation
-            if hash in self.all_bots[player_idx].V_ruleless[goal]:
-                boltzmann_dis = self.all_bots[player_idx].V_ruleless[goal][hash]
-            else:
-                boltzmann_dis = self.all_bots[player_idx].V[goal][hash]
-            best_act = self.get_act(past_ts, player_idx, no_rules=True, others=True)
-            boltzmann_prob_best_act = boltzmann_dis[best_act]
-            boltzmann_prob_action = boltzmann_dis[action]
+        q_vals_ruleless = self.all_bots[player_idx].V_ruleless[goal][hash]
+        q_vals_w_rule = self.all_bots[player_idx].V[goal][hash]
 
-            if action == best_act:  # according to Boltzmann
-                return np.log(boltzmann_prob_best_act)
-            else:
-                return np.log(boltzmann_prob_action)
+        boltzmann_dis_ruleless = self.compute_boltzmann(q_vals_ruleless)
+        boltzmann_dis_w_rule = self.compute_boltzmann(q_vals_w_rule)
 
-            """if action in prohib_actions: # violation
-                self.maybe_mark_riot(player_idx, rule) # note violation
-                #return np.log(0)
-                p_action = (1-self.p_obey)/(self.num_actions)
-                return np.log(p_action)
-            else: # action not prohibited
-                # p_action = self.p_obey + (1-self.p_obey)/(self.num_actions-num_prohib_acts)
-                p_action = 1/(self.num_actions-num_prohib_acts)
-                return np.log(p_action)"""
+        best_act_ruleless = np.argmax(boltzmann_dis_ruleless)
+        best_act_w_rule = np.argmax(boltzmann_dis_w_rule)
+
+        p_best_act_ruleless = boltzmann_dis_ruleless[best_act_ruleless]
+        p_act_ruleless = boltzmann_dis_ruleless[action]
+
+        p_best_act_w_rule = boltzmann_dis_ruleless[best_act_w_rule]
+        p_act_w_rule = boltzmann_dis_w_rule[action]
+
+        if is_violation: # either rule not true or cost benefit too huge
+
+            if q_vals_w_rule[action] + self.violation_cost >= q_vals_ruleless[action]:
+                # rule probably true and cost benefit analysis tells you that you should violate it
+                # print(f'VIOLATION {rule.make_str_repr()} is probably true and p_action hence is {p_act_w_rule}')
+                p_action = p_act_w_rule
+            else: # rule true ? i don't know
+                p_action = 1 / self.num_actions
+        
+        else: # compliance
+            if q_vals_w_rule[action] + self.violation_cost <= q_vals_ruleless[action]:
+                # print(f'COMPLIANCE {rule.make_str_repr()}')
+                p_action = p_act_ruleless
             
-        else: # precondition doesn't hold
-            p_action = 1/(self.num_actions-num_prohib_acts)
+            else: # doesn't apply
+                p_action = 1 / self.num_actions
+        #else:
+            # print(f'DOES NOT HOLD PRECONDITION {rule.make_str_repr()}')
+            # print(f'CUR_CELL_HAS_APPLE: {this_obs["CUR_CELL_HAS_APPLE"]}')
+            # print(this_obs["SURROUNDINGS"])
+            # p_action = 1 / self.num_actions
+        
+        return np.log(p_action)
+
+        """if action in prohib_actions: # violation
+            self.maybe_mark_riot(player_idx, rule) # note violation
+            #return np.log(0)
+            p_action = (1-self.p_obey)/(self.num_actions)
             return np.log(p_action)
+        else: # action not prohibited
+            # p_action = self.p_obey + (1-self.p_obey)/(self.num_actions-num_prohib_acts)
+            p_action = 1/(self.num_actions-num_prohib_acts)
+            return np.log(p_action)"""
+                        
     
