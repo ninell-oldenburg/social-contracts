@@ -106,8 +106,8 @@ def main(roles,
                                     is_learner=True,
                                     ))
       
-      bots[-1].V_other_agents = [bot.V for bot in bots[:-1]]
-      bots[-1].V_ruleless_other_agents = [bot.V_ruleless for bot in bots[:-1]]
+    for bot in bots:
+      bot.set_all_bots(bots)
       
   for role in set(roles):
     role_str += role # video name
@@ -383,7 +383,7 @@ if __name__ == "__main__":
                                 save_csv=False,
                                 plot_q_vals=False,
                                 gamma=0.999,
-                                tau=0.0,
+                                tau=0.1,
                                 )
 
       """results[(gamma, tau)]['cleaner'] += sum(data_dict['cleaner'])

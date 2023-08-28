@@ -150,8 +150,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         goals = ['apple', 'clean', 'pay', 'zap']
         self.V = {goal: {} for goal in goals}
         self.V_ruleless = {goal: {} for goal in goals}
-        self.V_other_agents = None
-        self.V_ruleless_other_agents = None
+        self.all_bots = []
         self.ts_start = None
         self.goal = None
         self.x_max = 15
@@ -286,9 +285,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         ts_cur = self.history[-1][self.py_index]
 
-        # self.ts_start = ts_cur
-        # self.ts_start.observation = self.custom_deepcopy(ts_cur.observation)
-
         if self.log_rule_prob_output:
             print('='*50)
             print('CURRENT RULES')
@@ -338,11 +334,14 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         self.last_inventory = ts_cur.observation["INVENTORY"]
         
-        return self.get_act(ts_cur)
+        return self.get_act(ts_cur, self.py_index)
     
     def append_to_history(self, timestep_list: list) -> None:
         """Apoends a list of timesteps to the agent's history"""
         self.history.append(timestep_list)
+
+    def set_all_bots(self, all_bots):
+        self.all_bots = all_bots
     
     def role_exists_for_rule(self, rule) -> bool:
         for agent_history in self.history[-1]:
@@ -427,9 +426,11 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # calculate chance of the action being violated
         if rule.holds_precondition(past_obs): # if rule is active in a given situation
-            best_act = self.get_act(past_ts, no_rules=True)
-            # TODO implment fallback action
-            boltzmann_dis = self.compute_boltzmann(self.V_ruleless_other_agents[player_idx][goal][hash])
+            if hash in self.all_bots[player_idx].V_ruleless[goal]:
+                boltzmann_dis = self.all_bots[player_idx].V_ruleless[goal][hash]
+            else:
+                boltzmann_dis = self.all_bots[player_idx].V[goal][hash]
+            best_act = self.get_act(past_ts, player_idx, no_rules=True, others=True)
             boltzmann_prob_best_act = boltzmann_dis[best_act]
             boltzmann_prob_action = boltzmann_dis[action]
 

@@ -688,9 +688,21 @@ class RuleObeyingPolicy(policy.Policy):
 
     return
   
-  def get_act(self, ts_cur: AgentTimestep, no_rules=False) -> int:
+  def get_act(self, ts_cur: AgentTimestep, idx: int, no_rules=False, others=False) -> int:
     hash = self.hash_ts(ts_cur)
-    v_func = self.V[self.goal] if not no_rules else self.V_ruleless[self.goal]
+    goal = ts_cur.goal
+
+    if no_rules:
+      if others:
+        v_func = self.all_bots[idx].V_ruleless[goal]
+      else:
+        v_func = self.V_ruleless[goal]
+    else:
+      if not no_rules:
+        v_func = self.all_bots[idx].V[goal]
+      else:
+        v_func = self.V[goal]
+
     if hash in v_func.keys():
       if self.log_output:
         print(f'position: {ts_cur.observation["POSITION"]}, key: {hash}')
@@ -698,10 +710,10 @@ class RuleObeyingPolicy(policy.Policy):
       next_act = self.get_boltzmann_act(v_func[hash])
       return next_act
     
-  def get_action_prob(self, act: int, ts_cur: AgentTimestep,  no_rules=False) -> float:
+  """def get_action_prob(self, act: int, ts_cur: AgentTimestep,  no_rules=False) -> float:
     hash = self.hash_ts(ts_cur)
     v_func = self.V[self.goal] if not no_rules else self.V_ruleless[self.goal]
-    return v_func[hash][act]
+    return v_func[hash][act]"""
 
   def update(self, ts_cur: AgentTimestep) -> int:
     """Updates state-action pair value function 
@@ -897,7 +909,10 @@ class RuleObeyingPolicy(policy.Policy):
     
     max_q_value = np.max(q_values)
     shifted_q_values = q_values - max_q_value
-    probs = np.exp(shifted_q_values / self.tau)    
+    if not self.tau == 0:
+      probs = np.exp(shifted_q_values / self.tau)
+    else:
+      probs = np.exp(shifted_q_values)
     probs /= probs.sum() # normalized
     
     # Check and handle NaN values
