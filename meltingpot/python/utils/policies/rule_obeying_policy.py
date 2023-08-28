@@ -691,9 +691,6 @@ class RuleObeyingPolicy(policy.Policy):
   
   def get_best_act(self, ts_cur: AgentTimestep) -> int:
     hash = self.hash_ts(ts_cur)
-    print('GET THE BEST ACTION')
-    for key in self.relevant_keys[self.goal]:
-      print(f'{key}: {ts_cur.observation[key]}')
     goal = ts_cur.goal
     return np.argmax(self.V[goal][hash])
   
