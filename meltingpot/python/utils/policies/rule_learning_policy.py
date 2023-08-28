@@ -116,7 +116,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         # print(self.rule_beliefs)
 
-    def compute_posterior(self, player_idx, player_act, past_ts) -> None:
+    def compute_posterior(self, player_idx, player_act, this_ts, past_ts) -> None:
         """Writes the posterior for a rule given an observation 
         and other agents' actions."""
 
@@ -124,10 +124,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
             # P(a | r = 1)
             if isinstance(rule, ProhibitionRule):
-                log_llh = self.comp_prohib_llh(player_idx, rule, player_act)
+                log_llh = self.comp_prohib_llh(player_idx, rule, player_act, this_ts)
     
             elif isinstance(rule, ObligationRule):
-                log_llh = self.comp_oblig_llh(player_idx, rule, past_ts)
+                log_llh = self.comp_oblig_llh(player_idx, rule, this_ts, past_ts)
                         
             # BAYESIAN UPDATING
             # P(r = 1)
@@ -203,10 +203,12 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         
     def get_prohib_action(self, observation, rule, cur_pos):
         prohib_acts = []
+        obs = self.custom_deepcopy(observation)
+
         for action in range(self.action_spec.num_values):
             x, y = self.update_coordinates_by_action(action, 
                                                      cur_pos,
-                                                     observation)
+                                                     obs)
 
             if self.exceeds_map(x, y):
                 prohib_acts.append(action)
@@ -216,7 +218,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                 prohib_acts.append(action)
                 continue
 
-            new_obs = super().update_observation(observation, x, y)
+            new_obs = super().update_observation(obs, x, y)
             action_name = super().get_action_name(action)
             if rule.holds(new_obs, action_name):
                 prohib_acts.append(action)

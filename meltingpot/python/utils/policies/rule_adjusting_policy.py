@@ -221,7 +221,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
           ],
         'apple': [
             'AGENT_ATE',
-            'CUR_CELL_HAS_APPLE', 
+            'CUR_CELL_HAS_APPLE',
             'CUR_CELL_IS_FOREIGN_PROPERTY', 
             'INVENTORY',
             'NUM_APPLES_AROUND',
@@ -333,9 +333,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             self.rtdp(ts_cur)
 
         self.last_inventory = ts_cur.observation["INVENTORY"]
-
-        print(f'I AM {self.py_index}')
-        print(f'self.v_ruleless: {self.V_ruleless["apple"]}')
         
         # return self.get_act(ts_cur, self.py_index)
         return self.get_best_act(ts_cur)
@@ -368,7 +365,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             if not player_idx == self.py_index:
                 # Compute the posterior of each rule
                 past_ts = self.history[-2][player_idx]
-                self.compute_posterior(player_idx, actions[player_idx], past_ts)
+                this_ts = self.history[-1][player_idx]
+                self.compute_posterior(player_idx, actions[player_idx], this_ts, past_ts)
 
         # print(self.rule_beliefs)
 
@@ -378,12 +376,12 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             if rule in self.active_rules:
                 self.riots.append(player_idx)
 
-    def comp_oblig_llh(self, player_idx: int, rule: ObligationRule, past_ts: AgentTimestep) -> float:
+    def comp_oblig_llh(self, player_idx: int, rule: ObligationRule, this_ts: AgentTimestep, past_ts: AgentTimestep) -> float:
 
         # unpack appearance, observation, position of the player
         # player_look = self.player_looks[player_idx]
         player_history = [self.history[i][player_idx].observation for i in range(len(self.history))]
-        next_obs = self.history[-1][player_idx].observation
+        this_obs = this_ts.observation
         past_timestep = past_ts # needs to be ts for env_step(ts)
 
         if rule.holds_in_history(player_history[:-2]):
@@ -401,7 +399,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         if rule_is_active: # Obligation is active
             if self.could_be_satisfied(rule, past_timestep, player_idx):
-                if rule.satisfied(next_obs): # Agent obeyed the obligation
+                if rule.satisfied(this_obs): # Agent obeyed the obligation
                     # P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)
                     p_action = self.p_obey + (1-self.p_obey)/(self.num_actions)
                     return np.log(p_action)
@@ -416,19 +414,16 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         else: # Obligation is not active, or has expired
             return np.log(1/(self.num_actions))
         
-    def comp_prohib_llh(self, player_idx, rule, action) -> float:
+    def comp_prohib_llh(self, player_idx, rule, action, this_ts) -> float:
 
-        this_ts = self.history[-1][player_idx]
         this_obs = this_ts.observation
         this_pos = this_obs['POSITION']
-
         goal = this_ts.goal
         hash = self.hash_ts(this_ts)
 
         # get prohibited actions according to the ongoing rule
         prohib_actions = self.get_prohib_action(this_obs, rule, this_pos)
 
-        num_prohib_acts = len(prohib_actions)
         is_violation = True if action in prohib_actions else False
 
         q_vals_ruleless = self.all_bots[player_idx].V_ruleless[goal][hash]
@@ -462,11 +457,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             
             else: # doesn't apply
                 p_action = 1 / self.num_actions
-        #else:
-            # print(f'DOES NOT HOLD PRECONDITION {rule.make_str_repr()}')
-            # print(f'CUR_CELL_HAS_APPLE: {this_obs["CUR_CELL_HAS_APPLE"]}')
-            # print(this_obs["SURROUNDINGS"])
-            # p_action = 1 / self.num_actions
         
         return np.log(p_action)
 

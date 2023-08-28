@@ -155,7 +155,7 @@ class RuleObeyingPolicy(policy.Policy):
             'SINCE_AGENT_LAST_PAYED',
             'SINCE_AGENT_LAST_ZAPPED',
             'SURROUNDINGS',
-            'WATER_LOCATION', # maybe take out again
+            # 'WATER_LOCATION', # maybe take out again
             'POSITION_OTHERS',
           ],
       'apple': [
@@ -177,7 +177,7 @@ class RuleObeyingPolicy(policy.Policy):
             'POSITION', 
             'SINCE_AGENT_LAST_CLEANED',
             'SURROUNDINGS',
-            'POSITION_OTHERS',
+            #'POSITION_OTHERS',
           ],
           'pay': [
             'AGENT_PAYED',
@@ -325,7 +325,7 @@ class RuleObeyingPolicy(policy.Policy):
   def update_observation(self, obs, x, y) -> dict:
     """Updates the observation with requested information."""
     obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
-    obs['WATER_LOCATION'] = list(zip(*np.where(obs['SURROUNDINGS'] <= -3)))
+    # obs['WATER_LOCATION'] = list(zip(*np.where(obs['SURROUNDINGS'] <= -3)))
     obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -1 else False
     lua_idx = obs['PY_INDEX']
     self.make_territory_observation(obs, x, y, lua_idx)
@@ -494,7 +494,7 @@ class RuleObeyingPolicy(policy.Policy):
             observation['AGENT_ATE'] = True
 
       observation['INVENTORY'] = cur_inventory
-      observation['WATER_LOCATION'] = list(zip(*np.where(observation['SURROUNDINGS'] <= -3)))
+      # observation['WATER_LOCATION'] = list(zip(*np.where(observation['SURROUNDINGS'] <= -3)))
 
       next_timestep.step_type = dm_env.StepType.MID
       next_timestep.reward = reward
@@ -691,6 +691,9 @@ class RuleObeyingPolicy(policy.Policy):
   
   def get_best_act(self, ts_cur: AgentTimestep) -> int:
     hash = self.hash_ts(ts_cur)
+    print('GET THE BEST ACTION')
+    for key in self.relevant_keys[self.goal]:
+      print(f'{key}: {ts_cur.observation[key]}')
     goal = ts_cur.goal
     return np.argmax(self.V[goal][hash])
   
