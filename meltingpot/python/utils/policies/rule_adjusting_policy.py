@@ -465,76 +465,50 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         print(f'RULE: {rule.make_str_repr()}')
 
         if is_violation:
-            p_action = p_a_obs_active_rules * (1 - self.p_obey) /self.num_actions
+            p_action = p_a_obs_active_rules * (1 - self.p_obey) / self.num_actions
 
         if rule.holds_precondition(new_obs): # only look at the cases where the precondition probably holds
+            if p_a_obs_active_rules > p_a_obs_no_rules:
+                p_action = p_a_obs_active_rules * self.p_obey
 
-            print('HOLDS PRECONDITION')
+            print('COMPLIANCE')
+            if p_a_obs_active_rules != p_a_max_active_rules:
+                # P( action | rule = true) = (1 * p_obey) + p(action) * (1 - p_obey)
+                p_action = 1 / self.num_actions
+                # p_action = self.p_obey + (1 - self.p_obey) * p_a_obs_active_rules
+                print('p_a_obs_active_rules != p_a_max_active_rules')
 
-            if is_violation: # either rule does not exist or cost benefit analysis tells you it's better to violate
+            if p_a_obs_active_rules == p_a_obs_no_rules:
+                p_action = 1 / self.num_actions
+                print('p_a_obs_active_rules == p_a_obs_no_rules')
+    
+            elif p_a_obs_active_rules < p_a_obs_no_rules:
+                print(f'p_a_obs_active_rules < p_a_obs_no_rules')
+                p_action = 1 / self.num_actions
 
-                print('VIOLATION')
-                if p_a_obs_active_rules == p_a_obs_no_rules:
-                    
-                    print('p_a_obs_active_rules == p_a_obs_no_rules')
-        
-                elif p_a_obs_active_rules < p_a_obs_no_rules:
-                    print(f'p_a_obs_active_rules < p_a_obs_no_rules')
-                    #p_action = 1 / self.num_actions
-                    p_action = p_a_obs_active_rules * (1 - self.p_obey) /self.num_actions
-
-                elif p_a_obs_active_rules > p_a_obs_no_rules:
-                    #p_action = 1 / self.num_actions
-                    p_action = p_a_obs_active_rules * (1 - self.p_obey) /self.num_actions
-                    print('p_a_obs_active_rules > p_a_obs_no_rules')
-
-            else: # NO VIOLATION
-
-                print('COMPLIANCE')
-                if p_a_obs_active_rules != p_a_max_active_rules:
-                    # P( action | rule = true) = (1 * p_obey) + p(action) * (1 - p_obey)
-                    p_action = 1 / self.num_actions
-                    # p_action = self.p_obey + (1 - self.p_obey) * p_a_obs_active_rules
-                    print('p_a_obs_active_rules != p_a_max_active_rules')
-
-                if p_a_obs_active_rules == p_a_obs_no_rules:
-                    p_action = 1 / self.num_actions
-                    print('p_a_obs_active_rules == p_a_obs_no_rules')
-        
-                elif p_a_obs_active_rules < p_a_obs_no_rules:
-                    print(f'p_a_obs_active_rules < p_a_obs_no_rules')
-                    p_action = 1 / self.num_actions
-
-                elif p_a_obs_active_rules > p_a_obs_no_rules:
-                    p_action = 1 / self.num_actions
-                    print('p_a_obs_active_rules > p_a_obs_no_rules')
+            elif p_a_obs_active_rules > p_a_obs_no_rules:
+                p_action = 1 / self.num_actions
+                print('p_a_obs_active_rules > p_a_obs_no_rules')
 
         else:
-            print('DOES NOT HOLD PRECONDITION')
-            # this is when I can truthfully comply with the rule
-            if is_violation:
-                print('is violation')
-                p_action = p_a_obs_active_rules * (1 - self.p_obey) /self.num_actions
-            else:
-                print('compliance')
-                if p_a_obs_active_rules != p_a_max_active_rules:
-                    # P( action | rule = true) = (1 * p_obey) + p(action) * (1 - p_obey)
-                    p_action = 1 / self.num_actions
-                    # p_action = self.p_obey + (1 - self.p_obey) * p_a_obs_active_rules
-                    print('p_a_obs_active_rules != p_a_max_active_rules')
+            print('compliance')
+            if p_a_obs_active_rules != p_a_max_active_rules:
+                # P( action | rule = true) = (1 * p_obey) + p(action) * (1 - p_obey)
+                p_action = 1 / self.num_actions
+                # p_action = self.p_obey + (1 - self.p_obey) * p_a_obs_active_rules
+                print('p_a_obs_active_rules != p_a_max_active_rules')
 
-                if p_a_obs_active_rules == p_a_obs_no_rules:
-                    p_action = 1 / self.num_actions
-                    print('p_a_obs_active_rules == p_a_obs_no_rules')
-        
-                elif p_a_obs_active_rules < p_a_obs_no_rules:
-                    print(f'p_a_obs_active_rules < p_a_obs_no_rules')
-                    p_action = 1 / self.num_actions
+            if p_a_obs_active_rules == p_a_obs_no_rules:
+                p_action = 1 / self.num_actions
+                print('p_a_obs_active_rules == p_a_obs_no_rules')
+    
+            elif p_a_obs_active_rules < p_a_obs_no_rules:
+                print(f'p_a_obs_active_rules < p_a_obs_no_rules')
+                p_action = 1 / self.num_actions
 
-                elif p_a_obs_active_rules > p_a_obs_no_rules:
-                    p_action = p_a_obs_active_rules * self.p_obey
-                    # p_action = p_a_obs_active_rules
-                    print('p_a_obs_active_rules > p_a_obs_no_rules')
+            el
+                # p_action = p_a_obs_active_rules
+                print('p_a_obs_active_rules > p_a_obs_no_rules')
             
         return np.log(p_action)
             
