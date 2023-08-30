@@ -161,10 +161,11 @@ def main(roles,
     clock.tick(fps)
 
     timestep_list = [bot.add_non_physical_info(timestep, actions, i) for i, bot in enumerate(bots)]
+    last_actions = actions
 
     for i, bot in enumerate(bots):            
       # cum_reward[i] += timestep_bot.reward
-      bot.append_to_history(timestep_list)
+      bot.append_to_history(timestep_list, last_actions)
       actions[i] = bot.step()
 
     for i, bot in enumerate(bots):

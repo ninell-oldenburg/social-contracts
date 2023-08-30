@@ -47,7 +47,7 @@ DEFAULT_COLLECT_APPLE_REWARD = 0.9
 DEFAULT_SELECTION_MODE = "threshold"
 DEFAULT_THRESHOLD = 0.8
 DEFAULT_INIT_PRIOR = 0.2
-DEFAULT_P_OBEY = 0.9
+DEFAULT_P_OBEY = 0.99
 
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
@@ -142,6 +142,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.last_inventory = 0
         self.payees = None
         self.riots = []
+        self.actions = []
         self.pos_all_possible_dirt = []
         self.pos_all_possible_apples = []
         self.hash_table = {}
@@ -149,7 +150,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.q_value_log = {}
         goals = ['apple', 'clean', 'pay', 'zap']
         self.V = {goal: {} for goal in goals}
-        self.V_ruleless = {goal: {} for goal in goals}
+        self.V_wo_rule = {goal: {} for goal in goals}
         self.all_bots = []
         self.ts_start = None
         self.goal = None
@@ -333,13 +334,14 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             self.rtdp(ts_cur)
 
         self.last_inventory = ts_cur.observation["INVENTORY"]
-        
+
         # return self.get_act(ts_cur, self.py_index)
         return self.get_best_act(ts_cur)
     
-    def append_to_history(self, timestep_list: list) -> None:
+    def append_to_history(self, timestep_list: list, actions: list) -> None:
         """Apoends a list of timesteps to the agent's history"""
         self.history.append(timestep_list)
+        self.last_actions = actions
 
     def set_all_bots(self, all_bots):
         self.all_bots = all_bots
@@ -414,53 +416,148 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         else: # Obligation is not active, or has expired
             return np.log(1/(self.num_actions))
         
-    def comp_prohib_llh(self, player_idx, rule, action, this_ts) -> float:
+    def comp_prohib_llh(self, player_idx, rule, action, this_ts, past_ts) -> float:
 
-        this_obs = this_ts.observation
-        this_pos = this_obs['POSITION']
+        """
+        Params: 
+            past_ts:    state of the environment beforehand
+            this_ts:    last state of the environment
+            action:     action that has been generated based on that state
+
+            For this whole thing to work we need to do a bit of a headstand. The current 
+            timestep displays the state of the world as it happened and does not account 
+            potential futures (e.g. an apple will always be already collected and we're
+            not able to see if that would have violated a rule). Therefore, we need to
+            simulate what *would* have happened without the agent actually doing that action.
+        
+        """
+        past_obs = past_ts.observation
+        past_pos = past_obs['POSITION']
+
         goal = this_ts.goal
         hash = self.hash_ts(this_ts)
 
-        # get prohibited actions according to the ongoing rule
-        prohib_actions = self.get_prohib_action(this_obs, rule, this_pos)
+        x, y = self.update_coordinates_by_action(self.last_actions[player_idx], past_pos, past_obs)
+        new_obs = super().update_observation(past_obs, x, y) # state that does not hold the agents' position
+        new_pos = new_obs['POSITION']
+
+        # get a list of prohibited actions according to the ongoing rule
+        prohib_actions = self.get_prohib_action(new_obs, rule, new_pos)
 
         is_violation = True if action in prohib_actions else False
 
-        q_vals_ruleless = self.all_bots[player_idx].V_ruleless[goal][hash]
-        q_vals_w_rule = self.all_bots[player_idx].V[goal][hash]
+        q_vals_no_rules = self.all_bots[player_idx].V_wo_rule[goal][hash]
+        q_vals_active_rules = self.all_bots[player_idx].V[goal][hash]
 
-        boltzmann_dis_ruleless = self.compute_boltzmann(q_vals_ruleless)
-        boltzmann_dis_w_rule = self.compute_boltzmann(q_vals_w_rule)
+        boltzmann_dis_no_rules = self.compute_boltzmann(q_vals_no_rules)
+        boltzmann_dis_active_rules = self.compute_boltzmann(q_vals_active_rules)
 
-        best_act_ruleless = np.argmax(boltzmann_dis_ruleless)
-        best_act_w_rule = np.argmax(boltzmann_dis_w_rule)
+        a_max_no_rules = np.argmax(boltzmann_dis_no_rules)
+        a_max_active_rules = np.argmax(boltzmann_dis_active_rules)
 
-        p_best_act_ruleless = boltzmann_dis_ruleless[best_act_ruleless]
-        p_act_ruleless = boltzmann_dis_ruleless[action]
+        p_a_max_no_rules = boltzmann_dis_no_rules[a_max_no_rules]
+        p_a_obs_no_rules = boltzmann_dis_no_rules[action]
 
-        p_best_act_w_rule = boltzmann_dis_ruleless[best_act_w_rule]
-        p_act_w_rule = boltzmann_dis_w_rule[action]
+        p_a_max_active_rules = boltzmann_dis_active_rules[a_max_active_rules]
+        p_a_obs_active_rules = boltzmann_dis_active_rules[action]
 
+        print()
+        print(f'RULE: {rule.make_str_repr()}')
+
+        if is_violation:
+            p_action = p_a_obs_active_rules * (1 - self.p_obey) /self.num_actions
+
+        if rule.holds_precondition(new_obs): # only look at the cases where the precondition probably holds
+
+            print('HOLDS PRECONDITION')
+
+            if is_violation: # either rule does not exist or cost benefit analysis tells you it's better to violate
+
+                print('VIOLATION')
+                if p_a_obs_active_rules == p_a_obs_no_rules:
+                    
+                    print('p_a_obs_active_rules == p_a_obs_no_rules')
+        
+                elif p_a_obs_active_rules < p_a_obs_no_rules:
+                    print(f'p_a_obs_active_rules < p_a_obs_no_rules')
+                    #p_action = 1 / self.num_actions
+                    p_action = p_a_obs_active_rules * (1 - self.p_obey) /self.num_actions
+
+                elif p_a_obs_active_rules > p_a_obs_no_rules:
+                    #p_action = 1 / self.num_actions
+                    p_action = p_a_obs_active_rules * (1 - self.p_obey) /self.num_actions
+                    print('p_a_obs_active_rules > p_a_obs_no_rules')
+
+            else: # NO VIOLATION
+
+                print('COMPLIANCE')
+                if p_a_obs_active_rules != p_a_max_active_rules:
+                    # P( action | rule = true) = (1 * p_obey) + p(action) * (1 - p_obey)
+                    p_action = 1 / self.num_actions
+                    # p_action = self.p_obey + (1 - self.p_obey) * p_a_obs_active_rules
+                    print('p_a_obs_active_rules != p_a_max_active_rules')
+
+                if p_a_obs_active_rules == p_a_obs_no_rules:
+                    p_action = 1 / self.num_actions
+                    print('p_a_obs_active_rules == p_a_obs_no_rules')
+        
+                elif p_a_obs_active_rules < p_a_obs_no_rules:
+                    print(f'p_a_obs_active_rules < p_a_obs_no_rules')
+                    p_action = 1 / self.num_actions
+
+                elif p_a_obs_active_rules > p_a_obs_no_rules:
+                    p_action = 1 / self.num_actions
+                    print('p_a_obs_active_rules > p_a_obs_no_rules')
+
+        else:
+            print('DOES NOT HOLD PRECONDITION')
+            # this is when I can truthfully comply with the rule
+            if is_violation:
+                print('is violation')
+                p_action = p_a_obs_active_rules * (1 - self.p_obey) /self.num_actions
+            else:
+                print('compliance')
+                if p_a_obs_active_rules != p_a_max_active_rules:
+                    # P( action | rule = true) = (1 * p_obey) + p(action) * (1 - p_obey)
+                    p_action = 1 / self.num_actions
+                    # p_action = self.p_obey + (1 - self.p_obey) * p_a_obs_active_rules
+                    print('p_a_obs_active_rules != p_a_max_active_rules')
+
+                if p_a_obs_active_rules == p_a_obs_no_rules:
+                    p_action = 1 / self.num_actions
+                    print('p_a_obs_active_rules == p_a_obs_no_rules')
+        
+                elif p_a_obs_active_rules < p_a_obs_no_rules:
+                    print(f'p_a_obs_active_rules < p_a_obs_no_rules')
+                    p_action = 1 / self.num_actions
+
+                elif p_a_obs_active_rules > p_a_obs_no_rules:
+                    p_action = p_a_obs_active_rules * self.p_obey
+                    # p_action = p_a_obs_active_rules
+                    print('p_a_obs_active_rules > p_a_obs_no_rules')
+            
+        return np.log(p_action)
+            
+        """if best_act_wo_rule == action:
+        else:
         if is_violation: # either rule not true or cost benefit too huge
-
-            if q_vals_w_rule[action] + self.violation_cost >= q_vals_ruleless[action]:
-                # rule probably true and cost benefit analysis tells you that you should violate it
-                # print(f'VIOLATION {rule.make_str_repr()} is probably true and p_action hence is {p_act_w_rule}')
-                p_action = p_act_w_rule
-            else: # rule true ? i don't know
-                p_action = 1 / self.num_actions
+            # P(disobedient action | rule = true) = (0 * p_obey) + p_action * (1-p_obey)  
+            if p_best_act_wo_rule == p_best_act_w_rule: # if the probabilities are the same
+                # rule probably does not exist
+                p_action = (1-self.p_obey) * (p_act_w_rule)
+            else: # rule probably exists
+                p_action = (1-self.p_obey) * (p_act_wo_rule)
         
         else: # compliance
-            if q_vals_w_rule[action] + self.violation_cost <= q_vals_ruleless[action]:
-                # print(f'COMPLIANCE {rule.make_str_repr()}')
-                p_action = p_act_ruleless
-            
-            else: # doesn't apply
+            if p_best_act_wo_rule == p_best_act_w_rule:
                 p_action = 1 / self.num_actions
+            else:
+                # P(obedient action | rule = true) = (1 * p_obey) + p_action * (1-p_obey)
+                p_action = self.p_obey + (1-self.p_obey) * p_act_wo_rule
         
         return np.log(p_action)
 
-        """if action in prohib_actions: # violation
+        if action in prohib_actions: # violation
             self.maybe_mark_riot(player_idx, rule) # note violation
             #return np.log(0)
             p_action = (1-self.p_obey)/(self.num_actions)

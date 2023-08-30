@@ -700,9 +700,9 @@ class RuleObeyingPolicy(policy.Policy):
 
     if no_rules:
       if others:
-        v_func = self.all_bots[idx].V_ruleless[goal]
+        v_func = self.all_bots[idx].V_wo_rule[goal]
       else:
-        v_func = self.V_ruleless[goal]
+        v_func = self.V_wo_rule[goal]
     else:
       if not no_rules:
         v_func = self.all_bots[idx].V[goal]
@@ -718,7 +718,7 @@ class RuleObeyingPolicy(policy.Policy):
     
   """def get_action_prob(self, act: int, ts_cur: AgentTimestep,  no_rules=False) -> float:
     hash = self.hash_ts(ts_cur)
-    v_func = self.V[self.goal] if not no_rules else self.V_ruleless[self.goal]
+    v_func = self.V[self.goal] if not no_rules else self.V_wo_rule[self.goal]
     return v_func[hash][act]"""
 
   def update(self, ts_cur: AgentTimestep) -> int:
@@ -726,7 +726,7 @@ class RuleObeyingPolicy(policy.Policy):
     and returns the best action based on that."""
     size = self.action_spec.num_values 
     Q = np.full(size, -1.0)
-    Q_ruleless = np.full(size, -1.0)
+    Q_wo_rule = np.full(size, -1.0)
 
     # TODO: change to available_action_history()
     available = self.available_actions(ts_cur.observation)    
@@ -743,10 +743,10 @@ class RuleObeyingPolicy(policy.Policy):
       ts_next = self.env_step(ts_cur, act, self.py_index)
       s_next = self.init_process_next_ts(ts_next)
 
-      Q[act], Q_ruleless[act]  = self.get_estimated_return(ts_next, s_next, act, available, type, ts_cur)
+      Q[act], Q_wo_rule[act]  = self.get_estimated_return(ts_next, s_next, act, available, type, ts_cur)
 
     self.V[self.goal][s_cur] = Q
-    self.V_ruleless[self.goal][s_cur] = Q_ruleless
+    self.V_wo_rule[self.goal][s_cur] = Q_wo_rule
 
     if s_cur not in self.hash_count:
       self.hash_count[s_cur] = 1
@@ -774,7 +774,7 @@ class RuleObeyingPolicy(policy.Policy):
     if s_next not in self.V[self.goal].keys():
       Q = self.init_heuristic(ts_cur)
       self.V[self.goal][s_next] = Q
-      self.V_ruleless[self.goal][s_next] = Q
+      self.V_wo_rule[self.goal][s_next] = Q
 
     return s_next
   
@@ -953,9 +953,9 @@ class RuleObeyingPolicy(policy.Policy):
       print(f'{ts_cur.observation["POSITION"]} for {act} to {ts_next.observation["POSITION"]} gives\t{r_forward} + {r_cur} - {cost}; {s_next}')
 
     v_rules = r_forward + r_cur - cost
-    v_ruleless = r_forward + r_cur
+    v_wo_rule = r_forward + r_cur
 
-    return v_rules, v_ruleless
+    return v_rules, v_wo_rule
   
   """def a_star(self, s_start: int) -> list[int]:
     # Perform a A* search to generate plan.

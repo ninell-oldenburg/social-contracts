@@ -122,16 +122,18 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         for rule_idx, rule in enumerate(self.potential_rules):
 
+            # BAYESIAN UPDATING
+            # P(r = 1)
+            prior = self.rule_beliefs[rule_idx]
+
             # P(a | r = 1)
             if isinstance(rule, ProhibitionRule):
-                log_llh = self.comp_prohib_llh(player_idx, rule, player_act, this_ts)
+                log_llh = self.comp_prohib_llh(player_idx, rule, player_act, this_ts, past_ts)
     
             elif isinstance(rule, ObligationRule):
                 log_llh = self.comp_oblig_llh(player_idx, rule, this_ts, past_ts)
                         
-            # BAYESIAN UPDATING
-            # P(r = 1)
-            prior = self.rule_beliefs[rule_idx]
+
             log_prior = np.log(prior)
             # P(a) = P(a | r = 1) P(r = 1) + P(a | r = 0) P(r = 0)
             marginal = np.exp(log_llh) * prior + (1/self.num_actions) * (1 - prior)
