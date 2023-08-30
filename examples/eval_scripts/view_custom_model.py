@@ -53,6 +53,7 @@ def main(roles,
           plot_q_vals=False,
           gamma=0.999,
           tau=1.5,
+          passive_learning=True,
           ):
 
   level_name = get_name_from_rules(rules)
@@ -170,8 +171,13 @@ def main(roles,
 
     for i, bot in enumerate(bots):
       if len(bot.history) > 1:
-        bot.update_beliefs(last_actions)
-      bot.obligations, bot.prohibitions = bot.threshold_rules()
+        if passive_learning:
+          if i == len(bots)-1:
+            bot.update_beliefs(last_actions)
+          bot.obligations, bot.prohibitions = bot.threshold_rules()
+        else:
+          bot.update_beliefs(last_actions)
+          bot.obligations, bot.prohibitions = bot.threshold_rules()
     
     dead_apple_ratio = bots[-1].history[-1][len(bots)-1].observation['DEAD_APPLE_RATIO'] # same for every player
     cur_beliefs = bots[-1].rule_beliefs
@@ -359,7 +365,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 2 + ('learner',) * 0
   episodes = 400
   # Possible values for tau and gamma you want to test
   # taus = [0.0, 0.1, 0.5, 1.0, 1.5]
@@ -386,6 +392,7 @@ if __name__ == "__main__":
                                 plot_q_vals=False,
                                 gamma=0.999,
                                 tau=1.0,
+                                passive_learning=True,
                                 )
 
       """results[(gamma, tau)]['cleaner'] += sum(data_dict['cleaner'])
@@ -407,78 +414,3 @@ if __name__ == "__main__":
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
   print(sum(data_dict['free']))
-
-  """For gamma=0.9, tau: 0.0:
-cleaner: 4.90, farmer: 5.20, free: 5.40
-
-For gamma=0.9 tau: 0.1:
-cleaner: 4.90, farmer: 8.70, free: 6.30
-
-For gamma=0.9 tau: 0.5:
-cleaner: 6.10, farmer: 5.30, free: 11.00
-
-For gamma=0.9 tau: 1.0:
-cleaner: 6.70, farmer: 8.10, free: 13.00
-
-For gamma=0.9 tau: 1.5:
-cleaner: 7.20, farmer: 6.90, free: 10.70
-
-For gamma=0.99 tau: 0.0:
-cleaner: 1.40, farmer: 0.40, free: 3.10
-
-For gamma=0.99 tau: 0.1:
-cleaner: 10.00, farmer: 3.50, free: 8.80
-
-For gamma=0.99 tau: 0.5:
-cleaner: 9.00, farmer: 3.80, free: 8.80
-
-For gamma=0.99 tau: 1.0:
-cleaner: 8.70, farmer: 3.80, free: 6.00
-
-For gamma=0.99 tau: 1.5:
-cleaner: 7.80, farmer: 4.00, free: 6.90
-
-For gamma=0.999 tau: 0.0:
-cleaner: 0.90, farmer: 2.80, free: 4.30
-
-For gamma=0.999 tau: 0.1:
-cleaner: 8.90, farmer: 2.30, free: 8.60
-
-For gamma=0.999 tau: 0.5:
-cleaner: 8.30, farmer: 4.60, free: 6.70
-
-For gamma=0.999 tau: 1.0:
-cleaner: 8.30, farmer: 7.30, free: 4.30
-
-For gamma=0.999 tau: 1.5:
-cleaner: 9.80, farmer: 5.00, free: 9.70
-
-For gamma=0.9999 tau: 0.0:
-cleaner: 2.20, farmer: 1.50, free: 1.60
-
-For gamma=0.9999 tau: 0.1:
-cleaner: 8.40, farmer: 5.10, free: 6.00
-
-For gamma=0.9999 tau: 0.5:
-cleaner: 11.60, farmer: 3.00, free: 8.50
-
-For gamma=0.9999 tau: 1.0:
-cleaner: 9.60, farmer: 5.50, free: 5.40
-
-For gamma=0.9999 tau: 1.5:
-cleaner: 10.60, farmer: 4.00, free: 5.50
-
-For gamma=0.99999 tau: 0.0:
-cleaner: 13.60, farmer: 0.70, free: 5.10
-
-For gamma=0.99999 tau: 0.1:
-cleaner: 13.10, farmer: 4.90, free: 8.00
-
-For gamma=0.99999 tau: 0.5:
-cleaner: 13.50, farmer: 4.40, free: 8.00
-
-For gamma=0.99999 tau: 1.0:
-cleaner: 11.60, farmer: 5.20, free: 7.70
-
-For gamma=0.99999 tau: 1.5:
-cleaner: 9.30, farmer: 4.50, free: 7.40"""

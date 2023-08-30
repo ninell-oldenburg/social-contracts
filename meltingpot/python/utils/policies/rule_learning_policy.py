@@ -116,7 +116,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         # print(self.rule_beliefs)
 
-    def compute_posterior(self, player_idx, player_act, this_ts, past_ts) -> None:
+    def compute_posterior(self, player_idx, player_act, this_ts, past_ts, boltzmann_dis) -> None:
         """Writes the posterior for a rule given an observation 
         and other agents' actions."""
 
@@ -128,10 +128,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
             # P(a | r = 1)
             if isinstance(rule, ProhibitionRule):
-                log_llh = self.comp_prohib_llh(player_idx, rule, player_act, this_ts, past_ts)
+                log_llh = self.comp_prohib_llh(player_idx, rule, player_act, this_ts, past_ts, boltzmann_dis)
     
             elif isinstance(rule, ObligationRule):
-                log_llh = self.comp_oblig_llh(player_idx, rule, player_act, this_ts, past_ts)
+                log_llh = self.comp_oblig_llh(player_idx, rule, player_act, this_ts, past_ts, boltzmann_dis)
                         
 
             log_prior = np.log(prior)
