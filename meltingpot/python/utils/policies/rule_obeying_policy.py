@@ -569,10 +569,10 @@ class RuleObeyingPolicy(policy.Policy):
     return payees"""
   
   def is_close_to_agent(self, observation, payee):
-    x_start = observation['POSITION'][0]-1
-    y_start = observation['POSITION'][1]-1
-    x_stop = observation['POSITION'][0]+2
-    y_stop = observation['POSITION'][1]+2
+    x_start = observation['POSITION'][0]-2
+    y_start = observation['POSITION'][1]-2
+    x_stop = observation['POSITION'][0]+3
+    y_stop = observation['POSITION'][1]+3
 
     for i in range(x_start, x_stop):
       for j in range(y_start, y_stop):
@@ -910,7 +910,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def compute_boltzmann(self, q_values: list):
 
-    # TODO if stochastically picking the argmax, then take the q_vals to the power of 2
+    # TODO if stochastically picking the argmax, then take the q_vals to the power of 2?
     mean_q_value = np.mean(q_values)
     transform_q_values = (q_values - mean_q_value) / np.std(q_values)
     probs = np.exp(transform_q_values / self.tau)

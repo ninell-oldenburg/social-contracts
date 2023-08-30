@@ -48,6 +48,7 @@ DEFAULT_SELECTION_MODE = "threshold"
 DEFAULT_THRESHOLD = 0.5
 DEFAULT_INIT_PRIOR = 0.2
 DEFAULT_P_OBEY = 0.99
+DEFAULT_OBLIGATION_DEPTH = 25
 
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
@@ -91,7 +92,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 threshold_restoration: float = THRESHOLD_APPLE_RESTAURATION,
                 max_apple_growth_rate: float = MAX_APPLE_GROWTH_RATE,
                 dirt_spawn_prob: float = DIRT_SPAWN_PROB,
-                is_learner: bool = False) -> None:
+                is_learner: bool = False, 
+                stochastic_act_selection: bool = False,
+                default_obligation_depth: int = DEFAULT_OBLIGATION_DEPTH) -> None:
         
         # CALLING PARAMETERS
         self.py_index = player_idx
@@ -135,6 +138,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.threshold_restoration = threshold_restoration
         self.max_apple_growth_rate = max_apple_growth_rate
         self.dirt_spawn_prob = dirt_spawn_prob
+        self.stochastic_act_selection = stochastic_act_selection
+        self.max_obligation_depth = default_obligation_depth
         
         # GLOBAL INITILIZATIONS
         self.history = deque(maxlen=10)
@@ -212,12 +217,12 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'NUM_APPLES_AROUND',
             'ORIENTATION',
             'POSITION', 
+            'POSITION_OTHERS',
             'SINCE_AGENT_LAST_CLEANED',
             'SINCE_AGENT_LAST_PAYED',
             'SINCE_AGENT_LAST_ZAPPED',
             'SURROUNDINGS',
             'WATER_LOCATION', # maybe take out again
-            'POSITION_OTHERS',
           ],
         'apple': [
             'AGENT_ATE',
@@ -246,9 +251,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'NUM_APPLES_AROUND',
             'ORIENTATION',
             'POSITION', 
+            'POSITION_OTHERS',
             'SINCE_AGENT_LAST_PAYED',
             'SURROUNDINGS',
-            'POSITION_OTHERS',
           ],
         'zap': [
             'AGENT_ZAPPED',
@@ -257,9 +262,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'NUM_APPLES_AROUND',
             'ORIENTATION',
             'POSITION', 
+            'POSITION_OTHERS',
             'SINCE_AGENT_LAST_ZAPPED',
             'SURROUNDINGS',
-            'POSITION_OTHERS',
           ],
       }
         
@@ -280,10 +285,10 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         End of episode defined in dm_env.TimeStep.
         """
 
-        self.x_max = self.history[-1][self.py_index].observation['WORLD.RGB'].shape[1] / 8
-        self.y_max = self.history[-1][self.py_index].observation['WORLD.RGB'].shape[0] / 8 - 5 # inventory display
-
         ts_cur = self.history[-1][self.py_index]
+        
+        self.x_max = ts_cur.observation['WORLD.RGB'].shape[1] / 8
+        self.y_max = ts_cur.observation['WORLD.RGB'].shape[0] / 8 - 5 # inventory display
 
         if self.log_rule_prob_output:
             print('='*50)
@@ -334,7 +339,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         self.last_inventory = ts_cur.observation["INVENTORY"]
 
-        # return self.get_act(ts_cur, self.py_index)
+        if self.stochastic_act_selection:
+            return self.get_act(ts_cur, self.py_index)
         return self.get_best_act(ts_cur)
     
     def append_to_history(self, timestep_list: list) -> None:
@@ -414,7 +420,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # Check if obligation rule is active
         rule_active_count = self.nonself_active_obligations_count[player_idx].get(rule, float('inf'))
-        rule_is_active = rule_active_count <= self.max_depth
+        rule_is_active = rule_active_count <= self.max_obligation_depth
 
         if rule_is_active: # Obligation is active
             if self.could_be_satisfied(rule, past_ts, player_idx):
@@ -427,7 +433,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 else: # Agent disobeyed the obligation
                     # P(disobedient action | rule = true) = (0 * p_obey) + p_action * (1-p_obey)  
                     print(f'not satisfied: {rule.make_str_repr()}')
-                    p_action = p_a_obs_active_rules * (1 - self.p_obey) 
+                    p_action = p_a_obs_active_rules # * (1-self.p_obey)
                     # note rule violationg
                     self.maybe_mark_riot(player_idx, rule)
                     return np.log(p_action)

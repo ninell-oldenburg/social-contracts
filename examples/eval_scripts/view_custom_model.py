@@ -54,12 +54,13 @@ def main(roles,
           gamma=0.999,
           tau=1.5,
           passive_learning=True,
+          stochastic_act_selection=False,
           ):
 
   level_name = get_name_from_rules(rules)
   substrate_name = f'rule_obeying_harvest_{level_name}'
   num_bots = len(roles)
-  num_focal_bots = num_bots - 1 # roles.count("learner")
+  num_focal_bots = num_bots - roles.count("learner")
 
   config = {'substrate': substrate_name,
             'roles': roles}
@@ -70,9 +71,8 @@ def main(roles,
 
   bots = []
   role_str = ''
-  for i in range(len(roles)):
-    role = config['roles'][i]
-    if i < num_focal_bots:
+  for i, role in enumerate(roles):
+    if not role == 'learner':
       bots.append(RuleAdjustingPolicy(env=env, 
                                     player_idx=i,
                                     log_output=log_output,
@@ -88,6 +88,7 @@ def main(roles,
                                     gamma=gamma,
                                     tau=tau,
                                     is_learner=False,
+                                    stochastic_act_selection=stochastic_act_selection,
                                     ))
     else:
       bots.append(RuleAdjustingPolicy(env=env, 
@@ -105,6 +106,7 @@ def main(roles,
                                     gamma=gamma,
                                     tau=tau,
                                     is_learner=True,
+                                    stochastic_act_selection=stochastic_act_selection,
                                     ))
       
     for bot in bots:
@@ -172,9 +174,9 @@ def main(roles,
     for i, bot in enumerate(bots):
       if len(bot.history) > 1:
         if passive_learning:
-          if i == len(bots)-1:
+          if bot.role == 'learner':
             bot.update_beliefs(last_actions)
-          bot.obligations, bot.prohibitions = bot.threshold_rules()
+            bot.obligations, bot.prohibitions = bot.threshold_rules()
         else:
           bot.update_beliefs(last_actions)
           bot.obligations, bot.prohibitions = bot.threshold_rules()
@@ -365,8 +367,8 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 2 + ('learner',) * 0
-  episodes = 400
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 1
+  episodes = 200
   # Possible values for tau and gamma you want to test
   # taus = [0.0, 0.1, 0.5, 1.0, 1.5]
   # gammas = [0.9, 0.99, 0.999, 0.9999, 0.99999]
@@ -385,14 +387,15 @@ if __name__ == "__main__":
                                 env_seed=1,
                                 episodes=episodes,
                                 num_iteration=1,
-                                create_video=False,
+                                create_video=True,
                                 log_output=False,
                                 log_weights=False,
                                 save_csv=False,
                                 plot_q_vals=False,
-                                gamma=0.999,
+                                gamma=0.9999,
                                 tau=1.0,
                                 passive_learning=True,
+                                stochastic_act_selection=False,
                                 )
 
       """results[(gamma, tau)]['cleaner'] += sum(data_dict['cleaner'])
