@@ -165,12 +165,12 @@ def main(roles,
 
     for i, bot in enumerate(bots):            
       # cum_reward[i] += timestep_bot.reward
-      bot.append_to_history(timestep_list, last_actions)
+      bot.append_to_history(timestep_list)
       actions[i] = bot.step()
 
     for i, bot in enumerate(bots):
       if len(bot.history) > 1:
-        bot.update_beliefs(actions)
+        bot.update_beliefs(last_actions)
       bot.obligations, bot.prohibitions = bot.threshold_rules()
     
     dead_apple_ratio = bots[-1].history[-1][len(bots)-1].observation['DEAD_APPLE_RATIO'] # same for every player
