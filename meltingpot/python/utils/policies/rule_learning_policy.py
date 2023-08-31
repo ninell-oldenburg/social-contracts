@@ -116,27 +116,33 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         # print(self.rule_beliefs)
 
-    def compute_posterior(self, player_idx, player_act, this_ts, past_ts, boltzmann_dis) -> None:
+    def compute_posterior(self, player_idx, player_act, this_ts, past_ts) -> None:
         """Writes the posterior for a rule given an observation 
         and other agents' actions."""
 
         for rule_idx, rule in enumerate(self.potential_rules):
 
             # BAYESIAN UPDATING
+            # get q values for active rules and as if there were no rules
+            q_vals_no_rules = self.all_bots[player_idx].V_wo_rule[this_ts.goal][self.hash_ts(this_ts)]
+
+            # get boltzmann distribution for both q value vectors
+            boltzmann_dis_no_rules = self.compute_boltzmann(q_vals_no_rules)
+            p_a_obs_no_rules = boltzmann_dis_no_rules[player_idx]
+            
             # P(r = 1)
             prior = self.rule_beliefs[rule_idx]
 
             # P(a | r = 1)
             if isinstance(rule, ProhibitionRule):
-                log_llh = self.comp_prohib_llh(player_idx, rule, player_act, this_ts, past_ts, boltzmann_dis)
+                log_llh = self.comp_prohib_llh(player_idx, rule, player_act, this_ts, past_ts)
     
             elif isinstance(rule, ObligationRule):
-                log_llh = self.comp_oblig_llh(player_idx, rule, player_act, this_ts, past_ts, boltzmann_dis)
+                log_llh = self.comp_oblig_llh(player_idx, rule, player_act, this_ts, past_ts)
                         
-
             log_prior = np.log(prior)
             # P(a) = P(a | r = 1) P(r = 1) + P(a | r = 0) P(r = 0)
-            marginal = np.exp(log_llh) * prior + (1/self.num_actions) * (1 - prior)
+            marginal = np.exp(log_llh) * prior + p_a_obs_no_rules * (1 - prior)
             log_marginal = np.log(marginal)
             # P(r=1 | a) = P(a | r = 1) * P(r = 1) / P(a)
             log_posterior = (log_prior + log_llh) - log_marginal
