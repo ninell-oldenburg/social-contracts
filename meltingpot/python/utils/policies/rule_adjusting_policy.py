@@ -484,15 +484,15 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         p_a_obs_rule_is_active = boltzmann_dis_rule_is_active[action]
 
         #if is_violation or rule.holds_precondition(this_obs): # even factoring it all out says: always discount a violation
-        if rule.holds_precondition(this_obs) or rule.holds_precondition(past_obs) or is_violation:
+        if rule.holds_precondition(this_obs) or rule.holds_precondition(this_obs) or is_violation:
             # P(disobedient action | rule = true) = 0 * p_action + p_action * (1-p_obey)  
             self.maybe_mark_riot(player_idx, rule)
-            return p_a_obs_no_rules / self.num_actions * (1-self.p_obey)
+            return np.log(p_a_obs_no_rules / 12 * (1-self.p_obey))
             # p_action = p_a_obs_active_rules * (1 - self.p_obey) 
             return np.log(p_action)
 
         else:
-            return p_a_obs_rule_is_active + (1 - self.p_obey) * p_a_obs_no_rules
+            return np.log(self.p_obey * p_a_obs_rule_is_active + (1 - self.p_obey) * p_a_obs_no_rules)
 
             """if p_a_obs_active_rules != p_a_obs_no_rules: # if there is some rule going on 
                 # strong: P(obedient action | rule = true) = (1 * p_obey) + p_action / n_actions * (1-p_obey) 
