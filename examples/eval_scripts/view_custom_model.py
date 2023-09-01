@@ -392,7 +392,7 @@ if __name__ == "__main__":
                                 log_weights=False,
                                 save_csv=False,
                                 plot_q_vals=False,
-                                gamma=0.999,
+                                gamma=0.9999,
                                 tau=1.0,
                                 passive_learning=True,
                                 stochastic_act_selection=False,

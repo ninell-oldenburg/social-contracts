@@ -331,6 +331,7 @@ class RuleObeyingPolicy(policy.Policy):
   def update_observation(self, obs, x, y) -> dict:
     """Updates the observation with requested information."""
     new_obs = self.custom_deepcopy(obs)
+    new_obs['POSITION'] = np.array((x, y))
     new_obs['NUM_APPLES_AROUND'] = self.get_apples(new_obs, x, y)
     new_obs['CUR_CELL_HAS_APPLE'] = True if new_obs['SURROUNDINGS'][x][y] == -1 else False
     lua_idx = new_obs['PY_INDEX']+1
@@ -1037,6 +1038,11 @@ class RuleObeyingPolicy(policy.Policy):
     y_min, y_max = max(0, y - 1), min(len(surroundings[0]), y + 2)
 
     apple_mask = (surroundings[x_min:x_max, y_min:y_max] == -1)
+
+    # Set the cell at (x, y) to False so it's not counted
+    if x_min <= x < x_max and y_min <= y < y_max:
+        apple_mask[x - x_min, y - y_min] = False
+
     apple_count = np.count_nonzero(apple_mask)
 
     return apple_count
@@ -1050,6 +1056,7 @@ class RuleObeyingPolicy(policy.Policy):
           belong to current agent.
     """
     new_obs = self.custom_deepcopy(observation)
+    new_obs['POSITION'] = np.array((x, y))
     property_idx = int(new_obs['PROPERTY'][x][y])
     new_obs['AGENT_HAS_STOLEN'] = True
 
