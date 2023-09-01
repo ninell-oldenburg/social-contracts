@@ -332,7 +332,7 @@ class RuleObeyingPolicy(policy.Policy):
     """Updates the observation with requested information."""
     obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
     obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -1 else False
-    lua_idx = obs['PY_INDEX']
+    lua_idx = obs['PY_INDEX']+1
     self.make_territory_observation(obs, x, y, lua_idx)
     return obs
   
@@ -638,35 +638,6 @@ class RuleObeyingPolicy(policy.Policy):
     list_bytes = pickle.dumps(items + [reward]) # make byte arrays
     hash_key = hashlib.sha256(list_bytes).hexdigest()  # hash
 
-    """if hash_key in self.hash_table:
-      existing_obs = self.hash_table[hash_key]
-      new_obs = obs
-        
-      mismatch_found = False  # Flag to indicate if a mismatch is found
-      # Compare the observations
-      for key in existing_obs.keys():
-        if key not in relevant_keys:
-          continue
-        
-        if isinstance(existing_obs[key], np.ndarray):
-          if not np.array_equal(existing_obs[key], new_obs[key]):
-            print(f"Key: {key}")
-            print("Stored Value:", existing_obs[key])
-            print("New Value:", new_obs[key])
-            mismatch_found = True
-        else:
-          if existing_obs[key] != new_obs[key]:
-            print(f"Key: {key}")
-            print("Stored Value:", existing_obs[key])
-            print("New Value:", new_obs[key])
-            mismatch_found = True
-        
-      if mismatch_found:
-        print(f"Hash collision detected for key {hash_key}")
-
-    else:
-      self.hash_table[hash_key] = obs"""
-
     return hash_key
 
   def hash_ts(self, ts: AgentTimestep):
@@ -694,37 +665,19 @@ class RuleObeyingPolicy(policy.Policy):
 
     return
   
-  def get_best_act(self, ts_cur: AgentTimestep) -> int:
+  def get_act(self, ts_cur: AgentTimestep, idx: int, temp=None) -> int:
     hash = self.hash_ts(ts_cur)
     goal = ts_cur.goal
-    return np.argmax(self.V[goal][hash])
-  
-  def get_act(self, ts_cur: AgentTimestep, idx: int, no_rules=False, others=False) -> int:
-    hash = self.hash_ts(ts_cur)
-    goal = ts_cur.goal
-
-    if no_rules:
-      if others:
-        v_func = self.all_bots[idx].V_wo_rule[goal]
-      else:
-        v_func = self.V_wo_rule[goal]
-    else:
-      if not no_rules:
-        v_func = self.all_bots[idx].V[goal]
-      else:
-        v_func = self.V[goal]
+    v_func = self.all_bots[idx].V[goal]
 
     if hash in v_func.keys():
-      if self.log_output:
-        print(f'position: {ts_cur.observation["POSITION"]}, key: {hash}')
-        print(v_func[hash])
-      next_act = self.get_boltzmann_act(v_func[hash])
+      # if self.log_output:
+      print()
+      print(f'ROLE: {self.role}')
+      print(f'position: {ts_cur.observation["POSITION"]}, orientation: {ts_cur.observation["ORIENTATION"]}, key: {hash}')
+      print(v_func[hash])
+      next_act = self.get_boltzmann_act(v_func[hash], temp=temp)
       return next_act
-    
-  """def get_action_prob(self, act: int, ts_cur: AgentTimestep,  no_rules=False) -> float:
-    hash = self.hash_ts(ts_cur)
-    v_func = self.V[self.goal] if not no_rules else self.V_wo_rule[self.goal]
-    return v_func[hash][act]"""
 
   def update(self, ts_cur: AgentTimestep) -> int:
     """Updates state-action pair value function 
@@ -734,7 +687,7 @@ class RuleObeyingPolicy(policy.Policy):
     Q_wo_rule = np.full(size, -1.0)
 
     # TODO: change to available_action_history()
-    available = self.available_actions(ts_cur.observation)    
+    available = self.available_actions(ts_cur.observation)
     s_cur = self.hash_ts(ts_cur)
 
     if self.log_weights:
@@ -932,10 +885,11 @@ class RuleObeyingPolicy(policy.Policy):
 
     return probs
   
-  def get_boltzmann_act(self, q_values: list) -> int:
+  def get_boltzmann_act(self, q_values: list, temp=None) -> int:
 
-    if self.tau == 0:
+    if temp == 0:
         return np.argmax(q_values)
+    
     probs = self.compute_boltzmann(q_values)
     action = np.random.choice(len(q_values), p=probs) 
     return action

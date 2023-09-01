@@ -339,9 +339,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         self.last_inventory = ts_cur.observation["INVENTORY"]
 
-        if self.stochastic_act_selection:
-            return self.get_act(ts_cur, self.py_index)
-        return self.get_best_act(ts_cur)
+        return self.get_act(ts_cur, self.py_index, temp=0)
     
     def append_to_history(self, timestep_list: list) -> None:
         """Apoends a list of timesteps to the agent's history"""

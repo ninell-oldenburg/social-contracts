@@ -22,7 +22,7 @@ DEFAULT_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
   ObligationRule(cleaning_precon_free_30, cleaning_goal_free_30),
   # If you're in the farmer role, pay cleaner with apples
-  ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15),
+  #ObligationRule(payment_precon_farmer_15, payment_goal_farmer_15),
   # If you're in the cleaner role, clean in a certain rhythm
   ObligationRule(cleaning_precon_cleaner_5, cleaning_goal_cleaner_5),
   # If you recognize that someone violated a rule, zap them
