@@ -823,7 +823,7 @@ class RuleObeyingPolicy(policy.Policy):
         respawn_rate = self.dirt_spawn_prob
         if respawn_type == 'apple':
           regrowth_prob_idx = min(self.get_apples(obs, pos[0], pos[1]), self.num_regrowth_probs-1)
-          respawn_rate = dirt_conditioned_regrowth_rate * self.regrowth_probabilities[regrowth_prob_idx]
+          respawn_rate = dirt_conditioned_regrowth_rate * self.regrowth_probabilities[regrowth_prob_idx] / self.num_players
 
         reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
       

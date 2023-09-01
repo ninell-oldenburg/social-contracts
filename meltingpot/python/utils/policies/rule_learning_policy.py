@@ -150,6 +150,10 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             log_posterior = (log_prior + log_llh) - log_marginal
             posterior = np.exp(log_posterior)
 
+            #print()
+            #print(f'rule: {rule.make_str_repr()}')
+            #print(f'prior: {prior}, np.exp(log_llh): {np.exp(log_llh)}, marginal: {marginal}, posterior: {posterior}')
+
             self.rule_beliefs[rule_idx] = posterior
     
     def comp_oblig_llh(self, player_idx: int, rule: ObligationRule) -> float:

@@ -467,7 +467,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # get a list of prohibited actions according to the ongoing rule
         prohib_actions = self.get_prohib_action(past_obs, rule, past_pos)
-        is_violation = True if action in prohib_actions else False
+        # is_violation = True if action in prohib_actions else False
         available = [act for act in range(self.num_actions) if not act in prohib_actions]
         
         q_vals_rule_is_active = np.full(self.action_spec.num_values , -1.0)
@@ -482,13 +482,16 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         p_a_obs_rule_is_active = boltzmann_dis_rule_is_active[action]
 
         #if is_violation or rule.holds_precondition(this_obs): # even factoring it all out says: always discount a violation
-        if rule.holds_precondition(this_obs) or rule.holds_precondition(this_obs) or is_violation:
+        if rule.holds_precondition(this_obs): #or rule.holds_precondition(this_obs): #or is_violation:
             # P(disobedient action | rule = true) = 0 * p_action + p_action * (1-p_obey)  
             self.maybe_mark_riot(player_idx, rule)
             return np.log(p_a_obs_no_rules * (1-self.p_obey))
 
         else:
-            # P(obedient action | rule = true) = (1 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
-            p_action = self.p_obey * p_a_obs_rule_is_active + p_a_obs_no_rules * (1-self.p_obey)
-            return np.log(p_action)
+            if p_a_obs_no_rules == p_a_obs_rule_is_active:
+                return np.log(p_a_obs_no_rules)
+            else:
+                # P(obedient action | rule = true) = (1 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
+                p_action = self.p_obey * p_a_obs_rule_is_active + p_a_obs_no_rules * (1-self.p_obey)
+                return np.log(p_action)
                         
