@@ -372,8 +372,14 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 # Compute the posterior of each rule
                 past_ts = self.history[-2][player_idx]
                 this_ts = self.history[-1][player_idx]
+                goal = past_ts.goal
+                s_past_ts = self.hash_ts(past_ts)
+                # get q values for active rules and as if there were no rules
+                q_vals_no_rules = self.all_bots[player_idx].V_wo_rule[goal][s_past_ts]
+                # get boltzmann distribution for both q value vectors
+                boltzmann_dis_no_rules = self.compute_boltzmann(q_vals_no_rules)
                 action = actions[player_idx]
-                self.compute_posterior(player_idx, action, this_ts, past_ts)
+                self.compute_posterior(player_idx, action, this_ts, past_ts, boltzmann_dis_no_rules)
 
         # print(self.rule_beliefs)
 
@@ -384,7 +390,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 self.riots.append(player_idx)
 
     def comp_oblig_llh(self, player_idx: int, rule: ObligationRule, action: int,
-                       this_ts: AgentTimestep, past_ts: AgentTimestep) -> float:
+                       this_ts: AgentTimestep, past_ts: AgentTimestep, boltzmann_dis_no_rules: list) -> float:
         
         """
         Params: 
@@ -394,14 +400,21 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             past_ts:    state of the environment beforehand
             this_ts:    last state of the environment
             """
-        q_vals_active_rules = self.all_bots[player_idx].V[this_ts.goal][self.hash_ts(this_ts)]
-        boltzmann_dis_active_rules = self.compute_boltzmann(q_vals_active_rules)
-        p_a_obs_active_rules = boltzmann_dis_active_rules[action]
+        p_a_obs_no_rules = boltzmann_dis_no_rules[action]
 
         # unpack appearance, observation, position of the player
         # player_look = self.player_looks[player_idx]
         player_history = [self.history[i][player_idx].observation for i in range(len(self.history))]
         this_obs = this_ts.observation
+        available = self.available_actions(past_ts.observation)
+
+        q_vals_rule_is_active = np.full(self.action_spec.num_values , -1.0)
+        for act in range(self.num_actions):
+            ts_next = self.env_step(past_ts, act, player_idx)
+            s_next = self.init_process_next_ts(ts_next, player_idx)
+            q_vals_rule_is_active[act], _  = self.get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
+        boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active)
+        p_a_rule_is_active = boltzmann_dis_rule_is_active[action]
 
         if rule.holds_in_history(player_history[:-1]):
             if rule not in self.nonself_active_obligations_count[player_idx].keys():
@@ -419,25 +432,21 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         if rule_is_active: # Obligation is active
             if self.could_be_satisfied(rule, past_ts, player_idx):
                 if rule.satisfied(this_obs): # Agent obeyed the obligation
-                    # strong version: P(obedient action | rule = true) = (1 * p_obey) + 1/n_actions * (1-p_obey)
-                    # weaker version: p_a_obs_active_rules * self.p_obey + (p_a_obs_active_rules / self.num_actions) * (1-self.p_obey)
-                    p_action = self.p_obey + (p_a_obs_active_rules / self.num_actions) * (1-self.p_obey)
-                    print(f'satisfied: {rule.make_str_repr()}')
+                    # P(obedient action | rule = true) = (1 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
+                    p_action = self.p_obey * p_a_rule_is_active + p_a_obs_no_rules * (1-self.p_obey)
                     return np.log(p_action)
                 else: # Agent disobeyed the obligation
-                    # P(disobedient action | rule = true) = (0 * p_obey) + p_action * (1-p_obey)  
-                    print(f'not satisfied: {rule.make_str_repr()}')
-                    p_action = p_a_obs_active_rules # * (1-self.p_obey)
+                    # P(disobedient action | rule = true) = (0 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
                     # note rule violationg
                     self.maybe_mark_riot(player_idx, rule)
-                    return np.log(p_action)
+                    return np.log(p_a_obs_no_rules * (1-self.p_obey))
             else: # Obligation can't be satisfied
-                return np.log(1 / self.num_actions)
+                return np.log(p_a_obs_no_rules)
         else: # Obligation is not active, or has expired
-            return np.log(1/ self.num_actions)
+            return np.log(p_a_obs_no_rules)
         
     def comp_prohib_llh(self, player_idx: int, rule: ProhibitionRule, action: int,
-                       this_ts: AgentTimestep, past_ts: AgentTimestep) -> float:
+                       this_ts: AgentTimestep, past_ts: AgentTimestep, boltzmann_dis_no_rules: list) -> float:
 
         """
         Params: 
@@ -457,21 +466,12 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         past_obs = past_ts.observation
         past_pos = past_obs['POSITION']
         this_obs = this_ts.observation
-        
-        goal = past_ts.goal
-        s_past_ts = self.hash_ts(past_ts)
 
         # get a list of prohibited actions according to the ongoing rule
         prohib_actions = self.get_prohib_action(past_obs, rule, past_pos)
         is_violation = True if action in prohib_actions else False
-
         available = [act for act in range(self.num_actions) if not act in prohib_actions]
-
-        # get q values for active rules and as if there were no rules
-        q_vals_no_rules = self.all_bots[player_idx].V_wo_rule[goal][s_past_ts]
-
-        # get boltzmann distribution for both q value vectors
-        boltzmann_dis_no_rules = self.compute_boltzmann(q_vals_no_rules)
+        
         q_vals_rule_is_active = np.full(self.action_spec.num_values , -1.0)
         for act in range(self.num_actions):
             ts_next = self.env_step(past_ts, act, player_idx)
@@ -487,21 +487,10 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         if rule.holds_precondition(this_obs) or rule.holds_precondition(this_obs) or is_violation:
             # P(disobedient action | rule = true) = 0 * p_action + p_action * (1-p_obey)  
             self.maybe_mark_riot(player_idx, rule)
-            return np.log(p_a_obs_no_rules / 12 * (1-self.p_obey))
-            # p_action = p_a_obs_active_rules * (1 - self.p_obey) 
-            return np.log(p_action)
+            return np.log(p_a_obs_no_rules * (1-self.p_obey))
 
         else:
-            return np.log(self.p_obey * p_a_obs_rule_is_active + (1 - self.p_obey) * p_a_obs_no_rules)
-
-            """if p_a_obs_active_rules != p_a_obs_no_rules: # if there is some rule going on 
-                # strong: P(obedient action | rule = true) = (1 * p_obey) + p_action / n_actions * (1-p_obey) 
-                # weaker: p_a_obs_active_rules * self.p_obey + (p_a_obs_active_rules / self.num_actions) * (1-self.p_obey)
-                if p_a_obs_active_rules == p_a_max_active_rules:
-                    p_action = self.p_obey + (p_a_obs_active_rules / self.num_actions) * (1-self.p_obey)
-                else:
-                    p_action = p_a_obs_active_rules * self.p_obey + (p_a_obs_active_rules / self.num_actions) * (1-self.p_obey)
-                return np.log(p_action)"""
-            
-        return np.log(1 / self.num_actions) # action not related to rule
-            
+            # P(obedient action | rule = true) = (1 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
+            p_action = self.p_obey * p_a_obs_rule_is_active + p_a_obs_no_rules * (1-self.p_obey)
+            return np.log(p_action)
+                        

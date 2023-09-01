@@ -112,33 +112,35 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         for player_idx in range(self.num_focal_agents):
             # Compute the posterior of each rule
             past_ts = self.history[-2][player_idx]
-            self.compute_posterior(player_idx, other_actions[player_idx], past_ts)
+            goal = past_ts.goal
+            s_past_ts = self.hash_ts(past_ts)
+            # get q values for active rules and as if there were no rules
+            q_vals_no_rules = self.all_bots[player_idx].V_wo_rule[goal][s_past_ts]
+            # get boltzmann distribution for both q value vectors
+            boltzmann_dis_no_rules = self.compute_boltzmann(q_vals_no_rules)
+            self.compute_posterior(player_idx, other_actions[player_idx], past_ts, boltzmann_dis_no_rules)
 
         # print(self.rule_beliefs)
 
-    def compute_posterior(self, player_idx, player_act, this_ts, past_ts) -> None:
+    def compute_posterior(self, player_idx, player_act, this_ts, past_ts, boltzmann_dis_no_rules) -> None:
         """Writes the posterior for a rule given an observation 
         and other agents' actions."""
 
         for rule_idx, rule in enumerate(self.potential_rules):
 
             # BAYESIAN UPDATING
-            # get q values for active rules and as if there were no rules
-            q_vals_no_rules = self.all_bots[player_idx].V_wo_rule[this_ts.goal][self.hash_ts(this_ts)]
-
             # get boltzmann distribution for both q value vectors
-            boltzmann_dis_no_rules = self.compute_boltzmann(q_vals_no_rules)
-            p_a_obs_no_rules = boltzmann_dis_no_rules[player_idx]
+            p_a_obs_no_rules = boltzmann_dis_no_rules[player_act]
             
             # P(r = 1)
             prior = self.rule_beliefs[rule_idx]
 
             # P(a | r = 1)
             if isinstance(rule, ProhibitionRule):
-                log_llh = self.comp_prohib_llh(player_idx, rule, player_act, this_ts, past_ts)
+                log_llh = self.comp_prohib_llh(player_idx, rule, player_act, this_ts, past_ts, boltzmann_dis_no_rules)
     
             elif isinstance(rule, ObligationRule):
-                log_llh = self.comp_oblig_llh(player_idx, rule, player_act, this_ts, past_ts)
+                log_llh = self.comp_oblig_llh(player_idx, rule, player_act, this_ts, past_ts, boltzmann_dis_no_rules)
                         
             log_prior = np.log(prior)
             # P(a) = P(a | r = 1) P(r = 1) + P(a | r = 0) P(r = 0)
