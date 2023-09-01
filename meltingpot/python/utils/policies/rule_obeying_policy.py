@@ -322,7 +322,7 @@ class RuleObeyingPolicy(policy.Policy):
     if not self.exceeds_map(x, y):
       return self.update_observation(obs, x, y)
     else: 
-      obs['NUM_APPLES_AROUND'] = 5
+      obs['NUM_APPLES_AROUND'] = 0
       obs['CUR_CELL_HAS_APPLE'] = False
       obs['AGENT_HAS_STOLEN'] = False
       obs['CUR_CELL_IS_FOREIGN_PROPERTY'] = False
@@ -330,11 +330,12 @@ class RuleObeyingPolicy(policy.Policy):
 
   def update_observation(self, obs, x, y) -> dict:
     """Updates the observation with requested information."""
-    obs['NUM_APPLES_AROUND'] = self.get_apples(obs, x, y)
-    obs['CUR_CELL_HAS_APPLE'] = True if obs['SURROUNDINGS'][x][y] == -1 else False
-    lua_idx = obs['PY_INDEX']+1
-    self.make_territory_observation(obs, x, y, lua_idx)
-    return obs
+    new_obs = self.custom_deepcopy(obs)
+    new_obs['NUM_APPLES_AROUND'] = self.get_apples(new_obs, x, y)
+    new_obs['CUR_CELL_HAS_APPLE'] = True if new_obs['SURROUNDINGS'][x][y] == -1 else False
+    lua_idx = new_obs['PY_INDEX']+1
+    new_obs = self.make_territory_observation(new_obs, x, y, lua_idx)
+    return new_obs
   
   def update_last_actions(self, obs: dict, action: int) -> None:
     """Updates the "last done x" section"""
@@ -671,11 +672,11 @@ class RuleObeyingPolicy(policy.Policy):
     v_func = self.all_bots[idx].V[goal]
 
     if hash in v_func.keys():
-      # if self.log_output:
-      print()
-      print(f'ROLE: {self.role}')
-      print(f'position: {ts_cur.observation["POSITION"]}, orientation: {ts_cur.observation["ORIENTATION"]}, key: {hash}')
-      print(v_func[hash])
+      if self.log_output:
+        print()
+        print(f'ROLE: {self.role}')
+        print(f'position: {ts_cur.observation["POSITION"]}, orientation: {ts_cur.observation["ORIENTATION"]}, key: {hash}')
+        print(v_func[hash])
       next_act = self.get_boltzmann_act(v_func[hash], temp=temp)
       return next_act
 
@@ -1048,16 +1049,19 @@ class RuleObeyingPolicy(policy.Policy):
       CUR_CELL_IS_FOREIGN_PROPERTY: True if current cell does not
           belong to current agent.
     """
-    property_idx = int(observation['PROPERTY'][x][y])
-    observation['AGENT_HAS_STOLEN'] = True
+    new_obs = self.custom_deepcopy(observation)
+    property_idx = int(new_obs['PROPERTY'][x][y])
+    new_obs['AGENT_HAS_STOLEN'] = True
 
-    if lua_idx == 0 or property_idx == lua_idx:
-      observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = False
+    if property_idx == 0 or property_idx == lua_idx:
+      new_obs['CUR_CELL_IS_FOREIGN_PROPERTY'] = False
 
     else:
-      observation['CUR_CELL_IS_FOREIGN_PROPERTY'] = True
-      if observation['STOLEN_RECORDS'][lua_idx-1] != 1:
-        observation['AGENT_HAS_STOLEN'] = False
+      new_obs['CUR_CELL_IS_FOREIGN_PROPERTY'] = True
+      if new_obs['STOLEN_RECORDS'][lua_idx-1] != 1:
+        new_obs['AGENT_HAS_STOLEN'] = False
+
+    return new_obs
 
   def is_water(self, observation, pos):
     x, y = pos[0], pos[1]
