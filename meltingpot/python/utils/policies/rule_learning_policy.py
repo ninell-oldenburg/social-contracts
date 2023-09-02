@@ -215,12 +215,12 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             p_action = 1/(self.num_actions-num_prohib_acts)
             return np.log(p_action)
         
-    def get_prohib_action(self, observation, rule, cur_pos):
+    def get_prohib_action(self, observation, rule, cur_pos, idx):
         prohib_acts = []
         obs = self.custom_deepcopy(observation)
 
         for action in range(self.action_spec.num_values):
-            x, y = self.update_coordinates_by_action(action, 
+            x, y = self.all_bots[idx].update_coordinates_by_action(action, 
                                                      cur_pos,
                                                      obs)
 
@@ -232,8 +232,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                 prohib_acts.append(action)
                 continue
 
-            new_obs = super().update_observation(obs, x, y)
-            action_name = super().get_action_name(action)
+            new_obs = self.all_bots[idx].update_observation(obs, x, y)
+            action_name = self.get_action_name(action)
             if rule.holds(new_obs, action_name):
                 prohib_acts.append(action)
                 continue

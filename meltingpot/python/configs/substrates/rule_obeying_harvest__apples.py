@@ -99,34 +99,6 @@ WD---------WD---------W
 WWWWWWWWWWWWWWWWWWWWWWW
 """
 
-ASCII_MAP = """
-WWWWWWWWWWWWWWWWWWWWWWW
-WFHFHFHFHFHFHFHHFHFFHFW
-WFHFHFHFHFHFHFHHFHFFHFW
-W========+~FHHHHHHf===W
-W   P     ===+~SSf    W
-W      P     <~Sf  P  W
-W          P <~S>     W
-WT^TT^T^T^T^T;~S^T^T^TW
-W___________A_________W
-W____Q_____AAA________W
-W_________AAAAA_______W
-W__________AAA________W
-W___________A_________W
-W_____A____Q_____A____W
-W____AAA________AAA___W
-W___AAAAA______AAAAA__W
-W____AAA________AAA___W
-W_____A__________A____W
-W__GGGGGGGGGGGGGGGGG__W
-WGGGGGGGGGGGGGGGGGGGGGW
-WWWWWWWWWWWWWWWWWWWWWWW
-WD---------WD---------W
-WWWWWWWWWWWWWWWWWWWWWWW
-WD---------WD---------W
-WWWWWWWWWWWWWWWWWWWWWWW
-"""
-
 x_size = ASCII_MAP.find('\n', 1) -2
 y_size = ASCII_MAP.count('\n') -2
 MAP_SIZE = (x_size, y_size) # lua is i-indexed

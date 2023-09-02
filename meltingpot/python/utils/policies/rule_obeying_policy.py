@@ -888,11 +888,14 @@ class RuleObeyingPolicy(policy.Policy):
   def get_cur_obj_pos(self, surroundings: np.array, object_idx: int) -> list:
     return list(zip(*np.where(surroundings== object_idx)))
   
-  def compute_boltzmann(self, q_values: list):
+  def compute_boltzmann(self, q_values: list, tau=None):
+
+    if tau == None:
+      tau = self.tau
 
     mean_q_value = np.mean(q_values)
     transform_q_values = (q_values - mean_q_value) / np.std(q_values)
-    probs = np.exp(transform_q_values / self.tau)
+    probs = np.exp(transform_q_values / tau)
     probs /= probs.sum() # normalized
     
     # Check and handle NaN values
