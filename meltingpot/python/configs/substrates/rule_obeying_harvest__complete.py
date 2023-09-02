@@ -80,16 +80,16 @@ W   P     ===+~SSf    W
 W      P     <~Sf  P  W
 W          P <~S>     W
 WT^TT^T^T^T^T;~S^T^T^TW
-W___________A_________W
-W____Q_____AAA________W
-W_________AAAAA_______W
-W__________AAA________W
-W___________A_________W
-W_____A____Q_____A____W
-W____AAA________AAA___W
-W___AAAAA______AAAAA__W
-W____AAA________AAA___W
-W_____A__________A____W
+W__________A__________W
+W____Q____AAA_________W
+W________AAAAA____Q___W
+W_________AAA_________W
+W__________A__________W
+W_____A_________A_____W
+W____AAA___Q___AAA____W
+W___AAAAA_____AAAAA___W
+W____AAA_______AAA____W
+W_____A_________A_____W
 W__GGGGGGGGGGGGGGGGG__W
 WGGGGGGGGGGGGGGGGGGGGGW
 WWWWWWWWWWWWWWWWWWWWWWW
