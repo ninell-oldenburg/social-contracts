@@ -412,6 +412,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             past_ts:    state of the environment beforehand
             this_ts:    last state of the environment
             """
+        
         p_a_obs_no_rules = boltzmann_dis_no_rules[action]
 
         # unpack appearance, observation, position of the player
@@ -441,15 +442,26 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         rule_active_count = self.nonself_active_obligations_count[player_idx].get(rule, float('inf'))
         rule_is_active = rule_active_count <= self.max_obligation_depth
 
+        if "obs['AGENT_LOOK'] == 2" in rule.make_str_repr():
+            print()
+            print(f'rule active count for farmer: {rule_active_count}')
+            print(f'rule is active: {rule_is_active}')
+
         if rule_is_active: # Obligation is active
             if self.could_be_satisfied(rule, past_ts, player_idx):
+                if "obs['AGENT_LOOK'] == 2" in rule.make_str_repr():
+                    print('could_be_satisfied')
                 if rule.satisfied(this_obs): # Agent obeyed the obligation
                     # P(obedient action | rule = true) = (1 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
                     p_action = self.p_obey * p_a_rule_is_active + p_a_obs_no_rules * (1-self.p_obey)
+                    if "obs['AGENT_LOOK'] == 2" in rule.make_str_repr():
+                        print('satisfied')
                     return np.log(p_action)
                 else: # Agent disobeyed the obligation
                     # P(disobedient action | rule = true) = (0 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
                     # note rule violationg
+                    if "obs['AGENT_LOOK'] == 2" in rule.make_str_repr():
+                        print('not satisfied')
                     self.maybe_mark_riot(player_idx, rule)
                     return np.log(p_a_obs_no_rules * (1-self.p_obey))
             else: # Obligation can't be satisfied

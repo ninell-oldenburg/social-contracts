@@ -280,6 +280,7 @@ class RuleObeyingPolicy(policy.Policy):
       self.update_surroundings(new_pos, ts.observation, idx)
     ts.observation['RIOTS'] = self.update_riots(actions, ts.observation)
     self.set_interpolation_and_dirt_fraction(ts.observation)
+    ts.observation['DIRT_FRACTION'] = self.dirt_fraction
 
     return ts
   
@@ -391,7 +392,7 @@ class RuleObeyingPolicy(policy.Policy):
     obs['SINCE_AGENT_LAST_PAYED'] = self.last_payed
 
   def hit_dirt(self, obs, x, y) -> bool:
-    for i in range(x-2, x+2):
+    for i in range(x-2, x+3):
       for j in range(y-2, y):
         if not self.exceeds_map(i, j):
           if obs['SURROUNDINGS'][i][j] == -3:
@@ -601,13 +602,13 @@ class RuleObeyingPolicy(policy.Policy):
     orientation = observation['ORIENTATION']
     own_pos = observation['POSITION']
 
-    if payee_pos[0] > own_pos[0] and orientation == 1:
+    if payee_pos[0] >= own_pos[0] and orientation == 1:
       return True
-    if payee_pos[1] > own_pos[1] and orientation == 2:
+    if payee_pos[1] >= own_pos[1] and orientation == 2:
       return True
-    if own_pos[0] > payee_pos[0] and orientation == 3:
+    if own_pos[0] >= payee_pos[0] and orientation == 3:
       return True
-    if own_pos[1] > payee_pos[1] and orientation == 0:
+    if own_pos[1] >= payee_pos[1] and orientation == 0:
       return True
 
     return False

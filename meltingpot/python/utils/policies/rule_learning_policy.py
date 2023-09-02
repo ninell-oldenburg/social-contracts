@@ -253,7 +253,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
     def could_be_satisfied(self, rule, past_timestep, idx):
         """Returns True is an obligation could be satisfied."""
         for action in range(self.action_spec.num_values):
-            next_timestep = super().env_step(past_timestep, action, idx)
+            next_timestep = self.all_bots[idx].env_step(past_timestep, action, idx)
             try:
                 if rule.satisfied(next_timestep.observation):
                     return True

@@ -6,14 +6,14 @@ from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, Obligati
 ################## OBLIGATIONS ################## 
 #################################################
 """
-cleaning_precon_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] > 30 and obs['AGENT_LOOK'] == 0"
-cleaning_goal_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] < 30"
+cleaning_precon_free_30 = "obs['DIRT_FRACTION'] > 0.5 and obs['AGENT_LOOK'] == 0"
+cleaning_goal_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
 
-payment_precon_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] > 20 and obs['AGENT_LOOK'] == 2"
-payment_goal_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] < 20"
+payment_precon_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] > 15 and obs['AGENT_LOOK'] == 2"
+payment_goal_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] < 15"
 
-cleaning_precon_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 10 and obs['AGENT_LOOK'] == 1"
-cleaning_goal_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] < 10"
+cleaning_precon_cleaner_5 = "obs['DIRT_FRACTION'] > 0.45 and obs['AGENT_LOOK'] == 1"
+cleaning_goal_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
 
 zap_precondition = "len(obs['RIOTS']) > 0"
 zap_goal = "len(obs['RIOTS']) == 0"
@@ -67,12 +67,12 @@ TERRITORY_RULES = [
 ################## OBLIGATIONS ################## 
 #################################################
 """
-cleaning_precon_free_5 = "obs['SINCE_AGENT_LAST_CLEANED'] > 5 and obs['AGENT_LOOK'] == 0"
-cleaning_goal_free_5 = "obs['SINCE_AGENT_LAST_CLEANED'] < 5"
-cleaning_precon_free_10 = "obs['SINCE_AGENT_LAST_CLEANED'] > 10 and obs['AGENT_LOOK'] == 0"
-cleaning_goal_free_10 = "obs['SINCE_AGENT_LAST_CLEANED'] < 10"
-cleaning_precon_free_15 = "obs['SINCE_AGENT_LAST_CLEANED'] > 15 and obs['AGENT_LOOK'] == 0"
-cleaning_goal_free_15 = "obs['SINCE_AGENT_LAST_CLEANED'] < 15"
+cleaning_precon_free_5 = "obs['DIRT_FRACTION'] > 0.55 and obs['AGENT_LOOK'] == 0"
+cleaning_goal_free_5 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
+cleaning_precon_free_10 = "obs['DIRT_FRACTION'] > 0.6 and obs['AGENT_LOOK'] == 0"
+cleaning_goal_free_10 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
+cleaning_precon_free_15 = "obs['DIRT_FRACTION'] > 0.65 and obs['AGENT_LOOK'] == 0"
+cleaning_goal_free_15 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
 
 payment_precon_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] > 5 and obs['AGENT_LOOK'] == 2"
 payment_goal_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] < 5"
@@ -81,12 +81,12 @@ payment_goal_farmer_10 = "obs['SINCE_AGENT_LAST_PAYED'] < 10"
 payment_precon_farmer_30 = "obs['SINCE_AGENT_LAST_PAYED'] > 30 and obs['AGENT_LOOK'] == 2"
 payment_goal_farmer_30 = "obs['SINCE_AGENT_LAST_PAYED'] < 30"
 
-cleaning_precon_cleaner_10 = "obs['SINCE_AGENT_LAST_CLEANED'] > 10 and obs['AGENT_LOOK'] == 3"
-cleaning_goal_cleaner_10 = "obs['SINCE_AGENT_LAST_CLEANED'] < 10"
-cleaning_precon_cleaner_15 = "obs['SINCE_AGENT_LAST_CLEANED'] > 15 and obs['AGENT_LOOK'] == 3"
-cleaning_goal_cleaner_15 = "obs['SINCE_AGENT_LAST_CLEANED'] < 15"
-cleaning_precon_cleaner_30 = "obs['SINCE_AGENT_LAST_CLEANED'] > 30 and obs['AGENT_LOOK'] == 3"
-cleaning_goal_cleaner_30 = "obs['SINCE_AGENT_LAST_CLEANED'] < 30"
+cleaning_precon_cleaner_10 = "obs['DIRT_FRACTION'] > 0.4 and obs['AGENT_LOOK'] == 1"
+cleaning_goal_cleaner_10 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
+cleaning_precon_cleaner_15 = "obs['DIRT_FRACTION'] > 0.5 and obs['AGENT_LOOK'] == 1"
+cleaning_goal_cleaner_15 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
+cleaning_precon_cleaner_30 = "obs['DIRT_FRACTION'] > 0.55 and obs['AGENT_LOOK'] == 1"
+cleaning_goal_cleaner_30 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
 
 POTENTIAL_OBLIGATIONS = [
    # clean the water if less than 1 agent is cleaning
