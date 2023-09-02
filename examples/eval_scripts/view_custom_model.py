@@ -174,14 +174,14 @@ def main(roles,
     for i, bot in enumerate(bots):
       if len(bot.history) > 1:
         if passive_learning:
-          if INT_TO_ROLE[bot.role] == 'learner':
+          if bot.role == 'learner':
             bot.update_beliefs(last_actions)
             bot.obligations, bot.prohibitions = bot.threshold_rules()
         else:
           bot.update_beliefs(last_actions)
           bot.obligations, bot.prohibitions = bot.threshold_rules()
     
-    dead_apple_ratio = bots[-1].history[-1][len(bots)-1].observation['DEAD_APPLE_RATIO'] # same for every player
+    dead_apple_ratio = bots[-1].history[-1][-1].observation['DEAD_APPLE_RATIO'] # same for every player
     cur_beliefs = bots[-1].rule_beliefs
             
     if log_output:
@@ -190,12 +190,12 @@ def main(roles,
     timestep = env.step(actions)
     # actions = update(actions)
 
-    data_dict = append_to_dict(data_dict, 
-                               timestep.reward, 
-                               cur_beliefs, 
-                               roles, 
-                               actions,
-                               dead_apple_ratio)
+    data_dict = append_to_dict(data_dict=data_dict, 
+                               reward_arr=timestep.reward, 
+                               beliefs=cur_beliefs, 
+                               all_roles=roles, 
+                               actions=actions,
+                               dead_apple_ratio=dead_apple_ratio)
 
     # Saving files in superdircetory
     filename = '../videos/screen_%04d.png' % (k)
@@ -281,6 +281,7 @@ def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dea
         if key == 'free' and all_roles.count(key) == 2:
           j1 = get_index(key, all_roles, skip_first=True)
           data_dict['learner'].append(reward_arr[j1].item())    
+          data_dict['free'].append(reward_arr[j].item())
         else:
           data_dict[key].append(reward_arr[j].item())
       else: 
@@ -297,7 +298,7 @@ def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dea
       data_dict[key].append(dead_apple_ratio)
 
     else: # beliefs
-      if len(beliefs) > i-9: # check if there are learner beliefs
+      if len(beliefs) > i-9: # check if there are learner beliefs (in baseline there aren't)
         data_dict[key].append(beliefs[i-9]) # get beliefs (start at indec 0)
       else: data_dict[key].append(0)
 
