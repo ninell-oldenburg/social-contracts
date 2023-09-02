@@ -33,7 +33,7 @@ from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, Obligati
 from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
 from meltingpot.python.utils.policies.lambda_rules import CLEANING_RULES, PICK_APPLE_RULES, TERRITORY_RULES
-from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT
+from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT, INT_TO_ROLE, ROLE_TO_INT
 
 # from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 from meltingpot.python.utils.policies.rule_adjusting_policy import RuleAdjustingPolicy
@@ -78,7 +78,7 @@ def main(roles,
                                     log_output=log_output,
                                     log_rule_prob_output=False,
                                     log_weights=log_weights,
-                                    look=ROLE_SPRITE_DICT[role],
+                                    look=ROLE_TO_INT[role],
                                     role=role, 
                                     num_players=num_bots,
                                     potential_prohibitions=DEFAULT_PROHIBITIONS,
@@ -367,40 +367,46 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 1
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 1
   episodes = 200
   # Possible values for tau and gamma you want to test
-  # taus = [0.0, 0.1, 0.5, 1.0, 1.5]
-  # gammas = [0.9, 0.99, 0.999, 0.9999, 0.99999]
-  num_runs = 1
+  """taus = [0.0, 0.1, 0.2, 0.3]
+  gammas = [0.99999]
+  num_runs = 10
+  counter = 1
   
   # Initialize results
-  # results = {(gamma, tau): {'cleaner': 0, 'farmer': 0, 'free': 0} for gamma in gammas for tau in taus}
+  results = {(gamma, tau): {'cleaner': 0, 'farmer': 0, 'free': 0} for gamma in gammas for tau in taus}
   
   for run in range(num_runs):
-      """ print(f"Run number: {run+1}")
+      print(f"Run number: {run+1}")
       for gamma in gammas:
-        for tau in taus:"""
-    
-      settings, data_dict = main(roles=roles,
-                                rules=DEFAULT_RULES,
-                                env_seed=1,
-                                episodes=episodes,
-                                num_iteration=1,
-                                create_video=True,
-                                log_output=False,
-                                log_weights=False,
-                                save_csv=False,
-                                plot_q_vals=False,
-                                gamma=0.9999,
-                                tau=1.0,
-                                passive_learning=True,
-                                stochastic_act_selection=False,
-                                )
+        for tau in taus:
 
-      """results[(gamma, tau)]['cleaner'] += sum(data_dict['cleaner'])
-      results[(gamma, tau)]['farmer'] += sum(data_dict['farmer'])
-      results[(gamma, tau)]['free'] += sum(data_dict['free'])
+          print()
+          print(f'RUN NUMBER {counter}')
+
+          counter += 1"""
+    
+  settings, data_dict = main(roles=roles,
+                                    rules=DEFAULT_RULES,
+                                    env_seed=1,
+                                    episodes=episodes,
+                                    num_iteration=1,
+                                    create_video=False,
+                                    log_output=False,
+                                    log_weights=False,
+                                    save_csv=False,
+                                    plot_q_vals=False,
+                                    gamma=0.9999,
+                                    tau=0.1,
+                                    passive_learning=True,
+                                    stochastic_act_selection=False,
+                                    )
+
+  """results[(gamma, tau)]['cleaner'] += sum(data_dict['cleaner'])
+      #results[(gamma, tau)]['farmer'] += sum(data_dict['farmer'])
+      #results[(gamma, tau)]['free'] += sum(data_dict['free'])
 
   # Calculate averages
   for (gamma, tau), scores in results.items():
@@ -412,8 +418,8 @@ if __name__ == "__main__":
   for (gamma, tau), scores in results.items():
       print(f"For gamma={gamma}:")
       print(f"cleaner: {scores['cleaner']:.2f}, farmer: {scores['farmer']:.2f}, free: {scores['free']:.2f}")
-      print()"""
-
+      print()
+"""
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
   print(sum(data_dict['free']))

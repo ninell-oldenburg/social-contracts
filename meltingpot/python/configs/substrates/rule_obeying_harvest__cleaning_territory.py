@@ -67,7 +67,7 @@ from meltingpot.python.utils.substrates import colors
 from meltingpot.python.utils.substrates import game_object_utils
 from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.substrates import specs
-from meltingpot.python.utils.policies.rule_adjusting_policy import ROLE_SPRITE_DICT, APPLE_RESPAWN_RADIUS, REGROWTH_PROBABILITIES, OBSERVATION_RADIUS, REMOVE_HIT_PLAYER, PENALTY_FOR_BEING_ZAPPED, THRESHOLD_APPLE_DEPLETION, THRESHOLD_APPLE_RESTAURATION
+from meltingpot.python.utils.policies.rule_adjusting_policy import ROLE_SPRITE_DICT, APPLE_RESPAWN_RADIUS, REGROWTH_PROBABILITIES, OBSERVATION_RADIUS, REMOVE_HIT_PLAYER, PENALTY_FOR_BEING_ZAPPED, THRESHOLD_APPLE_DEPLETION, THRESHOLD_APPLE_RESTAURATION, INT_TO_ROLE, ROLE_TO_INT
 
 PrefabConfig = game_object_utils.PrefabConfig
 

@@ -9,6 +9,20 @@ ROLE_SPRITE_DICT = {
    'learner': shapes.CUTE_AVATAR,
    }
 
+INT_TO_ROLE = {
+    0: 'free',
+    1: 'cleaner',
+    2: 'farmer',
+    3: 'learner'
+}
+
+ROLE_TO_INT = {
+    'free': 0,
+    'cleaner': 1,
+    'farmer': 2,
+    'learner': 3
+}
+
 class EnvironmentRule():
     def __init__(self, precondition):
         """Creates a new rule.

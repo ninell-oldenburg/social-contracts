@@ -678,6 +678,7 @@ class RuleObeyingPolicy(policy.Policy):
         print(f'ROLE: {self.role}')
         print(f'position: {ts_cur.observation["POSITION"]}, orientation: {ts_cur.observation["ORIENTATION"]}, key: {hash}')
         print(v_func[hash])
+
       next_act = self.get_boltzmann_act(v_func[hash], temp=temp)
       return next_act
 
@@ -780,6 +781,10 @@ class RuleObeyingPolicy(policy.Policy):
 
         reward = r_cur_apples + r_eat_apple + r_fut_apples + r_inv_apple
 
+        #print()
+        #print(f'POSITION: {pos}')
+        #print(f"len cur_apples: {len(pos_cur_apples)}, reward: {reward}, r_cur_apples: {r_cur_apples}, r_eat_apple: {r_eat_apple}, r_fut_apples: {r_fut_apples}, r_inv_apple: {r_inv_apple}")
+
         if self.log_weights:
           print(f"len cur_apples: {len(pos_cur_apples)}, reward: {reward}, r_cur_apples: {r_cur_apples}, r_eat_apple: {r_eat_apple}, r_fut_apples: {r_fut_apples}, r_inv_apple: {r_inv_apple}")
 
@@ -828,7 +833,7 @@ class RuleObeyingPolicy(policy.Policy):
         reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
       
         for i in range(n_steps_to_reward): # Negative reward 
-          reward -= self.default_action_cost * respawn_rate * self.gamma**i
+          reward -= self.default_action_cost * self.gamma**i
 
     return reward
   
@@ -882,7 +887,7 @@ class RuleObeyingPolicy(policy.Policy):
     
     # Check and handle NaN values
     if np.any(np.isnan(probs)):
-        print("Warning: NaN values detected in probabilities. Using uniform distribution.")
+        #print("Warning: NaN values detected in probabilities. Using uniform distribution.")
         probs = np.ones_like(q_values) / len(q_values)
 
     return probs

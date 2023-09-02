@@ -38,17 +38,17 @@ DEFAULT_GAMMA = 0.999999
 DEFAULT_MAX_DEPTH = 20
 
 # AGENT CLASS
-DEFAULT_COMPLIANCE_COST = 0.001
-DEFAULT_ACTION_COST = 0.001
+DEFAULT_COMPLIANCE_COST = 1-DEFAULT_GAMMA
+DEFAULT_ACTION_COST = 1-DEFAULT_GAMMA
 DEFAULT_VIOLATION_COST = 0.5
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
 DEFAULT_COLLECT_APPLE_REWARD = 0.9
 DEFAULT_SELECTION_MODE = "threshold"
-DEFAULT_THRESHOLD = 0.5
+DEFAULT_THRESHOLD = 0.8
 DEFAULT_INIT_PRIOR = 0.2
-DEFAULT_P_OBEY = 0.99
-DEFAULT_OBLIGATION_DEPTH = 25
+DEFAULT_P_OBEY = 0.99999
+DEFAULT_OBLIGATION_DEPTH = 20
 
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
@@ -56,6 +56,20 @@ ROLE_SPRITE_DICT = {
    'farmer': shapes.CUTE_AVATAR_W_FARMER_HAT,
    'learner': shapes.CUTE_AVATAR,
    }
+
+INT_TO_ROLE = {
+    0: 'free',
+    1: 'cleaner',
+    2: 'farmer',
+    3: 'learner'
+}
+
+ROLE_TO_INT = {
+    'free': 0,
+    'cleaner': 1,
+    'farmer': 2,
+    'learner': 3
+}
 
 class RuleAdjustingPolicy(RuleLearningPolicy):
 
@@ -128,7 +142,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.apple_reward = apple_reward
         self.collect_apple_reward = collect_apple_reward
         self.max_depth = max_depth
-        self.default_action_cost = default_action_cost
+        self.default_action_cost = 1 - gamma
         self.init_prior = init_prior
         self.p_obey = p_obey
         self.is_learner = is_learner
@@ -339,7 +353,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         self.last_inventory = ts_cur.observation["INVENTORY"]
 
-        return self.get_act(ts_cur, self.py_index, temp=0)
+        return self.get_act(ts_cur, self.py_index, temp=0.0)
     
     def append_to_history(self, timestep_list: list) -> None:
         """Apoends a list of timesteps to the agent's history"""
@@ -467,7 +481,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # get a list of prohibited actions according to the ongoing rule
         prohib_actions = self.get_prohib_action(past_obs, rule, past_pos)
-        # is_violation = True if action in prohib_actions else False
+        is_violation = True if action in prohib_actions else False
         available = [act for act in range(self.num_actions) if not act in prohib_actions]
         
         q_vals_rule_is_active = np.full(self.action_spec.num_values , -1.0)
@@ -479,19 +493,21 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # get probabilities for observed action according to those distributions
         p_a_obs_no_rules = boltzmann_dis_no_rules[action]
+        max_a_obs_no_rules = np.argmax(boltzmann_dis_no_rules)
         p_a_obs_rule_is_active = boltzmann_dis_rule_is_active[action]
+        max_a_obs_rule_is_active = np.argmax(boltzmann_dis_rule_is_active)
 
-        #if is_violation or rule.holds_precondition(this_obs): # even factoring it all out says: always discount a violation
-        if rule.holds_precondition(this_obs): #or rule.holds_precondition(this_obs): #or is_violation:
+        # always discount a violation
+        if rule.holds_precondition(this_obs) or rule.holds_precondition(past_obs) or is_violation:
             # P(disobedient action | rule = true) = 0 * p_action + p_action * (1-p_obey)  
             self.maybe_mark_riot(player_idx, rule)
             return np.log(p_a_obs_no_rules * (1-self.p_obey))
 
         else:
-            if p_a_obs_no_rules == p_a_obs_rule_is_active:
-                return np.log(p_a_obs_no_rules)
-            else:
+            if max_a_obs_rule_is_active != max_a_obs_no_rules:
                 # P(obedient action | rule = true) = (1 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
-                p_action = self.p_obey * p_a_obs_rule_is_active + p_a_obs_no_rules * (1-self.p_obey)
+                p_action = self.p_obey * p_a_obs_rule_is_active + (1-self.p_obey) * p_a_obs_no_rules
                 return np.log(p_action)
+            else:
+                return np.log(p_a_obs_no_rules)
                         
