@@ -62,7 +62,7 @@ INT_TO_ROLE = {
     0: 'free',
     1: 'cleaner',
     2: 'farmer',
-    3: 'learner'
+    3: 'free'
 }
 
 ROLE_TO_INT = {
@@ -322,7 +322,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         if ts_cur.step_type == dm_env.StepType.FIRST:
             self.pos_all_possible_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -1)))
             self.pos_all_possible_dirt = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
-            if INT_TO_ROLE[self.role] == 'farmer':
+            if self.role == 'farmer':
                 if not type(ts_cur.observation['ALWAYS_PAYING_TO']) == np.int32:
                     self.payees = [i+1 for i, agent_one_hot in enumerate(ts_cur.observation['ALWAYS_PAYING_TO']) if agent_one_hot == 1]
                 else:

@@ -45,7 +45,7 @@ plt.show()"""
 generator = RuleGenerator()
 POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_length(3)
 
-DEFAULT_ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1 + ('free',) * 1
+DEFAULT_ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1 + ('learner',) * 1
 BASELINE_ROLES = ('free',) * 1 + ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1
 
 baseline_roles = ['free', 'cleaner', 'farmer', 'free']
@@ -97,8 +97,8 @@ for k in range(stats_relevance):
                                       log_weights=False,
                                       save_csv=False,
                                       plot_q_vals=False,
-                                      gamma=0.999,
-                                      tau=1.5,
+                                      gamma=0.99999,
+                                      tau=0.1,
                                       )
       print(cur_result)
       print()
@@ -129,8 +129,8 @@ for k in range(stats_relevance):
                                       log_weights=False,
                                       save_csv=False,
                                       plot_q_vals=False,
-                                      gamma=0.999,
-                                      tau=1.5,
+                                      gamma=0.99999,
+                                      tau=0.1,
                                       )
       cur_df = pd.DataFrame.from_dict(cur_result)
       path = f'examples/results/test/scenario{i+1}/trial{k+1}.csv'

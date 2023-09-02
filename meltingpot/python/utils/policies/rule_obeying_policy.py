@@ -373,7 +373,7 @@ class RuleObeyingPolicy(policy.Policy):
             self.last_cleaned = 0
 
       elif action == 11:
-        if INT_TO_ROLE[self.role] == "farmer": # other roles don't pay
+        if self.role == "farmer": # other roles don't pay
           if self.last_inventory > 0:
               if not self.payees == None:
                 for payee in self.payees:
@@ -463,7 +463,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       # 2. Simulate changes to observation based on action
       if action <= 4: # MOVE ACTIONS
-        if action == 0 and INT_TO_ROLE[self.role] == 'cleaner':
+        if action == 0 and self.role == 'cleaner':
           # make the cleaner wait for it's paying farmer
           observation['TIME_TO_GET_PAYED'] = 0
         new_pos = cur_pos + self.action_to_pos[orientation][action]
@@ -533,7 +533,7 @@ class RuleObeyingPolicy(policy.Policy):
   def compute_clean(self, observation, x, y):
     last_cleaned_time = observation['SINCE_AGENT_LAST_CLEANED']
     num_cleaners = observation['TOTAL_NUM_CLEANERS']
-    if not INT_TO_ROLE[self.role] == 'farmer':
+    if not self.role == 'farmer':
       # if facing north and is at water
       if not self.exceeds_map(x, y):
         #if not self.is_water_in_front(observation, x, y):
@@ -566,7 +566,7 @@ class RuleObeyingPolicy(policy.Policy):
         reward = 1
         cur_inventory -= 1 # eat
       if action_name == "PAY_ACTION":
-        if INT_TO_ROLE[self.role] == "farmer": # other roles don't pay
+        if self.role == "farmer": # other roles don't pay
           if not self.payees == None:
             for payee in self.payees:
               if self.is_close_to_agent(observation, payee):
@@ -685,7 +685,7 @@ class RuleObeyingPolicy(policy.Policy):
     if hash in v_func.keys():
       if self.log_output:
         print()
-        print(f'ROLE: {INT_TO_ROLE[self.role]}')
+        print(f'ROLE: {self.role}')
         print(f'position: {ts_cur.observation["POSITION"]}, orientation: {ts_cur.observation["ORIENTATION"]}, key: {hash}')
         print(v_func[hash])
 

@@ -3,9 +3,9 @@ import numpy as np
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 
 DEFAULT_LOOKS = [
-    "''.join(ROLE_SPRITE_DICT['farmer']).encode('utf-8')",
-    "''.join(ROLE_SPRITE_DICT['free']).encode('utf-8')",
-    "''.join(ROLE_SPRITE_DICT['cleaner']).encode('utf-8')"
+    "0",
+    "1",
+    "2"
 ]
 
 DEFAULT_FEATURES = {
@@ -18,7 +18,7 @@ DEFAULT_FEATURES = {
     "discrete": {
         # 'KEY': (compare_condition, values, goal_condition)
         # "TOTAL_NUM_CLEANERS": ('<', [1, 2, 3, 4, 5], '>'),
-        "SINCE_AGENT_LAST_CLEANED": ('>', list(np.arange(0,51,5)), '== 0'),
+        "DIRT_FRACTION": ('>', list(np.arange(0,0.7,0.1)), '== 0'),
         "SINCE_AGENT_LAST_PAYED": ('>', list(np.arange(0,51,5)), '== 0'),
         "RIOTS": ("len(obs['RIOTS']) >= 1", None, "len(obs['RIOTS']) == 0"),
         "NUM_APPLES_AROUND": ('<', [0, 1, 2, 3, 4, 5, 6, 7, 8], '>'),
