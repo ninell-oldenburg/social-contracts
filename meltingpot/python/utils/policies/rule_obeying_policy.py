@@ -29,6 +29,7 @@ from meltingpot.python.utils.policies import policy
 from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.policies.agent_timestep import AgentTimestep
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
+from meltingpot.python.utils.policies.ast_rules import INT_TO_ROLE, ROLE_TO_INT, ROLE_SPRITE_DICT
 
 @dataclass(order=True)
 class PrioritizedItem:
@@ -253,6 +254,13 @@ class RuleObeyingPolicy(policy.Policy):
       return True
     return False
   
+  def surface_feature_to_int(self, surface_feature: str):
+      for role_str, _ in ROLE_SPRITE_DICT.items():
+          sprite_str = ''.join(ROLE_SPRITE_DICT[role_str]).encode('utf-8')
+          if surface_feature == sprite_str:  # Assuming the list contains unique items
+              return ROLE_TO_INT[role_str]
+      return None  # Return None if the surface feature is not found
+  
   def add_non_physical_info(self, timestep: dm_env.TimeStep, actions: list, idx: int) -> AgentTimestep:
     ts = AgentTimestep()
     ts.step_type = timestep.step_type
@@ -264,6 +272,7 @@ class RuleObeyingPolicy(policy.Policy):
     ts.observation['POSITION'][0] = ts.observation['POSITION'][0]-1
     ts.observation['POSITION'][1] = ts.observation['POSITION'][1]-1
     ts.observation['PY_INDEX'] = idx
+    ts.observation['AGENT_LOOK'] = self.surface_feature_to_int(ts.observation['AGENT_LOOK'])
     new_pos = ts.observation['POSITION']
     self.update_last_actions(ts.observation, actions[idx])
     ts.observation = self.update_obs_without_coordinates(ts.observation)
@@ -363,7 +372,7 @@ class RuleObeyingPolicy(policy.Policy):
             self.last_cleaned = 0
 
       elif action == 11:
-        if self.role == "farmer": # other roles don't pay
+        if INT_TO_ROLE[self.role] == "farmer": # other roles don't pay
           if self.last_inventory > 0:
               if not self.payees == None:
                 for payee in self.payees:
@@ -453,7 +462,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       # 2. Simulate changes to observation based on action
       if action <= 4: # MOVE ACTIONS
-        if action == 0 and self.role == 'cleaner':
+        if action == 0 and INT_TO_ROLE[self.role] == 'cleaner':
           # make the cleaner wait for it's paying farmer
           observation['TIME_TO_GET_PAYED'] = 0
         new_pos = cur_pos + self.action_to_pos[orientation][action]
@@ -523,7 +532,7 @@ class RuleObeyingPolicy(policy.Policy):
   def compute_clean(self, observation, x, y):
     last_cleaned_time = observation['SINCE_AGENT_LAST_CLEANED']
     num_cleaners = observation['TOTAL_NUM_CLEANERS']
-    if not self.role == 'farmer':
+    if not INT_TO_ROLE[self.role] == 'farmer':
       # if facing north and is at water
       if not self.exceeds_map(x, y):
         #if not self.is_water_in_front(observation, x, y):
@@ -556,7 +565,7 @@ class RuleObeyingPolicy(policy.Policy):
         reward = 1
         cur_inventory -= 1 # eat
       if action_name == "PAY_ACTION":
-        if self.role == "farmer": # other roles don't pay
+        if INT_TO_ROLE[self.role] == "farmer": # other roles don't pay
           if not self.payees == None:
             for payee in self.payees:
               if self.is_close_to_agent(observation, payee):
@@ -675,7 +684,7 @@ class RuleObeyingPolicy(policy.Policy):
     if hash in v_func.keys():
       if self.log_output:
         print()
-        print(f'ROLE: {self.role}')
+        print(f'ROLE: {INT_TO_ROLE[self.role]}')
         print(f'position: {ts_cur.observation["POSITION"]}, orientation: {ts_cur.observation["ORIENTATION"]}, key: {hash}')
         print(v_func[hash])
 

@@ -79,9 +79,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 log_output: bool,
                 log_rule_prob_output: bool,
                 log_weights: bool,
-                look: shapes,
+                look: int,
                 num_players: int,
-                role: str = "free",
+                role: int,
                 potential_obligations: list = POTENTIAL_OBLIGATIONS,
                 potential_prohibitions: list = POTENTIAL_PROHIBITIONS,
                 active_prohibitions: list = DEFAULT_PROHIBITIONS,
@@ -319,7 +319,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         if ts_cur.step_type == dm_env.StepType.FIRST:
             self.pos_all_possible_apples = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -1)))
             self.pos_all_possible_dirt = list(zip(*np.where(ts_cur.observation['SURROUNDINGS']== -3)))
-            if self.role == "farmer":
+            if INT_TO_ROLE[self.role] == 'farmer':
                 if not type(ts_cur.observation['ALWAYS_PAYING_TO']) == np.int32:
                     self.payees = [i+1 for i, agent_one_hot in enumerate(ts_cur.observation['ALWAYS_PAYING_TO']) if agent_one_hot == 1]
                 else:
@@ -364,8 +364,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
     
     def role_exists_for_rule(self, rule) -> bool:
         for agent_history in self.history[-1]:
-            agent_look_name = self.get_look_for_value(agent_history.observation['AGENT_LOOK'])
-            if agent_look_name in rule.make_str_repr():
+            agent_role = INT_TO_ROLE[agent_history.observation['AGENT_LOOK']]
+            if agent_role in rule.make_str_repr():
                 return True
         return False
     
