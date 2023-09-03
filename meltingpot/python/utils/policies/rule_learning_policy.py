@@ -70,7 +70,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
 
         # non-physical info
         self.last_zapped = 0
-        self.last_payed = 0
+        self.last_paid = 0
         self.last_cleaned = 0
 
         # self.player_looks = other_player_looks
@@ -149,9 +149,6 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             # P(r=1 | a) = P(a | r = 1) * P(r = 1) / P(a)
             log_posterior = (log_prior + log_llh) - log_marginal
             posterior = np.exp(log_posterior)
-
-            if rule.make_str_repr() == "obs['DIRT_FRACTION'] > 0.45 and obs['AGENT_LOOK'] == 1 -> obs['SINCE_AGENT_LAST_CLEANED'] == 0":
-                print(f'prior: {prior}, np.exp(log_llh): {np.exp(log_llh)}, marginal: {marginal}, posterior: {posterior}')
 
             #print()
             #print(f'rule: {rule.make_str_repr()}')
@@ -267,10 +264,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
     def add_rule_with_pruning(self, new_rule, existing_rules):
         for i, existing_rule in enumerate(existing_rules):
             if new_rule.is_subset_of(existing_rule):
-                print(f'{new_rule.precondition} is subset of {existing_rule.precondition}')
                 return  # Don't add the new rule because it's a subset of an existing rule
             elif existing_rule.is_subset_of(new_rule):
-                print(f'{existing_rule.precondition} is subset of {new_rule.precondition}')
                 existing_rules[i] = new_rule  # Replace the existing rule with the new, more specific rule
                 return
         existing_rules.append(new_rule)  # Add the new rule because it's not a subset of any existing rule

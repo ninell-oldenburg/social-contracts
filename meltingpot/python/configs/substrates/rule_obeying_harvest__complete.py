@@ -81,8 +81,8 @@ W      P     <~Sf  P  W
 W          P <~S>     W
 WT^TT^T^T^T^T;~S^T^T^TW
 W__________A__________W
-W____Q____AAA_________W
-W________AAAAA____Q___W
+W_________AAA_________W
+W___Q____AAAAA_____Q__W
 W_________AAA_________W
 W__________A__________W
 W_____A_________A_____W
@@ -1106,7 +1106,7 @@ def create_avatar_object(player_idx: int,
                           "variable": "sinceLastCleaned",
                       },
                       {
-                          "name": "SINCE_AGENT_LAST_PAYED",
+                          "name": "SINCE_AGENT_LAST_PAID",
                           "type": "Int32s",
                           "shape": [],
                           "component": "Paying",
@@ -1120,14 +1120,14 @@ def create_avatar_object(player_idx: int,
                           "variable": "payingTo",
                       },
                       {
-                          "name": "ALWAYS_PAYED_BY",
+                          "name": "ALWAYS_PAID_BY",
                           "type": "Int32s",
                           "shape": [],
                           "component": "Paying",
                           "variable": "paidBy",
                       },
                       {
-                          "name": "TIME_TO_GET_PAYED",
+                          "name": "TIME_TO_GET_PAID",
                           "type": "Int32s",
                           "shape": [],
                           "component": "Paying",
@@ -1370,10 +1370,10 @@ def get_config():
       "SURROUNDINGS",
       "TOTAL_NUM_CLEANERS",
       #"SINCE_AGENT_LAST_CLEANED",
-      #"SINCE_AGENT_LAST_PAYED",
+      #"SINCE_AGENT_LAST_PAID",
       "ALWAYS_PAYING_TO",
-      "ALWAYS_PAYED_BY",
-      "TIME_TO_GET_PAYED",
+      "ALWAYS_PAID_BY",
+      "TIME_TO_GET_PAID",
 
       # Global observations
       "STOLEN_RECORDS",

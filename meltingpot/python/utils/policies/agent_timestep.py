@@ -26,7 +26,7 @@ class AgentTimestep():
     def make_action_observations(self, timestep: dm_env.TimeStep, x: int, y: int) -> None:
         """Compute everything that can be inferred from the action table."""
         self.observation['SINCE_AGENT_LAST_CLEANED'] = self.parent_observation['SINCE_AGENT_LAST_CLEANED'] + 1
-        self.observation['SINCE_AGENT_LAST_PAYED'] = self.parent_observation['SINCE_AGENT_LAST_PAYED'] + 1
+        self.observation['SINCE_AGENT_LAST_PAID'] = self.parent_observation['SINCE_AGENT_LAST_PAID'] + 1
         self.observation['TOTAL_NUM_CLEANERS'] = action_table[:][0].count(8)
         self.observation['STOLEN_RECORDS'] = self.parent_observation['STOLEN_RECORDS']
         self.observation['AGENT_HAS_STOLEN'] = False
@@ -48,7 +48,7 @@ class AgentTimestep():
                     self.observation['INVENTORY'] -= 1
 
                 if agent_action == 11: # pay
-                    self.observation['SINGLE_AGENT_PAYED_LAST'] = 0
+                    self.observation['SINGLE_AGENT_PAID_LAST'] = 0
                     self.observation['INVENTORY'] -= 1
 
             if agent_action in [1, 2, 3, 4]:

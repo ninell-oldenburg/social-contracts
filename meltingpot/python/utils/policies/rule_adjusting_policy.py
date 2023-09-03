@@ -40,17 +40,17 @@ DEFAULT_MAX_DEPTH = 15
 # AGENT CLASS
 DEFAULT_COMPLIANCE_COST = 1-DEFAULT_GAMMA
 DEFAULT_ACTION_COST = 1-DEFAULT_GAMMA
-DEFAULT_BLOCKING_COST = 0.5
-DEFAULT_VIOLATION_COST = 0.3
+DEFAULT_BLOCKING_COST = 0.01
+DEFAULT_VIOLATION_COST = 0.05
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
 DEFAULT_COLLECT_APPLE_REWARD = 0.9
 DEFAULT_SELECTION_MODE = "threshold"
 DEFAULT_THRESHOLD = 0.8
 DEFAULT_INIT_PRIOR = 0.2
-DEFAULT_P_OBEY = 0.9
+DEFAULT_P_OBEY = 0.99
 DEFAULT_OBLIGATION_DEPTH = 20
-DEFAULT_PROBS_TAU = 1.0
+DEFAULT_PROBS_TAU = 2
 
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
@@ -187,7 +187,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # non-physical info
         self.last_zapped = 0
-        self.last_payed = 0
+        self.last_paid = 0
         self.last_cleaned = 0
         self.old_pos = None
 
@@ -231,7 +231,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'AGENT_ATE',
             'AGENT_CLAIMED',
             'AGENT_CLEANED',
-            'AGENT_PAYED',
+            'AGENT_PAID',
             'AGENT_ZAPPED',
             'CUR_CELL_HAS_APPLE', 
             'CUR_CELL_IS_FOREIGN_PROPERTY', 
@@ -241,7 +241,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'POSITION', 
             'POSITION_OTHERS',
             'SINCE_AGENT_LAST_CLEANED',
-            'SINCE_AGENT_LAST_PAYED',
+            'SINCE_AGENT_LAST_PAID',
             'SINCE_AGENT_LAST_ZAPPED',
             'SURROUNDINGS',
             'WATER_LOCATION', # maybe take out again
@@ -254,6 +254,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'NUM_APPLES_AROUND',
             'ORIENTATION',
             'POSITION', 
+            'POSITION_OTHERS',
             'SURROUNDINGS',
           ],
         'clean': [
@@ -263,17 +264,19 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'NUM_APPLES_AROUND',
             'ORIENTATION',
             'POSITION', 
+            'POSITION_OTHERS',
+            'SINCE_AGENT_LAST_CLEANED',
             'SURROUNDINGS',
           ],
           'pay': [
-            'AGENT_PAYED',
+            'AGENT_PAID',
             'CUR_CELL_HAS_APPLE', 
             'CUR_CELL_IS_FOREIGN_PROPERTY', 
             'NUM_APPLES_AROUND',
             'ORIENTATION',
             'POSITION', 
             'POSITION_OTHERS',
-            'SINCE_AGENT_LAST_PAYED',
+            'SINCE_AGENT_LAST_PAID',
             'SURROUNDINGS',
           ],
         'zap': [
@@ -457,10 +460,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         rule_is_active = rule_active_count <= self.max_obligation_depth
 
         if rule_is_active: # Obligation is active
-            print()
-            print(f'is active: {rule.make_str_repr()}')
             if self.could_be_satisfied(rule, past_ts, player_idx):
-                print('could_be_satisfied')
                 if rule.satisfied(this_obs): # Agent obeyed the obligation
                     # P(obedient action | rule = true) = (1 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
                     p_action = self.p_obey * p_a_rule_is_active + p_a_obs_no_rules * (1-self.p_obey)
@@ -468,7 +468,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 else: # Agent disobeyed the obligation
                     # P(disobedient action | rule = true) = (0 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
                     self.maybe_mark_riot(player_idx, rule) # note rule violation
-                    print(f'NOT SATISFIED')
                     return np.log(p_a_obs_no_rules * (1-self.p_obey))
             else: # Obligation can't be satisfied
                 return np.log(p_a_obs_no_rules)

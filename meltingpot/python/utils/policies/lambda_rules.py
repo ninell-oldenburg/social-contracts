@@ -9,8 +9,8 @@ from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, Obligati
 cleaning_precon_free_30 = "obs['DIRT_FRACTION'] > 0.5 and obs['AGENT_LOOK'] == 0"
 cleaning_goal_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
 
-payment_precon_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] > 15 and obs['AGENT_LOOK'] == 2"
-payment_goal_farmer_15 = "obs['SINCE_AGENT_LAST_PAYED'] == 0"
+payment_precon_farmer_15 = "obs['SINCE_AGENT_LAST_PAID'] > 15 and obs['AGENT_LOOK'] == 2"
+payment_goal_farmer_15 = "obs['SINCE_AGENT_LAST_PAID'] == 0"
 
 cleaning_precon_cleaner_5 = "obs['DIRT_FRACTION'] > 0.45 and obs['AGENT_LOOK'] == 1"
 cleaning_goal_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
@@ -74,12 +74,12 @@ cleaning_goal_free_10 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
 cleaning_precon_free_15 = "obs['DIRT_FRACTION'] > 0.65 and obs['AGENT_LOOK'] == 0"
 cleaning_goal_free_15 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
 
-payment_precon_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] > 5 and obs['AGENT_LOOK'] == 2"
-payment_goal_farmer_5 = "obs['SINCE_AGENT_LAST_PAYED'] == 0"
-payment_precon_farmer_10 = "obs['SINCE_AGENT_LAST_PAYED'] > 10 and obs['AGENT_LOOK'] == 2"
-payment_goal_farmer_10 = "obs['SINCE_AGENT_LAST_PAYED'] == 0"
-payment_precon_farmer_30 = "obs['SINCE_AGENT_LAST_PAYED'] > 30 and obs['AGENT_LOOK'] == 2"
-payment_goal_farmer_30 = "obs['SINCE_AGENT_LAST_PAYED'] == 0"
+payment_precon_farmer_5 = "obs['SINCE_AGENT_LAST_PAID'] > 5 and obs['AGENT_LOOK'] == 2"
+payment_goal_farmer_5 = "obs['SINCE_AGENT_LAST_PAID'] == 0"
+payment_precon_farmer_10 = "obs['SINCE_AGENT_LAST_PAID'] > 10 and obs['AGENT_LOOK'] == 2"
+payment_goal_farmer_10 = "obs['SINCE_AGENT_LAST_PAID'] == 0"
+payment_precon_farmer_30 = "obs['SINCE_AGENT_LAST_PAID'] > 30 and obs['AGENT_LOOK'] == 2"
+payment_goal_farmer_30 = "obs['SINCE_AGENT_LAST_PAID'] == 0"
 
 cleaning_precon_cleaner_10 = "obs['DIRT_FRACTION'] > 0.4 and obs['AGENT_LOOK'] == 1"
 cleaning_goal_cleaner_10 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
@@ -119,7 +119,6 @@ harvest_apple_precon_7 = "obs['NUM_APPLES_AROUND'] < 7 and obs['CUR_CELL_HAS_APP
 harvest_apple_precon_8 = "obs['NUM_APPLES_AROUND'] < 8 and obs['CUR_CELL_HAS_APPLE']"
 cur_cell_has_apple_precon = "obs['CUR_CELL_HAS_APPLE']"
 position_equal_precon = "obs['POSITION'][0] == obs['POSITION'][1]"
-total_num_cleaners_precon = "obs['TOTAL_NUM_CLEANERS'] == 1"
 orientation_north_precon = "obs['ORIENTATION'] == 0"
 orientation_east_precon = "obs['ORIENTATION'] == 1"
 orientation_south_precon = "obs['ORIENTATION'] == 2"
@@ -145,10 +144,6 @@ POTENTIAL_PROHIBITIONS = [
   ProhibitionRule(position_equal_precon, 'EAT_ACTION'),
   ProhibitionRule(position_equal_precon, 'MOVE_ACTION'),
   ProhibitionRule(position_equal_precon, 'TURN_ACTION'),
-  # if the total number of cleaner == 1, don't eat, move, or turn
-  ProhibitionRule(total_num_cleaners_precon, 'EAT_ACTION'),
-  ProhibitionRule(total_num_cleaners_precon, 'MOVE_ACTION'),
-  ProhibitionRule(total_num_cleaners_precon, 'TURN_ACTION'),
   # dont move, turn, or eat if you're not looking north
   ProhibitionRule(orientation_north_precon, 'EAT_ACTION'),
   ProhibitionRule(orientation_north_precon, 'MOVE_ACTION'),

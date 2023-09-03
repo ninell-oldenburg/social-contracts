@@ -30,16 +30,19 @@ import time
 import matplotlib.pyplot as plt
 
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
-from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
+# from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
 from meltingpot.python.utils.policies.lambda_rules import CLEANING_RULES, PICK_APPLE_RULES, TERRITORY_RULES
 from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import ROLE_SPRITE_DICT, ROLE_TO_INT, INT_TO_ROLE
+from meltingpot.python.utils.policies.rule_generation import RuleGenerator
 
 # from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
 from meltingpot.python.utils.policies.rule_adjusting_policy import RuleAdjustingPolicy
 # from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
 
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
+generator = RuleGenerator()
+POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_length(2)
 
 def main(roles, 
           episodes, 
@@ -373,7 +376,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 1
   episodes = 100
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
@@ -405,7 +408,7 @@ if __name__ == "__main__":
                                     save_csv=False,
                                     plot_q_vals=False,
                                     gamma=0.9999,
-                                    tau=0.5,
+                                    tau=0.1,
                                     passive_learning=True,
                                     stochastic_act_selection=False,
                                     )

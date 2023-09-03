@@ -111,7 +111,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     # non-physical info
     self.last_zapped = 0
-    self.last_payed = 0
+    self.last_paid = 0
     self.last_cleaned = 0
     self.old_pos = None
 
@@ -144,7 +144,7 @@ class RuleObeyingPolicy(policy.Policy):
             'AGENT_ATE',
             'AGENT_CLAIMED',
             'AGENT_CLEANED',
-            'AGENT_PAYED',
+            'AGENT_PAID',
             'AGENT_ZAPPED',
             'CUR_CELL_HAS_APPLE', 
             'CUR_CELL_IS_FOREIGN_PROPERTY', 
@@ -153,7 +153,7 @@ class RuleObeyingPolicy(policy.Policy):
             'ORIENTATION',
             'POSITION', 
             'SINCE_AGENT_LAST_CLEANED',
-            'SINCE_AGENT_LAST_PAYED',
+            'SINCE_AGENT_LAST_PAID',
             'SINCE_AGENT_LAST_ZAPPED',
             'SURROUNDINGS',
             # 'WATER_LOCATION', # maybe take out again
@@ -181,13 +181,13 @@ class RuleObeyingPolicy(policy.Policy):
             #'POSITION_OTHERS',
           ],
           'pay': [
-            'AGENT_PAYED',
+            'AGENT_PAID',
             'CUR_CELL_HAS_APPLE', 
             'CUR_CELL_IS_FOREIGN_PROPERTY', 
             'NUM_APPLES_AROUND',
             'ORIENTATION',
             'POSITION', 
-            'SINCE_AGENT_LAST_PAYED',
+            'SINCE_AGENT_LAST_PAID',
             'SURROUNDINGS',
             'POSITION_OTHERS',
           ],
@@ -355,14 +355,14 @@ class RuleObeyingPolicy(policy.Policy):
     last_counters = {
         7: 'last_zapped',
         8: 'last_cleaned',
-        11: 'last_payed'
+        11: 'last_paid'
     }
 
     for counter_name in last_counters.values():
         setattr(self, counter_name, getattr(self, counter_name) + 1)
 
     if self.payees == None:
-      self.last_payed = 0
+      self.last_paid = 0
 
     # make sure the stuff actually happens!
     if action in last_counters:
@@ -377,7 +377,7 @@ class RuleObeyingPolicy(policy.Policy):
               if not self.payees == None:
                 for payee in self.payees:
                   if self.is_close_to_agent(obs, payee):
-                    self.last_payed = 0
+                    self.last_paid = 0
 
       elif action == 7:
         for riot in self.riots:
@@ -388,7 +388,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.get_bool_action(observation=obs, action=action)
     obs['SINCE_AGENT_LAST_ZAPPED'] = self.last_zapped
     obs['SINCE_AGENT_LAST_CLEANED'] = self.last_cleaned
-    obs['SINCE_AGENT_LAST_PAYED'] = self.last_payed
+    obs['SINCE_AGENT_LAST_PAID'] = self.last_paid
 
   def hit_dirt(self, obs, x, y) -> bool:
     for i in range(x-2, x+3):
@@ -403,7 +403,7 @@ class RuleObeyingPolicy(policy.Policy):
     observation['AGENT_ATE'] = True if action == 10 else False
     observation['AGENT_CLAIMED'] = True if action == 9 else False
     observation['AGENT_CLEANED'] = True if action == 8 else False
-    observation['AGENT_PAYED'] = True if action == 11 else False
+    observation['AGENT_PAID'] = True if action == 11 else False
     observation['AGENT_ZAPPED'] = True if action == 7 else False
   
   def get_others(self, observation: dict) -> list:
@@ -441,7 +441,7 @@ class RuleObeyingPolicy(policy.Policy):
   def increase_action_steps(self, observation: dict) -> None:
       observation['SINCE_AGENT_LAST_ZAPPED'] = observation['SINCE_AGENT_LAST_ZAPPED'] + 1
       observation['SINCE_AGENT_LAST_CLEANED'] = observation['SINCE_AGENT_LAST_CLEANED'] + 1 
-      observation['SINCE_AGENT_LAST_PAYED'] = observation['SINCE_AGENT_LAST_PAYED'] + 1
+      observation['SINCE_AGENT_LAST_PAID'] = observation['SINCE_AGENT_LAST_PAID'] + 1
 
   def env_step(self, timestep: AgentTimestep, action: int, idx: int) -> AgentTimestep:
       # 1. Unpack observations from timestep
@@ -464,7 +464,7 @@ class RuleObeyingPolicy(policy.Policy):
       if action <= 4: # MOVE ACTIONS
         if action == 0 and self.role == 'cleaner':
           # make the cleaner wait for it's paying farmer
-          observation['TIME_TO_GET_PAYED'] = 0
+          observation['TIME_TO_GET_PAID'] = 0
         new_pos = cur_pos + self.action_to_pos[orientation][action]
         if self.is_water(observation, new_pos):
           new_pos = cur_pos # don't move to water
@@ -500,11 +500,11 @@ class RuleObeyingPolicy(policy.Policy):
           observation['TOTAL_NUM_CLEANERS'] = num_cleaners
 
         if cur_inventory > 0: # EAT AND PAY
-          reward, cur_inventory, payed_time = self.compute_eat_pay(action, action_name, 
+          reward, cur_inventory, paid_time = self.compute_eat_pay(action, action_name, 
                                                     cur_inventory, observation)
-          observation['SINCE_AGENT_LAST_PAYED'] = payed_time
+          observation['SINCE_AGENT_LAST_PAID'] = paid_time
           if action == 11:
-            observation['AGENT_PAYED'] = True
+            observation['AGENT_PAID'] = True
           else:
             observation['AGENT_ATE'] = True
 
@@ -558,7 +558,7 @@ class RuleObeyingPolicy(policy.Policy):
   def compute_eat_pay(self, action, action_name, 
                                 cur_inventory, observation):
 
-    payed_time = observation['SINCE_AGENT_LAST_PAYED']
+    paid_time = observation['SINCE_AGENT_LAST_PAID']
     reward = 0
     if action >= 10: # eat and pay
       if action_name == "EAT_ACTION":
@@ -570,9 +570,9 @@ class RuleObeyingPolicy(policy.Policy):
             for payee in self.payees:
               if self.is_close_to_agent(observation, payee):
                 cur_inventory -= 1 # pay
-                payed_time = 0
+                paid_time = 0
 
-    return reward, cur_inventory, payed_time
+    return reward, cur_inventory, paid_time
 
   """def get_payees(self, observation):
     payees = []
@@ -906,7 +906,6 @@ class RuleObeyingPolicy(policy.Policy):
   def get_boltzmann_act(self, q_values: list, temp=None) -> int:
 
     if temp == 0:
-        print(f'player {self.lua_index}: {q_values}')
         return np.argmax(q_values)
     
     probs = self.compute_boltzmann(q_values)

@@ -18,10 +18,10 @@ DEFAULT_FEATURES = {
     "discrete": {
         # 'KEY': (compare_condition, values, goal_condition)
         # "TOTAL_NUM_CLEANERS": ('<', [1, 2, 3, 4, 5], '>'),
-        "DIRT_FRACTION": ('>', list(np.arange(0,0.7,0.1)), '== 0'),
-        "SINCE_AGENT_LAST_PAYED": ('>', list(np.arange(0,51,5)), '== 0'),
-        "RIOTS": ("len(obs['RIOTS']) >= 1", None, "len(obs['RIOTS']) == 0"),
-        "NUM_APPLES_AROUND": ('<', [0, 1, 2, 3, 4, 5, 6, 7, 8], '>'),
+        "DIRT_FRACTION": ('>', list(np.arange(0.4,0.66,0.05)), '== 0'),
+        "SINCE_AGENT_LAST_PAID": ('>', list(np.arange(5,36,10)), '== 0'),
+        #"RIOTS": ("len(obs['RIOTS']) >= 1", None, "len(obs['RIOTS']) == 0"),
+        "NUM_APPLES_AROUND": ('<', [1, 2, 3, 4, 5, 6, 7, 8], '>'),
         "ORIENTATION": ('==', [0, 1, 2, 3], '!='),
         },
     "categorical": {
@@ -29,14 +29,30 @@ DEFAULT_FEATURES = {
     }
 }
 
+CELL_BASED_FEATURES = [
+    "NUM_APPLES_AROUND",
+    "CUR_CELL_HAS_APPLE",
+    "CUR_CELL_IS_FOREIGN_PROPERTY"
+]
+
+ENV_BASED_FEATURES = [ 
+    "DIRT_FRACTION",
+]
+
+AGENT_BASED_FEATURES = [
+    "SINCE_AGENT_LAST_PAID",
+    "ORIENTATION",
+    "AGENT_LOOK"
+]
+
 DEFAULT_ACTIONS = [
     "MOVE_ACTION",
-    "TURN_ACTION",
-    "ZAP_ACTION",
-    "CLEAN_ACTION",
-    "CLAIM_ACTION",
-    "EAT_ACTION",
-    "PAY_ACTION"
+    #"TURN_ACTION",
+    #"ZAP_ACTION",
+    #'CLEAN_ACTION",
+    #"CLAIM_ACTION",
+    #"EAT_ACTION",
+    #"PAY_ACTION"
 ]
 
 class RuleGenerator():
@@ -49,6 +65,10 @@ class RuleGenerator():
         self.discretes = features["discrete"]
         self.looks = features["categorical"]["AGENT_LOOK"]
         self.features = self.bools + list(self.discretes.keys())
+        self.no_obligations = "CUR_CELL_HAS_APPLE", \
+                            "CUR_CELL_IS_FOREIGN_PROPERTY", \
+                            "NUM_APPLES_AROUND", \
+                            "ORIENTATION"
 
     def generate_rules_of_length(self, target_length):
         obligations = []
@@ -58,7 +78,17 @@ class RuleGenerator():
             new_comb = list(itertools.combinations(self.features, i))
             for comb in new_comb:
                 conditions = self.make_conditions(comb)
-                prohibitions.extend(self.make_prohib_str(conditions))
+                # Check if all elements in comb are from the same list
+                if all(elem in CELL_BASED_FEATURES for elem in comb) or \
+                all(elem in ENV_BASED_FEATURES for elem in comb) or \
+                all(elem in AGENT_BASED_FEATURES for elem in comb):
+                    
+                    # Check if 'NUM_APPLES_AROUND' is present, then 'CUR_CELL_HAS_APPLE' must also be present
+                    if 'NUM_APPLES_AROUND' in comb and 'CUR_CELL_HAS_APPLE' not in comb:
+                        continue
+
+                    prohibitions.extend(self.make_prohib_str(conditions))
+
                 obligations.extend(self.make_oblig_str(comb, conditions))
 
         return obligations, prohibitions
@@ -71,19 +101,30 @@ class RuleGenerator():
         return prohibitions
     
     def make_oblig_str(self, rule_elements, conditions):
-        goals = self.make_conditions(rule_elements, is_goal=True)
-        obligations = [ObligationRule(condition + f' and {look}', goal) for \
-                       condition, goal in zip(conditions, goals) for look in self.looks]
+        # Remove elements that are in self.no_obligations
+        if any(elem in self.no_obligations for elem in rule_elements):
+            return []
 
+        goals = self.make_conditions(rule_elements, is_goal=True)
+        
+        # Special case for DIRT_FRACTION
+        if 'DIRT_FRACTION' in rule_elements:
+            goals = ["obs['SINCE_AGENT_LAST_CLEANED'] == 0" for _ in goals]
+
+        if 'SINCE_AGENT_LAST_PAID' in rule_elements:
+            goals = ["obs['SINCE_AGENT_LAST_PAID'] == 0" for _ in goals]
+            
+        obligations = [ObligationRule(condition + f' and obs["AGENT_LOOK"] == {look}', goal) for \
+                        condition in conditions for goal in goals for look in self.looks]
         return obligations
-    
+        
     def make_conditions(self, rule_elements, is_goal=False):
         conditions = self.make_first_conditions(rule_elements, is_goal)
         for i, element in enumerate(rule_elements):
             if i != 0:
                 for j in range(len(conditions)):
                     conditions = self.make_further_conditions(j, element, conditions, is_goal)
-           
+        
         return conditions
     
     def make_first_conditions(self, rule_elements, is_goal: bool):
@@ -138,7 +179,7 @@ class RuleGenerator():
 if __name__ == "__main__":
     generator = RuleGenerator()
     target_length = 2
-    generated_rules = generator.generate_rules_of_length(target_length)
-    for rule in generated_rules:
+    prohibs, obligs = generator.generate_rules_of_length(target_length)
+    for rule in prohibs + obligs:
         # continue
         print(rule.make_str_repr())
