@@ -176,7 +176,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.q_value_log = {}
         goals = ['apple', 'clean', 'pay', 'zap']
         self.V = {goal: {} for goal in goals}
-        self.V_wo_rule = {goal: {} for goal in goals}
+        self.V_wo_rules = {}
         self.all_bots = []
         self.ts_start = None
         self.goal = None
@@ -257,13 +257,12 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'SURROUNDINGS',
           ],
         'clean': [
-            'AGENT_CLEANED',
             'CUR_CELL_HAS_APPLE', 
             'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'DIRT_FRACTION',
             'NUM_APPLES_AROUND',
             'ORIENTATION',
             'POSITION', 
-            'SINCE_AGENT_LAST_CLEANED',
             'SURROUNDINGS',
           ],
           'pay': [
@@ -368,8 +367,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         self.last_inventory = ts_cur.observation["INVENTORY"]
 
-        print(f'END OF STEP PLAYER {self.lua_index}')
-
         return self.get_act(ts_cur, self.py_index, temp=0.0)
     
     def append_to_history(self, timestep_list: list) -> None:
@@ -401,10 +398,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 # Compute the posterior of each rule
                 past_ts = self.history[-2][player_idx]
                 this_ts = self.history[-1][player_idx]
-                goal = past_ts.goal
                 s_past_ts = self.hash_ts(past_ts)
                 # get q values for active rules and as if there were no rules
-                q_vals_no_rules = self.all_bots[player_idx].V_wo_rule[goal][s_past_ts]
+                q_vals_no_rules = self.all_bots[player_idx].V_wo_rules[s_past_ts]
                 # get boltzmann distribution for both q value vectors
                 boltzmann_dis_no_rules = self.compute_boltzmann(q_vals_no_rules, tau=self.probs_tau)
                 action = actions[player_idx]
@@ -444,6 +440,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             s_next = self.init_process_next_ts(ts_next, player_idx)
             q_vals_rule_is_active[act], _  = self.get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
         boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active, tau=self.probs_tau)
+
         p_a_rule_is_active = boltzmann_dis_rule_is_active[action]
 
         if rule.holds_in_history(player_history[:-1]):
@@ -460,15 +457,18 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         rule_is_active = rule_active_count <= self.max_obligation_depth
 
         if rule_is_active: # Obligation is active
+            print()
+            print(f'is active: {rule.make_str_repr()}')
             if self.could_be_satisfied(rule, past_ts, player_idx):
+                print('could_be_satisfied')
                 if rule.satisfied(this_obs): # Agent obeyed the obligation
                     # P(obedient action | rule = true) = (1 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
                     p_action = self.p_obey * p_a_rule_is_active + p_a_obs_no_rules * (1-self.p_obey)
                     return np.log(p_action)
                 else: # Agent disobeyed the obligation
                     # P(disobedient action | rule = true) = (0 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
-                    # note rule violationg
-                    self.maybe_mark_riot(player_idx, rule)
+                    self.maybe_mark_riot(player_idx, rule) # note rule violation
+                    print(f'NOT SATISFIED')
                     return np.log(p_a_obs_no_rules * (1-self.p_obey))
             else: # Obligation can't be satisfied
                 return np.log(p_a_obs_no_rules)

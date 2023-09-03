@@ -150,6 +150,9 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             log_posterior = (log_prior + log_llh) - log_marginal
             posterior = np.exp(log_posterior)
 
+            if rule.make_str_repr() == "obs['DIRT_FRACTION'] > 0.45 and obs['AGENT_LOOK'] == 1 -> obs['SINCE_AGENT_LAST_CLEANED'] == 0":
+                print(f'prior: {prior}, np.exp(log_llh): {np.exp(log_llh)}, marginal: {marginal}, posterior: {posterior}')
+
             #print()
             #print(f'rule: {rule.make_str_repr()}')
             #print(f'prior: {prior}, np.exp(log_llh): {np.exp(log_llh)}, marginal: {marginal}, posterior: {posterior}')

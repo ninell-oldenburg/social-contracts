@@ -373,8 +373,8 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 1
-  episodes = 200
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 0
+  episodes = 100
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
   gammas = [0.99999]
@@ -405,7 +405,7 @@ if __name__ == "__main__":
                                     save_csv=False,
                                     plot_q_vals=False,
                                     gamma=0.9999,
-                                    tau=0.1,
+                                    tau=0.5,
                                     passive_learning=True,
                                     stochastic_act_selection=False,
                                     )

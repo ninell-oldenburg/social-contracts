@@ -645,7 +645,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     return hash_key
 
-  def hash_ts(self, ts: AgentTimestep):
+  def hash_ts(self, ts: AgentTimestep, goal=None):
     """Computes hash for the given timestep observation."""
     return self.get_ts_hash_key(ts.observation, ts.reward, ts.goal)
   
@@ -701,7 +701,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     # initialize best optimistic guess for cur state
     if s_cur not in self.V[self.goal].keys():
-      self.V[self.goal][s_cur] = self.init_heuristic(ts_cur, self.py_index)
+      self.V[self.goal][s_cur], self.V_wo_rules[s_cur] = self.init_heuristic(ts_cur, self.py_index)
     
     for act in range(self.action_spec.num_values):
       ts_next = self.env_step(ts_cur, act, self.py_index)
@@ -710,7 +710,7 @@ class RuleObeyingPolicy(policy.Policy):
       Q[act], Q_wo_rule[act]  = self.get_estimated_return(ts_next, s_next, act, available, ts_cur, self.py_index)
 
     self.V[self.goal][s_cur] = Q
-    self.V_wo_rule[self.goal][s_cur] = Q_wo_rule
+    self.V_wo_rules[s_cur] = Q_wo_rule
 
     if s_cur not in self.hash_count:
       self.hash_count[s_cur] = 1
@@ -738,9 +738,9 @@ class RuleObeyingPolicy(policy.Policy):
     s_next = self.hash_ts(ts_cur)
     # initialize best optimistic guess for next state
     if s_next not in bot.V[goal].keys():
-      Q = bot.init_heuristic(ts_cur, player_idx)
+      Q, Q_no_rules = bot.init_heuristic(ts_cur, player_idx)
       bot.V[goal][s_next] = Q
-      bot.V_wo_rule[goal][s_next] = Q
+      bot.V_wo_rules[s_next] = Q_no_rules
 
     return s_next
   
@@ -751,6 +751,7 @@ class RuleObeyingPolicy(policy.Policy):
   def init_heuristic(self, timestep: AgentTimestep, player_idx: int) -> np.array:
     size = self.action_spec.num_values 
     Q = np.full(size, -np.inf)
+    Q_no_rules = np.full(size, -np.inf)
 
     bot = self.all_bots[player_idx]
     goal = timestep.goal
@@ -763,35 +764,35 @@ class RuleObeyingPolicy(policy.Policy):
       ts_next = bot.env_step(timestep, act, bot.py_index)
       observation = ts_next.observation
       pos = observation['POSITION']
-      reward = 0.0
+      r_apple = 0.0
+      r_obl = 0.0
 
       if self.exceeds_map(pos[0], pos[1]):
         continue
 
       if bot.is_agent_in_position(observation, pos) or bot.is_water(observation, pos):
-        reward -= self.default_action_cost
+        r_apple -= self.default_action_cost
     
-      if goal == "apple":
-        pos_eaten_apple = tuple((pos[0], pos[1])) if act == 10 and observation['INVENTORY'] > 0 else 0
-        pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
-        pos_fut_apples = [apple for apple in self.pos_all_possible_apples if apple not in pos_cur_apples and apple != pos_eaten_apple]
+      pos_eaten_apple = tuple((pos[0], pos[1])) if act == 10 and observation['INVENTORY'] > 0 else 0
+      pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
+      pos_fut_apples = [apple for apple in self.pos_all_possible_apples if apple not in pos_cur_apples and apple != pos_eaten_apple]
 
-        r_eat_apple = self.apple_reward if act == 10 and observation['INVENTORY'] > 0 else 0
-        r_inv_apple = self.apple_reward * observation['INVENTORY'] * self.gamma**(observation['INVENTORY'])
-        r_inv_apple -= self.default_action_cost * observation['INVENTORY'] * self.gamma**(observation['INVENTORY'])
-        r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, goal)
-        r_fut_apples = bot.get_discounted_reward(pos_fut_apples, pos, observation, goal, respawn_type='apple')
+      r_eat_apple = self.apple_reward if act == 10 and observation['INVENTORY'] > 0 else 0
+      r_inv_apple = self.apple_reward * observation['INVENTORY'] * self.gamma**(observation['INVENTORY'])
+      r_inv_apple -= self.default_action_cost * observation['INVENTORY'] * self.gamma**(observation['INVENTORY'])
+      r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, 'apple')
+      r_fut_apples = bot.get_discounted_reward(pos_fut_apples, pos, observation, 'apple', respawn_type='apple')
 
-        reward = r_cur_apples + r_eat_apple + r_fut_apples + r_inv_apple
+      r_apple = r_cur_apples + r_eat_apple + r_fut_apples + r_inv_apple
 
-        #print()
-        #print(f'POSITION: {pos}')
-        #print(f"len cur_apples: {len(pos_cur_apples)}, reward: {reward}, r_cur_apples: {r_cur_apples}, r_eat_apple: {r_eat_apple}, r_fut_apples: {r_fut_apples}, r_inv_apple: {r_inv_apple}")
+      #print()
+      #print(f'POSITION: {pos}')
+      #print(f"len cur_apples: {len(pos_cur_apples)}, reward: {reward}, r_cur_apples: {r_cur_apples}, r_eat_apple: {r_eat_apple}, r_fut_apples: {r_fut_apples}, r_inv_apple: {r_inv_apple}")
 
-        if self.log_weights:
-          print(f"len cur_apples: {len(pos_cur_apples)}, reward: {reward}, r_cur_apples: {r_cur_apples}, r_eat_apple: {r_eat_apple}, r_fut_apples: {r_fut_apples}, r_inv_apple: {r_inv_apple}")
+      if self.log_weights:
+        print(f"len cur_apples: {len(pos_cur_apples)}, reward: {r_apple}, r_cur_apples: {r_cur_apples}, r_eat_apple: {r_eat_apple}, r_fut_apples: {r_fut_apples}, r_inv_apple: {r_inv_apple}")
 
-      else:
+      if goal != 'apple':
         pos_cur_obl = bot.get_cur_obl_pos(observation)
 
         r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, observation, goal)
@@ -802,18 +803,22 @@ class RuleObeyingPolicy(policy.Policy):
           pos_fut_obl = [dirt for dirt in self.pos_all_possible_dirt if dirt not in pos_cur_obl]
           r_fut_obl = bot.get_discounted_reward(pos_fut_obl, pos, observation, goal, respawn_type='dirt')
 
-        reward = r_cur_obl + r_fulfilled_obl + r_fut_obl
+        r_obl = r_cur_obl + r_fulfilled_obl + r_fut_obl
         
         if self.log_weights:
           # print(f"len pos_fut_obl: {len(pos_fut_obl)}, reward: {r_fut_obl}, fulfilled: {r_fulfilled_obl}")
           print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
 
-      Q[act] = reward
+      if goal == 'apple':
+        Q[act] = r_apple
+      else:
+        Q[act] = r_obl
+      Q_no_rules[act] = r_apple
 
     if self.log_weights:
       print(Q)
 
-    return Q
+    return Q, Q_no_rules
 
   def get_discounted_reward(self, target_pos, own_pos, obs, goal, respawn_type=None) -> float:
     reward = 0.0
@@ -917,6 +922,9 @@ class RuleObeyingPolicy(policy.Policy):
     r_forward = max(bot.V[goal][s_next]) * self.gamma
     r_cur = ts_next.reward
 
+    r_forward_no_obl = max(bot.V_wo_rules[s_next]) * self.gamma if not goal == 'apple' else r_forward
+    r_cur_no_obl = ts_next.reward
+
     if len(bot.current_obligations) != 0:
       r_cur = 0
       if bot.current_obligations[0].satisfied(observation):
@@ -924,15 +932,20 @@ class RuleObeyingPolicy(policy.Policy):
 
     cost = self.compliance_cost if act in available else self.violation_cost # rule violation
 
-    if bot.is_agent_in_position(ts_cur.observation, pos) or bot.is_water(ts_cur.observation, pos):
+    if bot.is_agent_in_position(ts_cur.observation, pos):
       r_cur -= self.element_blocking_cost
+      r_cur_no_obl -= self.element_blocking_cost
+
+    if bot.is_water(ts_cur.observation, pos):
+      r_cur -= self.default_action_cost
+      r_cur_no_obl -= self.default_action_cost
 
     if self.log_weights:
       print()
       print(f'{ts_cur.observation["POSITION"]} for {act} to {ts_next.observation["POSITION"]} gives\t{r_forward} + {r_cur} - {cost}; {s_next}')
 
     v_rules = r_forward + r_cur - cost
-    v_wo_rule = r_forward + r_cur
+    v_wo_rule = r_forward_no_obl
 
     return v_rules, v_wo_rule
   

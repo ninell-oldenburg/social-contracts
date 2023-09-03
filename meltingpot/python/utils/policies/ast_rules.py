@@ -50,10 +50,6 @@ class EnvironmentRule():
         # Extract the conditions from the rules
         condition1 = re.findall(r"lambda obs\['(.*?)'\]", self.precondition)
         condition2 = re.findall(r"lambda obs\['(.*?)'\]", other_rule.precondition)
-
-        print()
-        print(condition1)
-        print(condition2)
         
         # Check if the conditions are the same
         if condition1 != condition2:
@@ -76,7 +72,6 @@ class EnvironmentRule():
         
         # Check the numerical values based on the operator
         if op1 == '<':
-            print()
             return float(num1) < float(num2)
         elif op1 == '>':
             return float(num1) > float(num2)
