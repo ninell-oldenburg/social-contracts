@@ -95,9 +95,9 @@ for k in range(stats_relevance):
                                       create_video=False, 
                                       log_output=False, 
                                       log_weights=False,
-                                      save_csv=False,
+                                      save_csv=True,
                                       plot_q_vals=False,
-                                      gamma=0.99999,
+                                      gamma=0.9999,
                                       tau=0.1,
                                       )
       print(cur_result)
@@ -127,9 +127,9 @@ for k in range(stats_relevance):
                                       create_video=False, 
                                       log_output=False, 
                                       log_weights=False,
-                                      save_csv=False,
+                                      save_csv=True,
                                       plot_q_vals=False,
-                                      gamma=0.99999,
+                                      gamma=0.9999,
                                       tau=0.1,
                                       )
       print(cur_result)
@@ -156,7 +156,7 @@ for k in range(stats_relevance):
                                     create_video=False, 
                                     log_output=False, 
                                     log_weights=False,
-                                    save_csv=False,
+                                    save_csv=True,
                                     plot_q_vals=False,
                                     threshold_init_prior=0.8,
                                     learner_init_prior=0.2,

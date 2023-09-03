@@ -151,8 +151,16 @@ def main(roles,
   
   for bot in bots:
     filename = f'examples/results/policies/{bot.role}_policies.csv'
+    filename_no_rules = f'examples/results/policies/{bot.role}_policies_no_rules.csv'
     if os.path.exists(filename):
       bot.V = read_from_csv(filename)
+      bot.V_no_rules = read_from_csv(filename_no_rules)
+      goals = ['apple', 'clean', 'pay', 'zap']
+      for goal in goals:
+        if not goal in bot.V.keys():
+          bot.V[goal] = {} 
+        if not goal in bot.V_no_rules.keys():
+          bot.V_no_rules[goal] = {} 
 
   for k in range(episodes):
     obs = timestep.observation[0]["WORLD.RGB"]
@@ -227,7 +235,9 @@ def main(roles,
   if save_csv:
     for i, bot in enumerate(bots):
       filename = f'examples/results/policies/{bot.role}_policies.csv'
+      filename_no_rules = f'examples/results/policies/{bot.role}_policies_no_rules.csv'
       save_to_csv(filename, bot.V)
+      save_to_csv(filename_no_rules, bot.V_no_rules)
 
   settings = get_settings(bots=bots, rules=rules)
 
@@ -405,9 +415,9 @@ if __name__ == "__main__":
                                     create_video=False,
                                     log_output=False,
                                     log_weights=False,
-                                    save_csv=False,
+                                    save_csv=True,
                                     plot_q_vals=False,
-                                    gamma=0.99999,
+                                    gamma=0.9999,
                                     tau=0.5,
                                     passive_learning=True,
                                     stochastic_act_selection=False,
@@ -429,7 +439,7 @@ if __name__ == "__main__":
       print(f"cleaner: {scores['cleaner']:.2f}, farmer: {scores['farmer']:.2f}, free: {scores['free']:.2f}")
       print()
 """
-  print(data_dict)
+  # print(data_dict)
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
   print(sum(data_dict['free']))
