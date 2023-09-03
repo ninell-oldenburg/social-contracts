@@ -1,5 +1,6 @@
 import ast
 import types
+import re
 from meltingpot.python.utils.substrates import shapes
 
 ROLE_SPRITE_DICT = {
@@ -44,6 +45,36 @@ class EnvironmentRule():
 
     def holds_precondition(self, obs):
         return self.precondition_formula(obs)
+    
+    def is_subset_of(self, other_rule):
+        # Extract the conditions from the rules
+        condition1 = re.findall(r"lambda obs\['(.*?)'\]", self.precondition)
+        condition2 = re.findall(r"lambda obs\['(.*?)'\]", other_rule.precondition)
+        
+        # Check if the conditions are the same
+        if condition1 != condition2:
+            return False
+        
+       # Extract the numerical values and operators from the rules
+        num_op1 = re.findall(r"([<>]) (\d+(\.\d+)?)", self.precondition)
+        num_op2 = re.findall(r"([<>]) (\d+(\.\d+)?)", other_rule.precondition)
+
+        # Check if either of the rules doesn't contain numerical values and operators
+        if not num_op1 or not num_op2:
+            return False
+
+        num1, op1 = num_op1[0][0], float(num_op1[0][1])
+        num2, op2 = num_op2[0][0], float(num_op2[0][1])
+
+        # Check if the operators are the same
+        if op1 != op2:
+            return False
+        
+        # Check the numerical values based on the operator
+        if op1 == '<':
+            return num1 < num2
+        elif op1 == '>':
+            return num1 > num2
 
 class ProhibitionRule(EnvironmentRule):
     """Contains rules that prohibit an action."""
@@ -71,6 +102,9 @@ class ProhibitionRule(EnvironmentRule):
     
     def make_str_repr(self):
         return self.pure_precon + ' -> !' + self.prohibited_action
+    
+    def is_subset_of(self, other_rule):
+        return super().is_subset_of(other_rule) and self.prohibited_action == other_rule.prohibited_action
     
 class ObligationRule(EnvironmentRule):
     """Contains rules that emit a subgoal."""
@@ -108,3 +142,6 @@ class ObligationRule(EnvironmentRule):
     
     def make_str_repr(self):
         return self.pure_precon + ' -> ' + self.pure_goal
+    
+    def is_subset_of(self, other_rule):
+        return super().is_subset_of(other_rule) and self.goal == other_rule.goal

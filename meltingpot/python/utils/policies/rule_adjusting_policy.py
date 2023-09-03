@@ -40,7 +40,8 @@ DEFAULT_MAX_DEPTH = 15
 # AGENT CLASS
 DEFAULT_COMPLIANCE_COST = 1-DEFAULT_GAMMA
 DEFAULT_ACTION_COST = 1-DEFAULT_GAMMA
-DEFAULT_VIOLATION_COST = 0.5
+DEFAULT_BLOCKING_COST = 0.5
+DEFAULT_VIOLATION_COST = 0.3
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
 DEFAULT_COLLECT_APPLE_REWARD = 0.9
@@ -99,6 +100,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 obligation_reward: int = DEFAULT_OBLIGATION_REWARD,
                 apple_reward: int = DEFAULT_APPLE_REWARD,
                 collect_apple_reward: float = DEFAULT_COLLECT_APPLE_REWARD,
+                element_blocking_cost: float = DEFAULT_BLOCKING_COST,
                 default_action_cost: float = DEFAULT_ACTION_COST,
                 init_prior: float = DEFAULT_INIT_PRIOR,
                 p_obey: float = DEFAULT_P_OBEY,
@@ -143,6 +145,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.obligation_reward = obligation_reward
         self.apple_reward = apple_reward
         self.collect_apple_reward = collect_apple_reward
+        self.element_blocking_cost = element_blocking_cost
         self.max_depth = max_depth
         self.default_action_cost = 1 - gamma
         self.init_prior = init_prior
@@ -364,6 +367,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             self.rtdp(ts_cur)
 
         self.last_inventory = ts_cur.observation["INVENTORY"]
+
+        print(f'END OF STEP PLAYER {self.lua_index}')
 
         return self.get_act(ts_cur, self.py_index, temp=0.0)
     

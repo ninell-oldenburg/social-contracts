@@ -901,6 +901,7 @@ class RuleObeyingPolicy(policy.Policy):
   def get_boltzmann_act(self, q_values: list, temp=None) -> int:
 
     if temp == 0:
+        print(f'player {self.lua_index}: {q_values}')
         return np.argmax(q_values)
     
     probs = self.compute_boltzmann(q_values)
@@ -923,8 +924,8 @@ class RuleObeyingPolicy(policy.Policy):
 
     cost = self.compliance_cost if act in available else self.violation_cost # rule violation
 
-    if bot.is_agent_in_position(observation, pos) or bot.is_water(observation, pos):
-      r_cur -= self.default_action_cost
+    if bot.is_agent_in_position(ts_cur.observation, pos) or bot.is_water(ts_cur.observation, pos):
+      r_cur -= self.element_blocking_cost
 
     if self.log_weights:
       print()

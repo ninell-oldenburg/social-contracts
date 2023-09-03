@@ -261,6 +261,17 @@ class RuleLearningPolicy(RuleObeyingPolicy):
                 return False
         return False
     
+    def add_rule_with_pruning(self, new_rule, existing_rules):
+        for i, existing_rule in enumerate(existing_rules):
+            if new_rule.is_subset_of(existing_rule):
+                print(f'{new_rule.precondition} is subset of {existing_rule.precondition}')
+                return  # Don't add the new rule because it's a subset of an existing rule
+            elif existing_rule.is_subset_of(new_rule):
+                print(f'{existing_rule.precondition} is subset of {new_rule.precondition}')
+                existing_rules[i] = new_rule  # Replace the existing rule with the new, more specific rule
+                return
+        existing_rules.append(new_rule)  # Add the new rule because it's not a subset of any existing rule
+
     def threshold_rules(self):
         """Returns rules with probability over a certain threshold."""
         obligations = []
@@ -269,9 +280,9 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             if belief >= self.threshold:
                 rule = deepcopy(self.potential_rules[i])
                 if isinstance(rule, ObligationRule):
-                    obligations.append(rule)
+                    self.add_rule_with_pruning(rule, obligations)
                 elif isinstance(rule, ProhibitionRule):
-                    prohibitions.append(rule)
+                    self.add_rule_with_pruning(rule, prohibitions)
 
         return obligations, prohibitions
     
