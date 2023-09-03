@@ -88,7 +88,7 @@ for k in range(stats_relevance):
   for i in range(len(BASELINE_SCENARIOS)):
       roles = BASELINE_SCENARIOS[i]
       cur_settings, cur_result = main(roles=DEFAULT_ROLES, 
-                                      episodes=400, 
+                                      episodes=300, 
                                       num_iteration=k, 
                                       rules=DEFAULT_RULES, 
                                       env_seed=k, 
@@ -98,12 +98,9 @@ for k in range(stats_relevance):
                                       save_csv=True,
                                       plot_q_vals=False,
                                       gamma=0.9999,
-                                      tau=0.1,
+                                      tau=0.5,
                                       )
-      print(cur_result)
-      print()
-      for entry in cur_result.values():
-        print(len(entry))
+
       cur_df = pd.DataFrame.from_dict(cur_result)
       path = f'examples/results/base/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
@@ -120,7 +117,7 @@ for k in range(stats_relevance):
   for i in range(len(TEST_SCENARIOS)):
       roles = TEST_SCENARIOS[i]
       cur_settings, cur_result = main(roles=roles, 
-                                      episodes=400, 
+                                      episodes=300, 
                                       num_iteration=k, 
                                       rules=DEFAULT_RULES, 
                                       env_seed=k, 
@@ -130,7 +127,7 @@ for k in range(stats_relevance):
                                       save_csv=True,
                                       plot_q_vals=False,
                                       gamma=0.9999,
-                                      tau=0.1,
+                                      tau=0.5,
                                       )
       print(cur_result)
       cur_df = pd.DataFrame.from_dict(cur_result)
@@ -149,7 +146,7 @@ print()
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
     cur_settings, cur_result = main(roles=DEFAULT_ROLES, 
-                                    episodes=400, 
+                                    episodes=300, 
                                     num_iteration=k, 
                                     rules=rule_set, 
                                     env_seed=k, 
@@ -161,7 +158,7 @@ for k in range(stats_relevance):
                                     threshold_init_prior=0.8,
                                     learner_init_prior=0.2,
                                     gamma=0.99999,
-                                    tau=0.1)
+                                    tau=0.5)
     
     cur_df = pd.DataFrame.from_dict(cur_result)
     path = f'examples/results/rule_baseline/scenario{rule_set_idx+1}/trial{k+1}.csv'

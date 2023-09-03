@@ -932,7 +932,7 @@ class RuleObeyingPolicy(policy.Policy):
       if bot.current_obligations[0].satisfied(observation):
         r_cur = bot.obligation_reward
 
-    cost = self.compliance_cost if act in available else self.violation_cost # rule violation
+    cost = 0 if act in available else self.violation_cost # rule violation
 
     if bot.is_agent_in_position(ts_cur.observation, pos):
       r_cur -= self.element_blocking_cost

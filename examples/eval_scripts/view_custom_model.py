@@ -50,12 +50,12 @@ def main(roles,
           rules, 
           env_seed, 
           create_video=True, 
-          log_output=True, 
+          log_output=False, 
           log_weights=False,
           save_csv=True,
           plot_q_vals=False,
-          gamma=0.999,
-          tau=1.5,
+          gamma=0.9999,
+          tau=0.5,
           passive_learning=True,
           stochastic_act_selection=False,
           ):
@@ -91,13 +91,12 @@ def main(roles,
                                     gamma=gamma,
                                     tau=tau,
                                     is_learner=False,
-                                    stochastic_act_selection=stochastic_act_selection,
                                     ))
     else:
       bots.append(RuleAdjustingPolicy(env=env, 
                                     player_idx=i,
                                     log_output=log_output,
-                                    log_rule_prob_output=True,
+                                    log_rule_prob_output=False,
                                     log_weights=log_weights,
                                     look=ROLE_TO_INT[role],
                                     role=role, 
@@ -109,7 +108,6 @@ def main(roles,
                                     gamma=gamma,
                                     tau=tau,
                                     is_learner=True,
-                                    stochastic_act_selection=stochastic_act_selection,
                                     ))
       
     for bot in bots:
@@ -149,18 +147,20 @@ def main(roles,
   game_display = pygame.display.set_mode(
       (int(shape[1] * scale), int(shape[0] * scale)))
   
+  goals = ['apple', 'clean', 'pay', 'zap']
   for bot in bots:
     filename = f'examples/results/policies/{bot.role}_policies.csv'
-    filename_no_rules = f'examples/results/policies/{bot.role}_policies_no_rules.csv'
+    filename_wo_rules = f'examples/results/policies/{bot.role}_policies_wo_rules.csv'
     if os.path.exists(filename):
       bot.V = read_from_csv(filename)
-      bot.V_no_rules = read_from_csv(filename_no_rules)
-      goals = ['apple', 'clean', 'pay', 'zap']
       for goal in goals:
         if not goal in bot.V.keys():
           bot.V[goal] = {} 
-        if not goal in bot.V_no_rules.keys():
-          bot.V_no_rules[goal] = {} 
+    if os.path.exists(filename_wo_rules):
+      bot.V_wo_rules = read_from_csv(filename_wo_rules)
+      for goal in goals:
+        if not goal in bot.V_wo_rules.keys():
+          bot.V_wo_rules[goal] = {} 
 
   for k in range(episodes):
     obs = timestep.observation[0]["WORLD.RGB"]
@@ -235,9 +235,9 @@ def main(roles,
   if save_csv:
     for i, bot in enumerate(bots):
       filename = f'examples/results/policies/{bot.role}_policies.csv'
-      filename_no_rules = f'examples/results/policies/{bot.role}_policies_no_rules.csv'
+      filename_wo_rules = f'examples/results/policies/{bot.role}_policies_wo_rules.csv'
       save_to_csv(filename, bot.V)
-      save_to_csv(filename_no_rules, bot.V_no_rules)
+      save_to_csv(filename_wo_rules, bot.V_wo_rules)
 
   settings = get_settings(bots=bots, rules=rules)
 
@@ -270,10 +270,13 @@ def save_to_csv(filename, data):
     writer.writerow(['Goal', 'Hashkey'] + [f'Value {i + 1}' for i in range(12)])
 
     # Write the data rows
-    for goal, hash_dict in data.items():
-      for hashkey, values in hash_dict.items():
-        row_data = [str(goal), str(hashkey)] + [str(val) for val in values]
-        writer.writerow(row_data)
+    for goal, hash_key_or_dict in data.items():
+      if type(hash_key_or_dict) == dict:
+        for hashkey, values in hash_key_or_dict.items():
+          row_data = [str(goal), str(hashkey)] + [str(val) for val in values]
+          writer.writerow(row_data)
+      else:
+        row_data = [str(goal)] + [str(hash_key_or_dict)]
 
 # Function to read the CSV file and create the nested dictionary
 def read_from_csv(filename):
@@ -285,6 +288,11 @@ def read_from_csv(filename):
     for row in reader:
       goal, hashkey = row[:2]
       values = [float(val) for val in row[2:]]
+      
+      if len(values) == 0:  # This indicates that hashkey_or_dict was not a dict
+          data[goal] = hashkey
+          continue
+
       if goal not in data:
           data[goal] = {}
       data[goal][hashkey] = values

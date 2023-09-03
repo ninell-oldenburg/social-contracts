@@ -38,8 +38,8 @@ DEFAULT_GAMMA = 0.9999
 DEFAULT_MAX_DEPTH = 15
 
 # AGENT CLASS
-DEFAULT_COMPLIANCE_COST = 1-DEFAULT_GAMMA
-DEFAULT_ACTION_COST = 1-DEFAULT_GAMMA
+DEFAULT_COMPLIANCE_COST = 1 - DEFAULT_GAMMA
+DEFAULT_ACTION_COST = 1 - DEFAULT_GAMMA
 DEFAULT_BLOCKING_COST = DEFAULT_ACTION_COST * 2
 DEFAULT_VIOLATION_COST = DEFAULT_ACTION_COST * 9
 DEFAULT_OBLIGATION_REWARD = 1
@@ -110,7 +110,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 max_apple_growth_rate: float = MAX_APPLE_GROWTH_RATE,
                 dirt_spawn_prob: float = DIRT_SPAWN_PROB,
                 is_learner: bool = False, 
-                stochastic_act_selection: bool = False,
                 default_obligation_depth: int = DEFAULT_OBLIGATION_DEPTH,
                 probs_tau: float = DEFAULT_PROBS_TAU) -> None:
         
@@ -147,7 +146,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.collect_apple_reward = collect_apple_reward
         self.element_blocking_cost = element_blocking_cost
         self.max_depth = max_depth
-        self.default_action_cost = 1 - gamma
+        self.default_action_cost = default_action_cost
         self.init_prior = init_prior
         self.p_obey = p_obey
         self.is_learner = is_learner
@@ -157,7 +156,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.threshold_restoration = threshold_restoration
         self.max_apple_growth_rate = max_apple_growth_rate
         self.dirt_spawn_prob = dirt_spawn_prob
-        self.stochastic_act_selection = stochastic_act_selection
         self.max_obligation_depth = default_obligation_depth
         self.probs_tau = probs_tau
         
