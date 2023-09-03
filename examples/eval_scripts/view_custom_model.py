@@ -125,7 +125,7 @@ def main(roles,
   actions = [0] * len(bots)
   # make headline of output dict#
   ROLE_LIST = ['free', 'cleaner', 'farmer', 'learner']
-  ACTION_ROLE_LIST = [key + "_action" for key in config['roles']]
+  ACTION_ROLE_LIST = [key + "_action" for key in ROLE_LIST]
   data_dict = {
     (key.make_str_repr() if hasattr(key, 'make_str_repr') else key): [] 
     for key in ROLE_LIST + ACTION_ROLE_LIST + ['DESSICATED'] + \
@@ -170,6 +170,11 @@ def main(roles,
       # cum_reward[i] += timestep_bot.reward
       bot.append_to_history(timestep_list)
       actions[i] = bot.step()
+      if k == episodes:
+        ts_cur = bot.history[-2][bot.py_index]
+        hash = bot.hash_ts(ts_cur)
+        goal = ts_cur.goal
+        print(bot.V[goal][hash])
 
     for i, bot in enumerate(bots):
       if len(bot.history) > 1:
@@ -421,6 +426,7 @@ if __name__ == "__main__":
       print(f"cleaner: {scores['cleaner']:.2f}, farmer: {scores['farmer']:.2f}, free: {scores['free']:.2f}")
       print()
 """
+  print(data_dict)
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
   print(sum(data_dict['free']))

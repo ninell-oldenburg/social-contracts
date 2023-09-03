@@ -223,7 +223,6 @@ class RuleObeyingPolicy(policy.Policy):
       self.ts_start = ts_cur
 
       # Check if any of the obligations are active
-      self.current_obligation = None
       for obligation in self.obligations:
          if obligation.holds_in_history(self.history):
            self.current_obligation = obligation
@@ -243,7 +242,7 @@ class RuleObeyingPolicy(policy.Policy):
       return self.get_act(ts_cur, self.py_index)
   
   def set_goal(self) -> None:
-    if self.current_obligation != None:
+    if len(self.current_obligations) != 0:
       self.goal = self.get_cur_obl()
     else:
       self.goal = 'apple'
@@ -616,28 +615,22 @@ class RuleObeyingPolicy(policy.Policy):
   def custom_deepcopy(self, old_obs):
     """Own copy implementation for time efficiency."""
     new_obs = {}
-    for key in old_obs:
-      if isinstance(old_obs[key], np.ndarray):
-        if old_obs[key].shape == ():
-          new_obs[key] = old_obs[key].item()
-        elif old_obs[key].shape == (1,):
-          new_obs[key] = old_obs[key][0] # unpack numpy array
+    for key, value in old_obs.items():
+        if isinstance(value, np.ndarray):
+            new_obs[key] = value.copy() if value.shape else value.item()
         else:
-          new_obs[key] = np.copy(old_obs[key])
-      else:
-        new_obs[key] = old_obs[key]
-
+            new_obs[key] = value
     return new_obs
   
   def get_cur_obl(self) -> str:
     """
     Returns the a string with the goal of the obligation.
     """
-    if "CLEAN" in self.current_obligation.goal:
+    if "CLEAN" in self.current_obligations[0].goal:
       return "clean"
-    if "PAY" in self.current_obligation.goal:
+    if "PAY" in self.current_obligations[0].goal:
       return "pay"
-    if "RIOTS" in self.current_obligation.goal:
+    if "RIOTS" in self.current_obligations[0].goal:
       return "zap"
     
     return None
@@ -802,7 +795,7 @@ class RuleObeyingPolicy(policy.Policy):
         pos_cur_obl = bot.get_cur_obl_pos(observation)
 
         r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, observation, goal)
-        r_fulfilled_obl = self.obligation_reward if bot.current_obligation.satisfied(observation) else 0
+        r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
 
         r_fut_obl = 0
         if self.goal == 'clean':
@@ -923,9 +916,9 @@ class RuleObeyingPolicy(policy.Policy):
     r_forward = max(bot.V[goal][s_next]) * self.gamma
     r_cur = ts_next.reward
 
-    if bot.current_obligation != None:
+    if len(bot.current_obligations) != 0:
       r_cur = 0
-      if bot.current_obligation.satisfied(observation):
+      if bot.current_obligations[0].satisfied(observation):
         r_cur = bot.obligation_reward
 
     cost = self.compliance_cost if act in available else self.violation_cost # rule violation
@@ -1055,13 +1048,12 @@ class RuleObeyingPolicy(policy.Policy):
     x_min, x_max = max(0, x - 1), min(len(surroundings), x + 2)
     y_min, y_max = max(0, y - 1), min(len(surroundings[0]), y + 2)
 
-    apple_mask = (surroundings[x_min:x_max, y_min:y_max] == -1)
+    # Directly count the apples in the surroundings
+    apple_count = np.sum(surroundings[x_min:x_max, y_min:y_max] == -1)
 
-    # Set the cell at (x, y) to False so it's not counted
-    if x_min <= x < x_max and y_min <= y < y_max:
-        apple_mask[x - x_min, y - y_min] = False
-
-    apple_count = np.count_nonzero(apple_mask)
+    # Subtract the center cell if it's an apple
+    if surroundings[x, y] == -1:
+        apple_count -= 1
 
     return apple_count
     
@@ -1108,8 +1100,8 @@ class RuleObeyingPolicy(policy.Policy):
     """Check whether any of the break criteria are met."""
     if timestep.last():
       return True
-    elif self.current_obligation != None:
-      return self.current_obligation.satisfied(
+    elif len(self.current_obligations) != 0:
+      return self.current_obligations[0].satisfied(
         timestep.observation)
     elif timestep.reward >= 1.0:
       return True

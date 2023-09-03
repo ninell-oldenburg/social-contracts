@@ -132,6 +132,7 @@ for k in range(stats_relevance):
                                       gamma=0.99999,
                                       tau=0.1,
                                       )
+      print(cur_result)
       cur_df = pd.DataFrame.from_dict(cur_result)
       path = f'examples/results/test/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
@@ -159,8 +160,8 @@ for k in range(stats_relevance):
                                     plot_q_vals=False,
                                     threshold_init_prior=0.8,
                                     learner_init_prior=0.2,
-                                    gamma=0.999,
-                                    tau=1.5)
+                                    gamma=0.99999,
+                                    tau=0.1)
     
     cur_df = pd.DataFrame.from_dict(cur_result)
     path = f'examples/results/rule_baseline/scenario{rule_set_idx+1}/trial{k+1}.csv'

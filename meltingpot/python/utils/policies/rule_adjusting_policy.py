@@ -166,6 +166,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.riots = []
         self.pos_all_possible_dirt = []
         self.pos_all_possible_apples = []
+        self.current_obligations = deque()
+        self.current_obligation = None
         self.hash_table = {}
         self.hash_count = {}
         self.q_value_log = {}
@@ -333,20 +335,27 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                     if not self.role_exists_for_rule(rule):
                         if self.rule_beliefs[rule_idx] > self.threshold:
                             self.rule_beliefs[rule_idx] = 0.0
+        else:
+            if len(self.current_obligations) != 0:
+                for obligation in list(self.current_obligations):
+                    if obligation.satisfied(self.history[-2][self.py_index].observation):
+                        self.current_obligations.remove(obligation)
+            
 
         # Check if any of the obligations are active
-        self.current_obligation = None
+        # self.current_obligation = None
         for obligation in self.obligations:
             cur_history = [ts[self.py_index].observation for ts in self.history]
             if obligation.holds_in_history(cur_history):
-                self.current_obligation = obligation
+                if not obligation in self.current_obligations:
+                    self.current_obligations.append(obligation)
                 break
             
         self.set_goal()
         ts_cur.goal = self.goal
                 
         if self.log_output:
-            print(f"player: {self.lua_index} obligation active?: {self.current_obligation != None}")
+            print(f"player: {self.lua_index} obligation active?: {len(self.current_obligations) != 0}")
 
         if self.step_counter >= self.n_steps:
             self.rtdp(ts_cur)
@@ -486,7 +495,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         # get a list of prohibited actions according to the ongoing rule
         prohib_actions = self.get_prohib_action(past_obs, rule, past_pos, player_idx)
         is_violation = True if action in prohib_actions else False
-        available = [act for act in range(self.num_actions) if not act in prohib_actions]
+        available = set(range(self.num_actions)) - set(prohib_actions)
         
         q_vals_rule_is_active = np.full(self.action_spec.num_values , -1.0)
         for act in range(self.num_actions):
