@@ -81,14 +81,14 @@ W      P     <~Sf  P  W
 W          P <~S>     W
 WT^TT^T^T^T^T;~S^T^T^TW
 W__________A__________W
+W_________AAA__GG_____W
+W_____GG_AAAAA________W
 W_________AAA_________W
-W___Q____AAAAA_____Q__W
-W_________AAA_________W
-W__________A__________W
+W___GG_____A______Q___W
 W_____A_________A_____W
-W____AAA___Q___AAA____W
+W____AAA__Q____AAA____W
 W___AAAAA_____AAAAA___W
-W____AAA_______AAA____W
+W_G__AAA_______AAA_G__W
 W_____A_________A_____W
 W__GGGGGGGGGGGGGGGGG__W
 WGGGGGGGGGGGGGGGGGGGGGW

@@ -407,8 +407,8 @@ if __name__ == "__main__":
                                     log_weights=False,
                                     save_csv=False,
                                     plot_q_vals=False,
-                                    gamma=0.9999,
-                                    tau=0.1,
+                                    gamma=0.99999,
+                                    tau=0.5,
                                     passive_learning=True,
                                     stochastic_act_selection=False,
                                     )
