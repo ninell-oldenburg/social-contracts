@@ -1064,10 +1064,10 @@ class RuleObeyingPolicy(policy.Policy):
     x_min, x_max = max(0, x - 1), min(len(surroundings), x + 2)
     y_min, y_max = max(0, y - 1), min(len(surroundings[0]), y + 2)
 
-    # Directly count the apples in the surroundings
-    apple_count = np.sum(surroundings[x_min:x_max, y_min:y_max] == -1)
+    subarray = surroundings[x_min:x_max, y_min:y_max]
+    apple_count = np.sum(subarray == -1)
 
-    # Subtract the center cell if it's an apple
+    # Since the center cell is included, remove it if it's an apple.
     if surroundings[x, y] == -1:
         apple_count -= 1
 
