@@ -1,5 +1,6 @@
 
 import dm_env
+import numpy as np
 
 class AgentTimestep():
     def __init__(self) -> None:
@@ -22,6 +23,25 @@ class AgentTimestep():
         if self.step_type == dm_env.StepType.LAST:
             return True
         return False
+    
+    def copy(self):
+        new_ts = AgentTimestep()
+        new_ts.step_type = self.step_type
+        new_ts.reward = self.reward
+        new_ts.observation = self.custom_deepcopy(self.observation)
+        new_ts.goal = self.goal
+
+        return new_ts
+
+    def custom_deepcopy(self, old_obs):
+        """Own copy implementation for time efficiency."""
+        new_obs = {}
+        for key, value in old_obs.items():
+            if isinstance(value, np.ndarray):
+                new_obs[key] = value.copy() if value.shape else value.item()
+            else:
+                new_obs[key] = value
+        return new_obs
 
     def make_action_observations(self, timestep: dm_env.TimeStep, x: int, y: int) -> None:
         """Compute everything that can be inferred from the action table."""

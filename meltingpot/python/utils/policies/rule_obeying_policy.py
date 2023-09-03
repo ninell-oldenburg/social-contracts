@@ -628,7 +628,7 @@ class RuleObeyingPolicy(policy.Policy):
     """
     if "CLEAN" in self.current_obligations[0].goal:
       return "clean"
-    if "PAY" in self.current_obligations[0].goal:
+    if "PAID" in self.current_obligations[0].goal:
       return "pay"
     if "RIOTS" in self.current_obligations[0].goal:
       return "zap"
@@ -636,7 +636,11 @@ class RuleObeyingPolicy(policy.Policy):
     return None
 
   def get_ts_hash_key(self, obs: dict, reward: float, goal: str) -> str:
-    relevant_keys = self.relevant_keys[goal] # define keys
+    try:
+        relevant_keys = self.relevant_keys[goal]
+    except KeyError:
+        print(f"Key {goal} not found in self.relevant_keys")
+    #relevant_keys = self.relevant_keys[goal] # define keys
     items = list(obs[key] for key in sorted(obs.keys()) if key in sorted(relevant_keys)) # extract
     #sorted_items = sorted(items, key=lambda x: x[0])
 
@@ -645,7 +649,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     return hash_key
 
-  def hash_ts(self, ts: AgentTimestep, goal=None):
+  def hash_ts(self, ts: AgentTimestep):
     """Computes hash for the given timestep observation."""
     return self.get_ts_hash_key(ts.observation, ts.reward, ts.goal)
   
@@ -654,13 +658,12 @@ class RuleObeyingPolicy(policy.Policy):
     # Perform greedy value iteration
     visited = []
     for _ in range(self.n_rollouts):
-      ts_cur = ts_start
+      ts_cur = ts_start.copy()
       for _ in range(self.max_depth):
         visited.append(ts_cur)
         # greedy rollout giving the next best action
         next_act = self.update(ts_cur)
-        # visited += neighbors
-        # taking nest best action
+        # taking nest best action^
         ts_cur = self.env_step(ts_cur, next_act, self.py_index)
 
     # post-rollout update
