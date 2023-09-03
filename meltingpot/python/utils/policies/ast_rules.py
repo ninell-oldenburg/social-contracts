@@ -50,6 +50,10 @@ class EnvironmentRule():
         # Extract the conditions from the rules
         condition1 = re.findall(r"lambda obs\['(.*?)'\]", self.precondition)
         condition2 = re.findall(r"lambda obs\['(.*?)'\]", other_rule.precondition)
+
+        print()
+        print(condition1)
+        print(condition2)
         
         # Check if the conditions are the same
         if condition1 != condition2:
@@ -63,8 +67,8 @@ class EnvironmentRule():
         if not num_op1 or not num_op2:
             return False
 
-        num1, op1 = num_op1[0][0], float(num_op1[0][1])
-        num2, op2 = num_op2[0][0], float(num_op2[0][1])
+        op1, num1 = num_op1[0][0], float(num_op1[0][1])
+        op2, num2 = num_op2[0][0], float(num_op2[0][1])
 
         # Check if the operators are the same
         if op1 != op2:
@@ -72,9 +76,10 @@ class EnvironmentRule():
         
         # Check the numerical values based on the operator
         if op1 == '<':
-            return num1 < num2
+            print()
+            return float(num1) < float(num2)
         elif op1 == '>':
-            return num1 > num2
+            return float(num1) > float(num2)
 
 class ProhibitionRule(EnvironmentRule):
     """Contains rules that prohibit an action."""
