@@ -276,7 +276,8 @@ def save_to_csv(filename, data):
           row_data = [str(goal), str(hashkey)] + [str(val) for val in values]
           writer.writerow(row_data)
       else:
-        row_data = [str(goal)] + [str(hash_key_or_dict)]
+        row_data = ['None', str(goal)] + [str(hash_key_or_dict[i]) for i in range(len(hash_key_or_dict))]
+        writer.writerow(row_data)
 
 # Function to read the CSV file and create the nested dictionary
 def read_from_csv(filename):
@@ -289,8 +290,8 @@ def read_from_csv(filename):
       goal, hashkey = row[:2]
       values = [float(val) for val in row[2:]]
       
-      if len(values) == 0:  # This indicates that hashkey_or_dict was not a dict
-          data[goal] = hashkey
+      if goal == 'None':  # This indicates that hashkey_or_dict was not a dict
+          data[hashkey] = values
           continue
 
       if goal not in data:
@@ -300,25 +301,34 @@ def read_from_csv(filename):
   return data
 
 def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dead_apple_ratio) -> dict:
+  second_free = None
+  second_free_act = None
+
   for i, key in enumerate(data_dict):
     if i < 4: # player rewards
       if key in all_roles: # key 0-3 are the name of the role
-        j = get_index(key, all_roles, skip_first=False)
+        player_idx = get_index(key, all_roles, skip_first=False)
         if key == 'free' and all_roles.count(key) == 2:
-          j1 = get_index(key, all_roles, skip_first=True)
-          data_dict['learner'].append(reward_arr[j1].item())    
-          data_dict['free'].append(reward_arr[j].item())
+          second_free = get_index(key, all_roles, skip_first=True)
+          data_dict['learner'].append(reward_arr[second_free].item())    
+          data_dict['free'].append(reward_arr[player_idx].item())
         else:
-          data_dict[key].append(reward_arr[j].item())
-      else: 
+          data_dict[key].append(reward_arr[player_idx].item())
+      elif second_free == None: 
         data_dict[key].append(0)
 
     elif i < 8: # player actions
       role = key.replace('_action', '')
-      if role in all_roles:
-        k = get_index(role, all_roles, skip_first=False)
-        data_dict[key].append(actions[k])
-      else: data_dict[key].append('')
+      if role in all_roles: # key 0-3 are the name of the role
+        player_idx = get_index(role, all_roles, skip_first=False)
+        if role == 'free' and all_roles.count(role) == 2:
+          second_free_act = get_index(role, all_roles, skip_first=True)
+          data_dict['learner_action'].append(actions[second_free].item())    
+          data_dict['free_action'].append(actions[player_idx].item())
+        else:
+          data_dict[key].append(actions[player_idx].item())
+      elif second_free_act == None: 
+        data_dict[key].append('')
 
     elif i == 8:
       data_dict[key].append(dead_apple_ratio)
@@ -394,8 +404,8 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 1
-  episodes = 100
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 2 + ('learner',) * 0
+  episodes = 5
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
   gammas = [0.99999]
@@ -447,7 +457,8 @@ if __name__ == "__main__":
       print(f"cleaner: {scores['cleaner']:.2f}, farmer: {scores['farmer']:.2f}, free: {scores['free']:.2f}")
       print()
 """
-  # print(data_dict)
+  for item, value in data_dict.items():
+    print(f'{item}: {value}')
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
   print(sum(data_dict['free']))

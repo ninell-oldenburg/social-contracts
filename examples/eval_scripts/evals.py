@@ -45,15 +45,31 @@ plt.show()"""
 generator = RuleGenerator()
 POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_length(3)
 
-DEFAULT_ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1 + ('learner',) * 1
-BASELINE_ROLES = ('free',) * 1 + ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1
+EXPERIMENT_ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1 + ('learner',) * 1
+BASELINE_ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1 + ('free',) * 1
 
-baseline_roles = ['free', 'cleaner', 'farmer', 'free']
-BASELINE_SCENARIOS = [('free',), ('cleaner',), ('farmer',), ('free',)]
-ALL_ROLE_COMB = []
-for i in range(1, len(baseline_roles) + 1):
-    new_comb = list(itertools.combinations(baseline_roles, i))
+BASLINE = []
+for i in range(1, len(BASELINE_ROLES) + 1):
+    new_comb = list(itertools.combinations(BASELINE_ROLES, i))
     for comb in new_comb:
+        BASLINE.append(comb)
+
+unique_sorted_tuples = set()
+BASELINE_SCENARIOS = []
+for tup in BASLINE:
+    # Convert tuple to a sorted tuple
+    sorted_tup = tuple(sorted(tup))
+    # Check if this sorted tuple hasn't been seen before
+    if sorted_tup not in unique_sorted_tuples:
+        unique_sorted_tuples.add(sorted_tup)
+        BASELINE_SCENARIOS.append(tup)
+
+ALL_ROLE_COMB = []
+for i in range(1, len(EXPERIMENT_ROLES) + 1):
+    new_comb = list(itertools.combinations(EXPERIMENT_ROLES, i))
+    for comb in new_comb:
+        if not 'learner' in comb:
+            continue
         ALL_ROLE_COMB.append(comb)
 
 unique_sorted_tuples = set()
@@ -75,7 +91,7 @@ for i in range(0, len(DEFAULT_RULES) + 1):
 
 start_time = time.time()
 
-stats_relevance = 1
+stats_relevance = 13
 
 print()
 print('*'*50)
@@ -83,11 +99,10 @@ print('STARTING BASELINE SCENARIOS')
 print('*'*50)
 print()
 
-
 for k in range(stats_relevance):
   for i in range(len(BASELINE_SCENARIOS)):
       roles = BASELINE_SCENARIOS[i]
-      cur_settings, cur_result = main(roles=DEFAULT_ROLES, 
+      cur_settings, cur_result = main(roles=roles, 
                                       episodes=300, 
                                       num_iteration=k, 
                                       rules=DEFAULT_RULES, 
@@ -129,14 +144,41 @@ for k in range(stats_relevance):
                                       gamma=0.9999,
                                       tau=0.5,
                                       )
-      print(cur_result)
       cur_df = pd.DataFrame.from_dict(cur_result)
       path = f'examples/results/test/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
       print(f'ITERATION {k+1} TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
 
-      
+print()
+print('*'*50)
+print('STARTING RULE BASELINE')
+print('*'*50)
+print()
+
+for k in range(stats_relevance):
+  for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
+    cur_settings, cur_result = main(roles=BASELINE_ROLES,
+                                    episodes=300, 
+                                    num_iteration=k, 
+                                    rules=rule_set, 
+                                    env_seed=k, 
+                                    create_video=False, 
+                                    log_output=False, 
+                                    log_weights=False,
+                                    save_csv=True,
+                                    plot_q_vals=False,
+                                    threshold_init_prior=0.8,
+                                    learner_init_prior=0.2,
+                                    gamma=0.99999,
+                                    tau=0.5)
+    
+    cur_df = pd.DataFrame.from_dict(cur_result)
+    path = f'examples/results/rule_baseline/scenario{rule_set_idx+1}/trial{k+1}.csv'
+    cur_df.to_csv(path_or_buf=path)
+    print('='*50)
+    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
+
 print()
 print('*'*50)
 print('STARTING RULE TRIALS')
@@ -145,7 +187,7 @@ print()
 
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
-    cur_settings, cur_result = main(roles=DEFAULT_ROLES, 
+    cur_settings, cur_result = main(roles=EXPERIMENT_ROLES,
                                     episodes=300, 
                                     num_iteration=k, 
                                     rules=rule_set, 
