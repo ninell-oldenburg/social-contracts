@@ -57,7 +57,6 @@ def main(roles,
           gamma=0.9999,
           tau=0.5,
           passive_learning=True,
-          stochastic_act_selection=False,
           ):
 
   level_name = get_name_from_rules(rules)
@@ -301,34 +300,62 @@ def read_from_csv(filename):
   return data
 
 def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dead_apple_ratio) -> dict:
+  """
+    Appends reward and action data to the given dictionary for different roles.
+
+    Parameters:
+    - data_dict (dict):   The dictionary to which the data will be appended.
+    - reward_arr:         The array containing reward values.
+    - beliefs:            Array of posteriors about potential rules at that timestep.
+    - all_roles (list):   A list of roles that players have.
+    - actions:            The array containing action values.
+    - dead_apple_ratio:   Ratio of apples that won't grow again.
+
+    Returns:
+    - dict: The updated data dictionary.
+
+    Note:
+    - The first four keys in `data_dict` must relate to player rewards.
+    - The next four keys in `data_dict` must relate to player actions.
+    - If there are two 'free' agents, the second one's data will be appended to the 'learner' key.
+    """
   second_free = None
-  second_free_act = None
 
   for i, key in enumerate(data_dict):
-    if i < 4: # player rewards
-      if key in all_roles: # key 0-3 are the name of the role
-        player_idx = get_index(key, all_roles, skip_first=False)
-        if key == 'free' and all_roles.count(key) == 2:
-          second_free = get_index(key, all_roles, skip_first=True)
-          data_dict['learner'].append(reward_arr[second_free].item())    
-          data_dict['free'].append(reward_arr[player_idx].item())
-        else:
-          data_dict[key].append(reward_arr[player_idx].item())
-      elif second_free == None: 
-        data_dict[key].append(0)
+    # If dealing with rewards
+    if i < 4:  
+      role = key  # Role is directly the key for rewards
+      # Check if the role is in all_roles list
+      if role in all_roles:
+          player_idx = get_index(role, all_roles, skip_first=False)
+          
+          # Special case for having two 'free' agents
+          if role == 'free' and all_roles.count(role) == 2:
+              if second_free is None:
+                  second_free = get_index(role, all_roles, skip_first=True)
+              data_dict['learner'].append(reward_arr[second_free].item())
+              data_dict['free'].append(reward_arr[player_idx].item())
+              continue
+          
+          data_dict[role].append(reward_arr[player_idx].item())
+      elif not (role == 'learner' and second_free != None):  # For cases where the role does not exist
+          data_dict[role].append(0)
 
-    elif i < 8: # player actions
-      role = key.replace('_action', '')
-      if role in all_roles: # key 0-3 are the name of the role
-        player_idx = get_index(role, all_roles, skip_first=False)
-        if role == 'free' and all_roles.count(role) == 2:
-          second_free_act = get_index(role, all_roles, skip_first=True)
-          data_dict['learner_action'].append(actions[second_free].item())    
-          data_dict['free_action'].append(actions[player_idx].item())
-        else:
-          data_dict[key].append(actions[player_idx].item())
-      elif second_free_act == None: 
-        data_dict[key].append('')
+    # If dealing with actions
+    elif i < 8:
+        role = key.replace('_action', '')
+        if role in all_roles:
+            player_idx = get_index(role, all_roles, skip_first=False)
+            
+            # Special case for two 'free' agents
+            if role == 'free' and all_roles.count(role) == 2:
+                data_dict['learner_action'].append(actions[second_free].item())
+                data_dict['free_action'].append(actions[player_idx].item())
+                continue
+
+            data_dict[key].append(actions[player_idx].item())
+        elif not (role == 'learner' and second_free != None):  # For cases where the role does not exist
+            data_dict[key].append('')
 
     elif i == 8:
       data_dict[key].append(dead_apple_ratio)
@@ -404,7 +431,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 2 + ('learner',) * 0
+  roles = ("cleaner",) * 0 + ("farmer",) * 0 + ('free',) * 2 + ('learner',) * 0
   episodes = 5
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
@@ -438,7 +465,6 @@ if __name__ == "__main__":
                                     gamma=0.9999,
                                     tau=0.5,
                                     passive_learning=True,
-                                    stochastic_act_selection=False,
                                     )
 
   """results[(gamma, tau)]['cleaner'] += sum(data_dict['cleaner'])

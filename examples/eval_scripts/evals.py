@@ -115,7 +115,7 @@ for k in range(stats_relevance):
                                       gamma=0.9999,
                                       tau=0.5,
                                       )
-
+      
       cur_df = pd.DataFrame.from_dict(cur_result)
       path = f'examples/results/base/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
