@@ -278,9 +278,11 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             if belief >= self.threshold:
                 rule = deepcopy(self.potential_rules[i])
                 if isinstance(rule, ObligationRule):
-                    self.add_rule_with_pruning(rule, obligations)
+                    obligations.append(rule)
+                    #self.add_rule_with_pruning(rule, obligations)
                 elif isinstance(rule, ProhibitionRule):
-                    self.add_rule_with_pruning(rule, prohibitions)
+                    prohibitions.append(rule)
+                    #self.add_rule_with_pruning(rule, prohibitions)
 
         return obligations, prohibitions
     

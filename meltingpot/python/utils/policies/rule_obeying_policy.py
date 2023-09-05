@@ -701,10 +701,6 @@ class RuleObeyingPolicy(policy.Policy):
 
     if self.log_weights:
       print(f'NEW UPDATE FOR STATE {s_cur}')
-
-    # initialize best optimistic guess for cur state
-    #if s_cur not in self.V[self.goal].keys():
-      #self.V[self.goal][s_cur], self.V_wo_rules[s_cur] = self.init_heuristic(ts_cur, self.py_index)
     
     for act in range(self.action_spec.num_values):
       ts_next = self.env_step(ts_cur, act, self.py_index)
@@ -776,7 +772,6 @@ class RuleObeyingPolicy(policy.Policy):
       pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
       r_inv_apple = (self.apple_reward - self.default_action_cost) * observation['INVENTORY']
       r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, 'apple')
-
       r_apple = r_cur_apples + r_inv_apple
 
       if self.log_weights:
@@ -909,8 +904,8 @@ class RuleObeyingPolicy(policy.Policy):
     r_forward = max(bot.V[goal][s_next]) * self.gamma
     r_cur = ts_next.reward
 
-    r_forward_no_obl = max(bot.V_wo_rules[s_next]) * self.gamma if not goal == 'apple' else r_forward
-    r_cur_no_obl = ts_next.reward
+    r_forward_no_obl = max(bot.V_wo_rules[s_next]) * self.gamma
+    r_no_obl = ts_next.reward
 
     if len(bot.current_obligations) != 0:
       r_cur = 0
@@ -921,19 +916,19 @@ class RuleObeyingPolicy(policy.Policy):
 
     if bot.is_agent_in_position(ts_cur.observation, pos):
       r_cur -= self.element_blocking_cost
-      r_cur_no_obl -= self.element_blocking_cost
+      r_no_obl -= self.element_blocking_cost
 
     if bot.is_water(ts_cur.observation, pos):
       r_cur -= self.default_action_cost
-      r_cur_no_obl -= self.default_action_cost
+      r_no_obl -= self.default_action_cost
 
     if self.log_weights:
       print()
       print(f'{ts_cur.observation["POSITION"]} for {act} to {ts_next.observation["POSITION"]} gives\t{r_forward} + {r_cur} - {cost}; {s_next}')
 
     v_rules = r_forward + r_cur - cost
-    v_wo_rule = r_forward_no_obl
-
+    v_wo_rule = r_forward_no_obl + r_no_obl
+    
     return v_rules, v_wo_rule
   
   """def a_star(self, s_start: int) -> list[int]:

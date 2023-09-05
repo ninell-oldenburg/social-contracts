@@ -34,23 +34,20 @@ DEFAULT_N_STEPS = 2
 DEFAULT_N_ROLLOUTS = 2
 DEFAULT_TAU = 0.5
 # 0.99999 safe number: 0.99999
-DEFAULT_GAMMA = 0.9999
+DEFAULT_GAMMA = 0.65
 DEFAULT_MAX_DEPTH = 15
 
 # AGENT CLASS
-DEFAULT_COMPLIANCE_COST = 0.1
 DEFAULT_ACTION_COST = 0.01
 DEFAULT_BLOCKING_COST = DEFAULT_ACTION_COST * 2
 DEFAULT_VIOLATION_COST = 2
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
-DEFAULT_COLLECT_APPLE_REWARD = 0.9
 DEFAULT_SELECTION_MODE = "threshold"
 DEFAULT_THRESHOLD = 0.5
-DEFAULT_INIT_PRIOR = 0.2
+DEFAULT_INIT_PRIOR = 0.4
 DEFAULT_P_OBEY = 0.9
 DEFAULT_OBLIGATION_DEPTH = 20
-DEFAULT_PROBS_TAU = 1.5
 
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
@@ -91,7 +88,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 selection_mode: str = DEFAULT_SELECTION_MODE,
                 threshold: int = DEFAULT_THRESHOLD,
                 max_depth: int = DEFAULT_MAX_DEPTH,
-                compliance_cost: float = DEFAULT_COMPLIANCE_COST,
                 violation_cost: float = DEFAULT_VIOLATION_COST,
                 tau: float = DEFAULT_TAU, 
                 n_steps: int = DEFAULT_N_STEPS, 
@@ -99,7 +95,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 n_rollouts: int = DEFAULT_N_ROLLOUTS,
                 obligation_reward: int = DEFAULT_OBLIGATION_REWARD,
                 apple_reward: int = DEFAULT_APPLE_REWARD,
-                collect_apple_reward: float = DEFAULT_COLLECT_APPLE_REWARD,
                 element_blocking_cost: float = DEFAULT_BLOCKING_COST,
                 default_action_cost: float = DEFAULT_ACTION_COST,
                 init_prior: float = DEFAULT_INIT_PRIOR,
@@ -110,8 +105,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 max_apple_growth_rate: float = MAX_APPLE_GROWTH_RATE,
                 dirt_spawn_prob: float = DIRT_SPAWN_PROB,
                 is_learner: bool = False, 
-                default_obligation_depth: int = DEFAULT_OBLIGATION_DEPTH,
-                probs_tau: float = DEFAULT_PROBS_TAU) -> None:
+                default_obligation_depth: int = DEFAULT_OBLIGATION_DEPTH) -> None:
         
         # CALLING PARAMETERS
         self.py_index = player_idx
@@ -134,7 +128,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # CONSTANTS
         self.max_depth = max_depth
-        self.compliance_cost = compliance_cost
         self.violation_cost = violation_cost
         self.tau = tau
         self.n_steps = n_steps
@@ -143,7 +136,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.n_rollouts = n_rollouts
         self.obligation_reward = obligation_reward
         self.apple_reward = apple_reward
-        self.collect_apple_reward = collect_apple_reward
         self.element_blocking_cost = element_blocking_cost
         self.max_depth = max_depth
         self.default_action_cost = default_action_cost
@@ -157,7 +149,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.max_apple_growth_rate = max_apple_growth_rate
         self.dirt_spawn_prob = dirt_spawn_prob
         self.max_obligation_depth = default_obligation_depth
-        self.probs_tau = probs_tau
         
         # GLOBAL INITILIZATIONS
         self.history = deque(maxlen=10)
@@ -404,11 +395,11 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 # get q values for active rules and as if there were no rules
                 q_vals_no_rules = self.all_bots[player_idx].V_wo_rules[s_past_ts]
                 # get boltzmann distribution for both q value vectors
-                boltzmann_dis_no_rules = self.compute_boltzmann(q_vals_no_rules, tau=self.probs_tau)
+                boltzmann_dis_no_rules = self.compute_boltzmann(q_vals_no_rules)
                 action = actions[player_idx]
                 self.compute_posterior(player_idx, action, this_ts, past_ts, boltzmann_dis_no_rules)
 
-        # print(self.rule_beliefs)
+        print(self.rule_beliefs)
 
     def maybe_mark_riot(self, player_idx, rule):
         """Saves the ones who are violating rules in the global riots variable."""
@@ -440,8 +431,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         for act in range(self.num_actions):
             ts_next = self.env_step(past_ts, act, player_idx)
             s_next = self.init_process_next_ts(ts_next, player_idx)
-            _, q_vals_rule_is_active[act]  = self.get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
-        boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active, tau=self.probs_tau)
+            q_vals_rule_is_active[act], _  = self.get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
+        boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active)
 
         p_a_rule_is_active = boltzmann_dis_rule_is_active[action]
 
@@ -505,7 +496,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             ts_next = self.env_step(past_ts, act, player_idx)
             s_next = self.all_bots[player_idx].init_process_next_ts(ts_next, player_idx)
             _, q_vals_rule_is_active[act]  = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
-        boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active, tau=self.probs_tau)
+        boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active)
 
         for act in prohib_actions:
             boltzmann_dis_rule_is_active[act] = 0.0
