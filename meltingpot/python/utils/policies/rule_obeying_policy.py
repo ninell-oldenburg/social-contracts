@@ -770,7 +770,7 @@ class RuleObeyingPolicy(policy.Policy):
         continue
     
       pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
-      r_inv_apple = (self.apple_reward - self.default_action_cost) * observation['INVENTORY']
+      r_inv_apple = (self.apple_reward * self.gamma - self.default_action_cost * self.gamma) * observation['INVENTORY']
       r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, 'apple')
       r_apple = r_cur_apples + r_inv_apple
 
@@ -793,10 +793,7 @@ class RuleObeyingPolicy(policy.Policy):
           # print(f"len pos_fut_obl: {len(pos_fut_obl)}, reward: {r_fut_obl}, fulfilled: {r_fulfilled_obl}")
           print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
 
-      if goal == 'apple':
-        Q[act] = r_apple
-      else:
-        Q[act] = r_obl
+      Q[act] = r_apple if goal == 'apple' else r_obl
       Q_no_rules[act] = r_apple
 
     if self.log_weights:
@@ -928,7 +925,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     v_rules = r_forward + r_cur - cost
     v_wo_rule = r_forward_no_obl + r_no_obl
-    
+
     return v_rules, v_wo_rule
   
   """def a_star(self, s_start: int) -> list[int]:

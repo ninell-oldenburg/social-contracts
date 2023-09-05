@@ -174,17 +174,12 @@ def main(roles,
     clock.tick(fps)
 
     timestep_list = [bot.add_non_physical_info(timestep, actions, i) for i, bot in enumerate(bots)]
-    last_actions = actions
+    last_actions = np.copy(actions)
 
     for i, bot in enumerate(bots):            
       # cum_reward[i] += timestep_bot.reward
       bot.append_to_history(timestep_list)
       actions[i] = bot.step()
-      if k == episodes:
-        ts_cur = bot.history[-2][bot.py_index]
-        hash = bot.hash_ts(ts_cur)
-        goal = ts_cur.goal
-        print(bot.V[goal][hash])
 
     for i, bot in enumerate(bots):
       if len(bot.history) > 1:

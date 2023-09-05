@@ -399,7 +399,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 action = actions[player_idx]
                 self.compute_posterior(player_idx, action, this_ts, past_ts, boltzmann_dis_no_rules)
 
-        print(self.rule_beliefs)
+        # print(self.rule_beliefs)
 
     def maybe_mark_riot(self, player_idx, rule):
         """Saves the ones who are violating rules in the global riots variable."""
@@ -484,11 +484,12 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         """
         past_obs = past_ts.observation
         past_pos = past_obs['POSITION']
-        # this_obs = this_ts.observation
+        this_obs = this_ts.observation
 
         # get a list of prohibited actions according to the ongoing rule
         prohib_actions = self.get_prohib_action(past_obs, rule, past_pos, player_idx)
-        is_violation = True if action in prohib_actions else False
+        could_be_violated = True if len(prohib_actions) != 0 else False
+        was_violated = True if action in prohib_actions else False
         available = set(range(self.num_actions)) - set(prohib_actions)
         
         q_vals_rule_is_active = np.full(self.action_spec.num_values , -1.0)
@@ -503,31 +504,23 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # get probabilities for observed action according to those distributions
         p_a_obs_no_rules = boltzmann_dis_no_rules[action]
-        max_a_obs_no_rules = np.argmax(boltzmann_dis_no_rules)
         p_a_obs_rule_is_active = boltzmann_dis_rule_is_active[action]
-        max_a_obs_rule_is_active = np.argmax(boltzmann_dis_rule_is_active)
 
         # always discount a violation
-        if rule.holds_precondition(past_obs):
+        # holds precondition means that with the step taken we have already violated the rule
+        # what we want is something like: could be violated
+        if could_be_violated:
+            if "NUM_APPLES_AROUND" in rule.make_str_repr():
+                print()
+                print(rule.make_str_repr())
+                print(f'ACTION TAKEN: {action}')
+                print(f'boltzmann_dis_no_rules: {boltzmann_dis_no_rules}')
+                print(f'boltzmann_dis_rule_is_active: {boltzmann_dis_rule_is_active}')
             # P(disobedient action | rule = true) = 0 * p_action + p_action * (1-p_obey) 
-            if is_violation:
+            if was_violated:
                self.maybe_mark_riot(player_idx, rule)
             return np.log(p_a_obs_rule_is_active * self.p_obey + p_a_obs_no_rules * (1-self.p_obey))
 
         else:
            return np.log(p_a_obs_no_rules)
-
-        """# always discount a violation
-        if rule.holds_precondition(this_obs) or rule.holds_precondition(past_obs) or is_violation:
-            # P(disobedient action | rule = true) = 0 * p_action + p_action * (1-p_obey)  
-            self.maybe_mark_riot(player_idx, rule)
-            return np.log(p_a_obs_no_rules * (1-self.p_obey))
-
-        else:
-            if max_a_obs_rule_is_active != max_a_obs_no_rules and p_a_obs_rule_is_active > p_a_obs_no_rules:
-                # P(obedient action | rule = true) = (1 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
-                p_action = self.p_obey * p_a_obs_rule_is_active + (1-self.p_obey) * p_a_obs_no_rules
-                return np.log(p_action)
-            else:
-                return np.log(p_a_obs_no_rules)"""
                         
