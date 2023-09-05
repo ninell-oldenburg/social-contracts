@@ -530,7 +530,7 @@ class RuleObeyingPolicy(policy.Policy):
     return last_zapped, riots
 
   def compute_clean(self, observation, x, y):
-    last_cleaned_time = observation['SINCE_AGENT_LAST_CLEANED']
+    last_cleaned_time = observation['SINCE_AGENT_LAST_CLEANED'] + 1
     num_cleaners = observation['TOTAL_NUM_CLEANERS']
     if not self.role == 'farmer':
       # if facing north and is at water
@@ -703,8 +703,8 @@ class RuleObeyingPolicy(policy.Policy):
       print(f'NEW UPDATE FOR STATE {s_cur}')
 
     # initialize best optimistic guess for cur state
-    if s_cur not in self.V[self.goal].keys():
-      self.V[self.goal][s_cur], self.V_wo_rules[s_cur] = self.init_heuristic(ts_cur, self.py_index)
+    #if s_cur not in self.V[self.goal].keys():
+      #self.V[self.goal][s_cur], self.V_wo_rules[s_cur] = self.init_heuristic(ts_cur, self.py_index)
     
     for act in range(self.action_spec.num_values):
       ts_next = self.env_step(ts_cur, act, self.py_index)
@@ -767,37 +767,23 @@ class RuleObeyingPolicy(policy.Policy):
       ts_next = bot.env_step(timestep, act, bot.py_index)
       observation = ts_next.observation
       pos = observation['POSITION']
-      r_apple = 0.0
+      r_apple = ts_next.reward
       r_obl = 0.0
 
       if self.exceeds_map(pos[0], pos[1]):
         continue
-
-      if bot.is_agent_in_position(observation, pos) or bot.is_water(observation, pos):
-        r_apple -= self.default_action_cost
     
-      pos_eaten_apple = tuple((pos[0], pos[1])) if act == 10 and observation['INVENTORY'] > 0 else 0
       pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
-      pos_fut_apples = [apple for apple in self.pos_all_possible_apples if apple not in pos_cur_apples and apple != pos_eaten_apple]
-
-      r_eat_apple = self.apple_reward if act == 10 and observation['INVENTORY'] > 0 else 0
-      r_inv_apple = self.apple_reward * observation['INVENTORY'] * self.gamma**(observation['INVENTORY'])
-      r_inv_apple -= self.default_action_cost * observation['INVENTORY'] * self.gamma**(observation['INVENTORY'])
+      r_inv_apple = (self.apple_reward - self.default_action_cost) * observation['INVENTORY']
       r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, 'apple')
-      r_fut_apples = bot.get_discounted_reward(pos_fut_apples, pos, observation, 'apple', respawn_type='apple')
 
-      r_apple = r_cur_apples + r_eat_apple + r_fut_apples + r_inv_apple
-
-      #print()
-      #print(f'POSITION: {pos}')
-      #print(f"len cur_apples: {len(pos_cur_apples)}, reward: {reward}, r_cur_apples: {r_cur_apples}, r_eat_apple: {r_eat_apple}, r_fut_apples: {r_fut_apples}, r_inv_apple: {r_inv_apple}")
+      r_apple = r_cur_apples + r_inv_apple
 
       if self.log_weights:
-        print(f"len cur_apples: {len(pos_cur_apples)}, reward: {r_apple}, r_cur_apples: {r_cur_apples}, r_eat_apple: {r_eat_apple}, r_fut_apples: {r_fut_apples}, r_inv_apple: {r_inv_apple}")
+        print(f"len cur_apples: {len(pos_cur_apples)}, reward: {ts_next.reward}, r_cur_apples: {r_cur_apples}, r_inv_apple: {r_inv_apple}")
 
       if goal != 'apple':
         pos_cur_obl = bot.get_cur_obl_pos(observation)
-
         r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, observation, goal)
         r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
 
@@ -826,25 +812,24 @@ class RuleObeyingPolicy(policy.Policy):
   def get_discounted_reward(self, target_pos, own_pos, obs, goal, respawn_type=None) -> float:
     reward = 0.0
     r_amount = self.apple_reward if goal == 'apple' else self.obligation_reward
-    dirt_conditioned_regrowth_rate = self.get_dirt_conditioned_regrowth_rate()
+    # dirt_conditioned_regrowth_rate = self.get_dirt_conditioned_regrowth_rate()
 
     for pos in target_pos:
-      n_steps_to_reward = int(self.manhattan_dis(pos, own_pos))
+      n_steps_to_reward = int(self.manhattan_dis(pos, own_pos)) + 1
 
       if respawn_type == None: # Consider only currently existing objects
         reward += r_amount * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
-        reward -= self.default_action_cost * self.gamma**(n_steps_to_reward) # Cost of eating action
       
       else: # Future objects
         respawn_rate = self.dirt_spawn_prob
-        if respawn_type == 'apple':
+        """if respawn_type == 'apple':
           regrowth_prob_idx = min(self.get_apples(obs, pos[0], pos[1]), self.num_regrowth_probs-1)
           respawn_rate = dirt_conditioned_regrowth_rate * self.regrowth_probabilities[regrowth_prob_idx] / self.num_players
-
+        """
         reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
       
-        for i in range(n_steps_to_reward): # Negative reward 
-          reward -= self.default_action_cost * self.gamma**i
+      for i in range(n_steps_to_reward): # Costs
+        reward -= self.default_action_cost * self.gamma**i
 
     return reward
   

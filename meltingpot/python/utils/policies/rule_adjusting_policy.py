@@ -38,10 +38,10 @@ DEFAULT_GAMMA = 0.9999
 DEFAULT_MAX_DEPTH = 15
 
 # AGENT CLASS
-DEFAULT_COMPLIANCE_COST = 1 - DEFAULT_GAMMA
-DEFAULT_ACTION_COST = 1 - DEFAULT_GAMMA
+DEFAULT_COMPLIANCE_COST = 0.1
+DEFAULT_ACTION_COST = 0.01
 DEFAULT_BLOCKING_COST = DEFAULT_ACTION_COST * 2
-DEFAULT_VIOLATION_COST = DEFAULT_ACTION_COST * 9
+DEFAULT_VIOLATION_COST = 2
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
 DEFAULT_COLLECT_APPLE_REWARD = 0.9
@@ -253,6 +253,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'ORIENTATION',
             'POSITION', 
             'POSITION_OTHERS',
+            'SINCE_AGENT_LAST_CLEANED',
             'SURROUNDINGS',
           ],
         'clean': [
@@ -330,7 +331,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             if self.role == 'farmer':
                 if not type(ts_cur.observation['ALWAYS_PAYING_TO']) == np.int32:
                     self.payees = [i+1 for i, agent_one_hot in enumerate(ts_cur.observation['ALWAYS_PAYING_TO']) if agent_one_hot == 1]
-                else:
+                if self.payees == []:
                     self.payees = None
             for rule_idx in range(len(self.potential_rules)):
                 rule = self.potential_rules[rule_idx]
@@ -439,7 +440,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         for act in range(self.num_actions):
             ts_next = self.env_step(past_ts, act, player_idx)
             s_next = self.init_process_next_ts(ts_next, player_idx)
-            q_vals_rule_is_active[act], _  = self.get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
+            _, q_vals_rule_is_active[act]  = self.get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
         boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active, tau=self.probs_tau)
 
         p_a_rule_is_active = boltzmann_dis_rule_is_active[action]
@@ -492,7 +493,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         """
         past_obs = past_ts.observation
         past_pos = past_obs['POSITION']
-        this_obs = this_ts.observation
+        # this_obs = this_ts.observation
 
         # get a list of prohibited actions according to the ongoing rule
         prohib_actions = self.get_prohib_action(past_obs, rule, past_pos, player_idx)
@@ -503,8 +504,11 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         for act in range(self.num_actions):
             ts_next = self.env_step(past_ts, act, player_idx)
             s_next = self.all_bots[player_idx].init_process_next_ts(ts_next, player_idx)
-            q_vals_rule_is_active[act], _  = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
+            _, q_vals_rule_is_active[act]  = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
         boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active, tau=self.probs_tau)
+
+        for act in prohib_actions:
+            boltzmann_dis_rule_is_active[act] = 0.0
 
         # get probabilities for observed action according to those distributions
         p_a_obs_no_rules = boltzmann_dis_no_rules[action]
@@ -513,6 +517,16 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         max_a_obs_rule_is_active = np.argmax(boltzmann_dis_rule_is_active)
 
         # always discount a violation
+        if rule.holds_precondition(past_obs):
+            # P(disobedient action | rule = true) = 0 * p_action + p_action * (1-p_obey) 
+            if is_violation:
+               self.maybe_mark_riot(player_idx, rule)
+            return np.log(p_a_obs_rule_is_active * self.p_obey + p_a_obs_no_rules * (1-self.p_obey))
+
+        else:
+           return np.log(p_a_obs_no_rules)
+
+        """# always discount a violation
         if rule.holds_precondition(this_obs) or rule.holds_precondition(past_obs) or is_violation:
             # P(disobedient action | rule = true) = 0 * p_action + p_action * (1-p_obey)  
             self.maybe_mark_riot(player_idx, rule)
@@ -524,5 +538,5 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 p_action = self.p_obey * p_a_obs_rule_is_active + (1-self.p_obey) * p_a_obs_no_rules
                 return np.log(p_action)
             else:
-                return np.log(p_a_obs_no_rules)
+                return np.log(p_a_obs_no_rules)"""
                         

@@ -54,7 +54,7 @@ def main(roles,
           log_weights=False,
           save_csv=True,
           plot_q_vals=False,
-          gamma=0.9999,
+          gamma=0.65,
           tau=0.5,
           passive_learning=True,
           ):
@@ -95,7 +95,7 @@ def main(roles,
       bots.append(RuleAdjustingPolicy(env=env, 
                                     player_idx=i,
                                     log_output=log_output,
-                                    log_rule_prob_output=False,
+                                    log_rule_prob_output=True,
                                     log_weights=log_weights,
                                     look=ROLE_TO_INT[role],
                                     role=role, 
@@ -431,8 +431,8 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 0 + ("farmer",) * 0 + ('free',) * 2 + ('learner',) * 0
-  episodes = 5
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0 + ('learner',) * 0
+  episodes = 200
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
   gammas = [0.99999]
@@ -460,10 +460,10 @@ if __name__ == "__main__":
                                     create_video=False,
                                     log_output=False,
                                     log_weights=False,
-                                    save_csv=True,
+                                    save_csv=False,
                                     plot_q_vals=False,
-                                    gamma=0.9999,
-                                    tau=0.5,
+                                    gamma=0.65,
+                                    tau=0.1,
                                     passive_learning=True,
                                     )
 
@@ -483,8 +483,8 @@ if __name__ == "__main__":
       print(f"cleaner: {scores['cleaner']:.2f}, farmer: {scores['farmer']:.2f}, free: {scores['free']:.2f}")
       print()
 """
-  for item, value in data_dict.items():
-    print(f'{item}: {value}')
+  #for item, value in data_dict.items():
+  #print(f'{item}: {value}')
   print(sum(data_dict['cleaner']))
   print(sum(data_dict['farmer']))
   print(sum(data_dict['free']))
