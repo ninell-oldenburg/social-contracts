@@ -49,10 +49,10 @@ def main(roles,
           num_iteration, 
           rules, 
           env_seed, 
-          create_video=True, 
+          create_video=False, 
           log_output=False, 
           log_weights=False,
-          save_csv=True,
+          save_csv=False,
           plot_q_vals=False,
           passive_learning=True,
           ):
@@ -100,7 +100,7 @@ def main(roles,
                                     potential_prohibitions=POTENTIAL_PROHIBITIONS,
                                     active_prohibitions=[],
                                     active_obligations=[],
-                                    is_learner=False,
+                                    is_learner=True,
                                     ))
       
     for bot in bots:
@@ -420,7 +420,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 1
+  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 1
   episodes = 200
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]

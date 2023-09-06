@@ -770,8 +770,8 @@ class RuleObeyingPolicy(policy.Policy):
         continue
     
       pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
-      remaining_inventory = observation['INVENTORY'] if observation['INVENTORY'] > 0 and act == 10 else 0
-      r_inv_apple = (self.apple_reward - self.default_action_cost) * remaining_inventory
+      remain_inv = observation['INVENTORY'] - 1 if observation['INVENTORY'] > 0 and act == 10 else observation['INVENTORY']
+      r_inv_apple = (self.apple_reward - self.default_action_cost) * remain_inv
       r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, 'apple')
       r_apple += r_cur_apples + r_inv_apple 
 

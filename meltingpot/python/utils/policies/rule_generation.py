@@ -19,7 +19,7 @@ DEFAULT_FEATURES = {
     "discrete": {
         # 'KEY': (compare_condition, values, goal_condition)
         # "TOTAL_NUM_CLEANERS": ('<', [1, 2, 3, 4, 5], '>'),
-        "DIRT_FRACTION": ('>', list(np.arange(0.40,0.51,0.02)), '== 0'),
+        "DIRT_FRACTION": ('>', list(np.arange(0.375,0.51,0.025)), '== 0'),
         "SINCE_AGENT_LAST_PAID": ('>', list(np.arange(10,31,5)), '== 0'),
         #"RIOTS": ("len(obs['RIOTS']) >= 1", None, "len(obs['RIOTS']) == 0"),
         "NUM_APPLES_AROUND": ('<', [1, 2, 3, 4, 5, 6, 7, 8], '>'),
