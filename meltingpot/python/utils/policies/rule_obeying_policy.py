@@ -763,16 +763,17 @@ class RuleObeyingPolicy(policy.Policy):
       ts_next = bot.env_step(timestep, act, bot.py_index)
       observation = ts_next.observation
       pos = observation['POSITION']
-      r_apple = ts_next.reward
+      r_apple = 0.0
       r_obl = 0.0
 
       if self.exceeds_map(pos[0], pos[1]):
         continue
     
       pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
-      r_inv_apple = (self.apple_reward * self.gamma - self.default_action_cost * self.gamma) * observation['INVENTORY']
+      remaining_inventory = observation['INVENTORY'] if observation['INVENTORY'] > 0 and act == 10 else 0
+      r_inv_apple = (self.apple_reward - self.default_action_cost) * remaining_inventory
       r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, 'apple')
-      r_apple = r_cur_apples + r_inv_apple
+      r_apple += r_cur_apples + r_inv_apple 
 
       if self.log_weights:
         print(f"len cur_apples: {len(pos_cur_apples)}, reward: {ts_next.reward}, r_cur_apples: {r_cur_apples}, r_inv_apple: {r_inv_apple}")
@@ -814,10 +815,6 @@ class RuleObeyingPolicy(policy.Policy):
       
       else: # Future objects
         respawn_rate = self.dirt_spawn_prob
-        """if respawn_type == 'apple':
-          regrowth_prob_idx = min(self.get_apples(obs, pos[0], pos[1]), self.num_regrowth_probs-1)
-          respawn_rate = dirt_conditioned_regrowth_rate * self.regrowth_probabilities[regrowth_prob_idx] / self.num_players
-        """
         reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
       
       for i in range(n_steps_to_reward): # Costs
@@ -892,7 +889,7 @@ class RuleObeyingPolicy(policy.Policy):
     action = np.random.choice(len(q_values), p=probs) 
     return action
 
-  def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list, ts_cur: AgentTimestep, player_idx: int) -> float:
+  def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list, ts_cur: AgentTimestep, player_idx: int, estimation=False) -> float:
     observation = ts_next.observation
     pos = observation['POSITION']
     bot = self.all_bots[player_idx]
@@ -904,7 +901,7 @@ class RuleObeyingPolicy(policy.Policy):
     r_forward_no_obl = max(bot.V_wo_rules[s_next]) * self.gamma
     r_no_obl = ts_next.reward
 
-    if len(bot.current_obligations) != 0:
+    if len(bot.current_obligations) != 0:        
       r_cur = 0
       if bot.current_obligations[0].satisfied(observation):
         r_cur = bot.obligation_reward
@@ -924,6 +921,8 @@ class RuleObeyingPolicy(policy.Policy):
       print(f'{ts_cur.observation["POSITION"]} for {act} to {ts_next.observation["POSITION"]} gives\t{r_forward} + {r_cur} - {cost}; {s_next}')
 
     v_rules = r_forward + r_cur - cost
+
+    r_forward_no_obl = r_forward_no_obl - cost if estimation == True else 0
     v_wo_rule = r_forward_no_obl + r_no_obl
 
     return v_rules, v_wo_rule

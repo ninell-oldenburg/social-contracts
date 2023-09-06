@@ -33,7 +33,6 @@ DIRT_SPAWN_PROB = 0.2 # TODO to be unified
 DEFAULT_N_STEPS = 2
 DEFAULT_N_ROLLOUTS = 2
 DEFAULT_TAU = 0.5
-# 0.99999 safe number: 0.99999
 DEFAULT_GAMMA = 0.65
 DEFAULT_MAX_DEPTH = 15
 
@@ -399,7 +398,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 action = actions[player_idx]
                 self.compute_posterior(player_idx, action, this_ts, past_ts, boltzmann_dis_no_rules)
 
-        # print(self.rule_beliefs)
+        print(self.rule_beliefs)
 
     def maybe_mark_riot(self, player_idx, rule):
         """Saves the ones who are violating rules in the global riots variable."""
@@ -430,9 +429,11 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         q_vals_rule_is_active = np.full(self.action_spec.num_values , -1.0)
         for act in range(self.num_actions):
             ts_next = self.env_step(past_ts, act, player_idx)
-            s_next = self.init_process_next_ts(ts_next, player_idx)
-            q_vals_rule_is_active[act], _  = self.get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
+            s_next = self.all_bots[player_idx].init_process_next_ts(ts_next, player_idx)
+            q_vals_rule_is_active[act], _ = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx, estimation=True)
+        
         boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active)
+        print(f'boltzmann_dis_rule_is_active: {boltzmann_dis_rule_is_active}')
 
         p_a_rule_is_active = boltzmann_dis_rule_is_active[action]
 
@@ -451,12 +452,21 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         if rule_is_active: # Obligation is active
             if self.could_be_satisfied(rule, past_ts, player_idx):
+                print()
+                print(rule.make_str_repr())
+                print('COULD BE SATISFIED')
                 if rule.satisfied(this_obs): # Agent obeyed the obligation
                     # P(obedient action | rule = true) = (1 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
+                    print('WAS SATISFIED')
+                    print(f'ACTION: {action}')
+                    print(f'boltzmann_dis_no_rules: {boltzmann_dis_no_rules}')
+                    print(f'boltzmann_dis_rule_is_active: {boltzmann_dis_rule_is_active}')
+                    print(f'self.p_obey * p_a_rule_is_active: {p_a_rule_is_active} + p_a_obs_no_rules: {p_a_obs_no_rules} * (1-self.p_obey)')
                     p_action = self.p_obey * p_a_rule_is_active + p_a_obs_no_rules * (1-self.p_obey)
                     return np.log(p_action)
                 else: # Agent disobeyed the obligation
                     # P(disobedient action | rule = true) = (0 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
+                    print('NOT SATISFIED')
                     self.maybe_mark_riot(player_idx, rule) # note rule violation
                     return np.log(p_a_obs_no_rules * (1-self.p_obey))
             else: # Obligation can't be satisfied
@@ -510,12 +520,12 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         # holds precondition means that with the step taken we have already violated the rule
         # what we want is something like: could be violated
         if could_be_violated:
-            if "NUM_APPLES_AROUND" in rule.make_str_repr():
-                print()
-                print(rule.make_str_repr())
-                print(f'ACTION TAKEN: {action}')
-                print(f'boltzmann_dis_no_rules: {boltzmann_dis_no_rules}')
-                print(f'boltzmann_dis_rule_is_active: {boltzmann_dis_rule_is_active}')
+            #if "NUM_APPLES_AROUND" in rule.make_str_repr():
+            """print()
+            print(rule.make_str_repr())
+            print(f'ACTION TAKEN: {action}')
+            print(f'boltzmann_dis_no_rules: {boltzmann_dis_no_rules}')
+            print(f'boltzmann_dis_rule_is_active: {boltzmann_dis_rule_is_active}')"""
             # P(disobedient action | rule = true) = 0 * p_action + p_action * (1-p_obey) 
             if was_violated:
                self.maybe_mark_riot(player_idx, rule)
