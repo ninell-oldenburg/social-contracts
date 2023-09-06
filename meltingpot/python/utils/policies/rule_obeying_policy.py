@@ -889,7 +889,7 @@ class RuleObeyingPolicy(policy.Policy):
     action = np.random.choice(len(q_values), p=probs) 
     return action
 
-  def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list, ts_cur: AgentTimestep, player_idx: int, estimation=False) -> float:
+  def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list, ts_cur: AgentTimestep, player_idx: int) -> float:
     observation = ts_next.observation
     pos = observation['POSITION']
     bot = self.all_bots[player_idx]
@@ -898,8 +898,8 @@ class RuleObeyingPolicy(policy.Policy):
     r_forward = max(bot.V[goal][s_next]) * self.gamma
     r_cur = ts_next.reward
 
-    r_forward_no_obl = max(bot.V_wo_rules[s_next]) * self.gamma
-    r_no_obl = ts_next.reward
+    r_forward_no_rule = max(bot.V_wo_rules[s_next]) * self.gamma
+    r_no_rule = ts_next.reward
 
     if len(bot.current_obligations) != 0:        
       r_cur = 0
@@ -910,20 +910,18 @@ class RuleObeyingPolicy(policy.Policy):
 
     if bot.is_agent_in_position(ts_cur.observation, pos):
       r_cur -= self.element_blocking_cost
-      r_no_obl -= self.element_blocking_cost
+      r_no_rule -= self.element_blocking_cost
 
     if bot.is_water(ts_cur.observation, pos):
       r_cur -= self.default_action_cost
-      r_no_obl -= self.default_action_cost
+      r_no_rule -= self.default_action_cost
 
     if self.log_weights:
       print()
       print(f'{ts_cur.observation["POSITION"]} for {act} to {ts_next.observation["POSITION"]} gives\t{r_forward} + {r_cur} - {cost}; {s_next}')
 
     v_rules = r_forward + r_cur - cost
-
-    r_forward_no_obl = r_forward_no_obl - cost if estimation == True else 0
-    v_wo_rule = r_forward_no_obl + r_no_obl
+    v_wo_rule = r_forward_no_rule + r_no_rule
 
     return v_rules, v_wo_rule
   

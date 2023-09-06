@@ -54,8 +54,6 @@ def main(roles,
           log_weights=False,
           save_csv=True,
           plot_q_vals=False,
-          gamma=0.65,
-          tau=0.5,
           passive_learning=True,
           ):
 
@@ -87,8 +85,6 @@ def main(roles,
                                     potential_obligations=DEFAULT_OBLIGATIONS,
                                     active_prohibitions=DEFAULT_PROHIBITIONS,
                                     active_obligations=DEFAULT_OBLIGATIONS,
-                                    gamma=gamma,
-                                    tau=tau,
                                     is_learner=False,
                                     ))
     else:
@@ -104,8 +100,6 @@ def main(roles,
                                     potential_prohibitions=POTENTIAL_PROHIBITIONS,
                                     active_prohibitions=[],
                                     active_obligations=[],
-                                    gamma=gamma,
-                                    tau=tau,
                                     is_learner=True,
                                     ))
       
@@ -457,8 +451,6 @@ if __name__ == "__main__":
                                     log_weights=False,
                                     save_csv=False,
                                     plot_q_vals=False,
-                                    gamma=0.65,
-                                    tau=0.1,
                                     passive_learning=True,
                                     )
 

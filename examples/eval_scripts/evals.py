@@ -110,10 +110,8 @@ for k in range(stats_relevance):
                                       create_video=False, 
                                       log_output=False, 
                                       log_weights=False,
-                                      save_csv=True,
-                                      plot_q_vals=False,
-                                      gamma=0.9999,
-                                      tau=0.5,
+                                      save_csv=False,
+                                      plot_q_vals=False
                                       )
       
       cur_df = pd.DataFrame.from_dict(cur_result)
@@ -139,11 +137,9 @@ for k in range(stats_relevance):
                                       create_video=False, 
                                       log_output=False, 
                                       log_weights=False,
-                                      save_csv=True,
+                                      save_csv=False,
                                       plot_q_vals=False,
-                                      gamma=0.9999,
-                                      tau=0.5,
-                                      )
+                                    )
       cur_df = pd.DataFrame.from_dict(cur_result)
       path = f'examples/results/test/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
@@ -166,12 +162,9 @@ for k in range(stats_relevance):
                                     create_video=False, 
                                     log_output=False, 
                                     log_weights=False,
-                                    save_csv=True,
-                                    plot_q_vals=False,
-                                    threshold_init_prior=0.8,
-                                    learner_init_prior=0.2,
-                                    gamma=0.99999,
-                                    tau=0.5)
+                                    save_csv=False,
+                                    plot_q_vals=False
+                                    )
     
     cur_df = pd.DataFrame.from_dict(cur_result)
     path = f'examples/results/rule_baseline/scenario{rule_set_idx+1}/trial{k+1}.csv'
@@ -195,12 +188,9 @@ for k in range(stats_relevance):
                                     create_video=False, 
                                     log_output=False, 
                                     log_weights=False,
-                                    save_csv=True,
-                                    plot_q_vals=False,
-                                    threshold_init_prior=0.8,
-                                    learner_init_prior=0.2,
-                                    gamma=0.99999,
-                                    tau=0.5)
+                                    save_csv=False,
+                                    plot_q_vals=False
+                                    )
     
     cur_df = pd.DataFrame.from_dict(cur_result)
     path = f'examples/results/rule_baseline/scenario{rule_set_idx+1}/trial{k+1}.csv'

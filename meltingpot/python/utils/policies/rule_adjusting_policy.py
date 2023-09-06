@@ -38,13 +38,13 @@ DEFAULT_MAX_DEPTH = 15
 
 # AGENT CLASS
 DEFAULT_ACTION_COST = 0.01
-DEFAULT_BLOCKING_COST = DEFAULT_ACTION_COST * 2
+DEFAULT_BLOCKING_COST = 0.05
 DEFAULT_VIOLATION_COST = 2
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
 DEFAULT_SELECTION_MODE = "threshold"
 DEFAULT_THRESHOLD = 0.5
-DEFAULT_INIT_PRIOR = 0.4
+DEFAULT_INIT_PRIOR = 0.2
 DEFAULT_P_OBEY = 0.9
 DEFAULT_OBLIGATION_DEPTH = 20
 
@@ -428,12 +428,11 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         q_vals_rule_is_active = np.full(self.action_spec.num_values , -1.0)
         for act in range(self.num_actions):
-            ts_next = self.env_step(past_ts, act, player_idx)
+            ts_next =  self.all_bots[player_idx].env_step(past_ts, act, player_idx)
             s_next = self.all_bots[player_idx].init_process_next_ts(ts_next, player_idx)
-            q_vals_rule_is_active[act], _ = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx, estimation=True)
+            q_vals_rule_is_active[act], _ = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
         
         boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active)
-        print(f'boltzmann_dis_rule_is_active: {boltzmann_dis_rule_is_active}')
 
         p_a_rule_is_active = boltzmann_dis_rule_is_active[action]
 
@@ -452,21 +451,12 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         if rule_is_active: # Obligation is active
             if self.could_be_satisfied(rule, past_ts, player_idx):
-                print()
-                print(rule.make_str_repr())
-                print('COULD BE SATISFIED')
                 if rule.satisfied(this_obs): # Agent obeyed the obligation
                     # P(obedient action | rule = true) = (1 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
-                    print('WAS SATISFIED')
-                    print(f'ACTION: {action}')
-                    print(f'boltzmann_dis_no_rules: {boltzmann_dis_no_rules}')
-                    print(f'boltzmann_dis_rule_is_active: {boltzmann_dis_rule_is_active}')
-                    print(f'self.p_obey * p_a_rule_is_active: {p_a_rule_is_active} + p_a_obs_no_rules: {p_a_obs_no_rules} * (1-self.p_obey)')
                     p_action = self.p_obey * p_a_rule_is_active + p_a_obs_no_rules * (1-self.p_obey)
                     return np.log(p_action)
                 else: # Agent disobeyed the obligation
                     # P(disobedient action | rule = true) = (0 * p_act_rule_is_active * p_obey) + (1 * p_act_np:rule_active * (1-p_obey))
-                    print('NOT SATISFIED')
                     self.maybe_mark_riot(player_idx, rule) # note rule violation
                     return np.log(p_a_obs_no_rules * (1-self.p_obey))
             else: # Obligation can't be satisfied
@@ -504,7 +494,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         
         q_vals_rule_is_active = np.full(self.action_spec.num_values , -1.0)
         for act in range(self.num_actions):
-            ts_next = self.env_step(past_ts, act, player_idx)
+            ts_next =  self.all_bots[player_idx].env_step(past_ts, act, player_idx)
             s_next = self.all_bots[player_idx].init_process_next_ts(ts_next, player_idx)
             _, q_vals_rule_is_active[act]  = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
         boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active)
@@ -520,12 +510,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         # holds precondition means that with the step taken we have already violated the rule
         # what we want is something like: could be violated
         if could_be_violated:
-            #if "NUM_APPLES_AROUND" in rule.make_str_repr():
-            """print()
-            print(rule.make_str_repr())
-            print(f'ACTION TAKEN: {action}')
-            print(f'boltzmann_dis_no_rules: {boltzmann_dis_no_rules}')
-            print(f'boltzmann_dis_rule_is_active: {boltzmann_dis_rule_is_active}')"""
             # P(disobedient action | rule = true) = 0 * p_action + p_action * (1-p_obey) 
             if was_violated:
                self.maybe_mark_riot(player_idx, rule)
