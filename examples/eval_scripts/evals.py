@@ -93,6 +93,11 @@ start_time = time.time()
 
 stats_relevance = 13
 
+print(
+   f'TEST_SCENARIOS: {TEST_SCENARIOS}\n'\
+   f'BASELINE_SCENARIOS: {BASELINE_SCENARIOS}\n'\
+)
+
 print()
 print('*'*50)
 print('STARTING BASELINE SCENARIOS')

@@ -100,7 +100,7 @@ def main(roles,
                                     potential_prohibitions=POTENTIAL_PROHIBITIONS,
                                     active_prohibitions=[],
                                     active_obligations=[],
-                                    is_learner=True,
+                                    is_learner=False,
                                     ))
       
     for bot in bots:

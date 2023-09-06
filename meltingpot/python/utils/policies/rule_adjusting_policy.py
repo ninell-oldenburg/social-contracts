@@ -398,7 +398,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 action = actions[player_idx]
                 self.compute_posterior(player_idx, action, this_ts, past_ts, boltzmann_dis_no_rules)
 
-        print(self.rule_beliefs)
+        # print(self.rule_beliefs)
 
     def maybe_mark_riot(self, player_idx, rule):
         """Saves the ones who are violating rules in the global riots variable."""
