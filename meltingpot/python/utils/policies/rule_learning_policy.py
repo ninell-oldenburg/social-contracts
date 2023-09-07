@@ -290,8 +290,8 @@ class RuleLearningPolicy(RuleObeyingPolicy):
         """Thompson samples rules."""
         obligations = []
         prohibitions = []
-        prob = random.uniform(0, 1)
         for i, belief in enumerate(self.rule_beliefs):
+            prob = random.uniform(0, 1)
             if belief > prob:
                 rule = deepcopy(self.potential_rules[i])
                 if isinstance(rule, ObligationRule):
