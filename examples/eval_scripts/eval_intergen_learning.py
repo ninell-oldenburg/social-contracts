@@ -1,5 +1,4 @@
-
-from examples.eval_scripts.view_custom_model import main
+from examples.eval_scripts.intergen_learning import main
 import pandas as pd
 import time
 import datetime
@@ -9,38 +8,6 @@ from meltingpot.python.utils.policies.rule_generation import RuleGenerator
 from meltingpot.python.utils.policies.lambda_rules import DEFAULT_PROHIBITIONS, DEFAULT_OBLIGATIONS
 
 import itertools
-
-"""def bayes_formula_obedience(prior):
-    # Set the values for the conditional probability and the evidence
-    # P(a) = P(a | r = 1) P(r = 1) + P(a | r = 0) P(r = 0)
-    # P(r=1 | a) = P(a | r = 1) * P(r = 1) / P(a)
-    llh = 0.083
-    conditional = llh * prior
-    marginal = conditional + ((1/12) * (1-prior))
-    
-    # Calculate the posterior probability using the Bayes formula
-    posterior = conditional / marginal
-    
-    # Return the posterior probability
-    return posterior
-
-# Set the initial prior probability
-prior = 0.77
-
-# Generate a list of posterior probabilities using the Bayes formula
-posterior_list = []
-for i in range(100):
-    posterior_list.append(prior)
-    posterior = bayes_formula_obedience(prior)
-    prior = posterior
-
-# Plot the posterior probabilities as a function of the iteration number
-plt.plot(range(len(posterior_list)), posterior_list)
-plt.xlabel('Iteration Number')
-plt.ylabel('Posterior Probability')
-plt.title('Bayesian Inference')
-plt.savefig(fname="update")
-plt.show()"""
 
 generator = RuleGenerator()
 POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_length(3)
@@ -106,8 +73,8 @@ print()
 
 for k in range(stats_relevance):
   for i in range(len(BASELINE_SCENARIOS)):
-      roles = BASELINE_SCENARIOS[i]
-      cur_settings, cur_result = main(roles=roles, 
+    roles = BASELINE_SCENARIOS[i]
+    _, bot_dicts = main(roles=roles, 
                                       episodes=300, 
                                       num_iteration=k, 
                                       rules=DEFAULT_RULES, 
@@ -116,14 +83,16 @@ for k in range(stats_relevance):
                                       log_output=False, 
                                       log_weights=False,
                                       save_csv=False,
-                                      plot_q_vals=False
+                                      death_rate=50,
                                       )
       
-      cur_df = pd.DataFrame.from_dict(cur_result)
-      path = f'examples/results/base/scenario{i+1}/trial{k+1}.csv'
-      cur_df.to_csv(path_or_buf=path)
-      print('='*50)
-      print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
+    for j, cur_result in enumerate(bot_dicts):
+        cur_df = pd.DataFrame.from_dict(cur_result)
+        path = f'examples/results_intergen/base/scenario{i+1}/bot{j+1}/trial{k+1}.csv'
+        cur_df.to_csv(path_or_buf=path)
+
+    print('='*50)
+    print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
 
 print()
 print('*'*50)
@@ -133,8 +102,8 @@ print()
 
 for k in range(stats_relevance):
   for i in range(len(TEST_SCENARIOS)):
-      roles = TEST_SCENARIOS[i]
-      cur_settings, cur_result = main(roles=roles, 
+    roles = TEST_SCENARIOS[i]
+    cur_settings, cur_result = main(roles=roles, 
                                       episodes=300, 
                                       num_iteration=k, 
                                       rules=DEFAULT_RULES, 
@@ -143,13 +112,16 @@ for k in range(stats_relevance):
                                       log_output=False, 
                                       log_weights=False,
                                       save_csv=False,
-                                      plot_q_vals=False,
+                                      death_rate=50,
                                     )
-      cur_df = pd.DataFrame.from_dict(cur_result)
-      path = f'examples/results/test/scenario{i+1}/trial{k+1}.csv'
-      cur_df.to_csv(path_or_buf=path)
-      print('='*50)
-      print(f'ITERATION {k+1} TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
+    
+    for j, cur_result in enumerate(bot_dicts):
+        cur_df = pd.DataFrame.from_dict(cur_result)
+        path = f'examples/results_intergen/test/scenario{i+1}/bot{j+1}/trial{k+1}.csv'
+        cur_df.to_csv(path_or_buf=path)
+
+    print('='*50)
+    print(f'ITERATION {k+1} TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
 
 print()
 print('*'*50)
@@ -168,12 +140,14 @@ for k in range(stats_relevance):
                                     log_output=False, 
                                     log_weights=False,
                                     save_csv=False,
-                                    plot_q_vals=False
+                                    pdeath_rate=50,
                                     )
     
-    cur_df = pd.DataFrame.from_dict(cur_result)
-    path = f'examples/results/rule_baseline/scenario{rule_set_idx+1}/trial{k+1}.csv'
-    cur_df.to_csv(path_or_buf=path)
+    for j, cur_result in enumerate(bot_dicts):
+        cur_df = pd.DataFrame.from_dict(cur_result)
+        path = f'examples/results_intergen/rule_baseline/scenario{rule_set_idx+1}/bot{j+1}/trial{k+1}.csv'
+        cur_df.to_csv(path_or_buf=path)
+
     print('='*50)
     print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
 
@@ -194,12 +168,14 @@ for k in range(stats_relevance):
                                     log_output=False, 
                                     log_weights=False,
                                     save_csv=False,
-                                    plot_q_vals=False
+                                    death_rate=50,
                                     )
     
-    cur_df = pd.DataFrame.from_dict(cur_result)
-    path = f'examples/results/rule_trials/scenario{rule_set_idx+1}/trial{k+1}.csv'
-    cur_df.to_csv(path_or_buf=path)
+    for j, cur_result in enumerate(bot_dicts):
+        cur_df = pd.DataFrame.from_dict(cur_result)
+        path = f'examples/results_intergen/rule_trials/scenario{rule_set_idx+1}/bot{j+1}/trial{k+1}.csv'
+        cur_df.to_csv(path_or_buf=path)
+    
     print('='*50)
     print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
 
