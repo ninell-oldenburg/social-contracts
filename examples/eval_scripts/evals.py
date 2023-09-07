@@ -104,7 +104,7 @@ print('STARTING BASELINE SCENARIOS')
 print('*'*50)
 print()
 
-"""for k in range(stats_relevance):
+for k in range(stats_relevance):
   for i in range(len(BASELINE_SCENARIOS)):
       roles = BASELINE_SCENARIOS[i]
       cur_settings, cur_result = main(roles=roles, 
@@ -123,7 +123,7 @@ print()
       path = f'examples/results/base/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
-      print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')"""
+      print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
 
 print()
 print('*'*50)
@@ -140,8 +140,8 @@ for k in range(stats_relevance):
                                       rules=DEFAULT_RULES, 
                                       env_seed=k, 
                                       create_video=False, 
-                                      log_output=True, 
-                                      log_weights=True,
+                                      log_output=False, 
+                                      log_weights=False,
                                       save_csv=False,
                                       plot_q_vals=False,
                                     )
