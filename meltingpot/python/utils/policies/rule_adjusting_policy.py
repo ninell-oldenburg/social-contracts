@@ -43,7 +43,7 @@ DEFAULT_VIOLATION_COST = 3
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
 DEFAULT_SELECTION_MODE = "threshold"
-DEFAULT_THRESHOLD = 0.5
+DEFAULT_THRESHOLD = 0.8
 DEFAULT_INIT_PRIOR = 0.2
 DEFAULT_P_OBEY = 0.9
 DEFAULT_OBLIGATION_DEPTH = 20
@@ -331,12 +331,13 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                     self.payees = [i+1 for i, agent_one_hot in enumerate(ts_cur.observation['ALWAYS_PAYING_TO']) if agent_one_hot == 1]
                 if self.payees == []:
                     self.payees = None
-            for rule_idx in range(len(self.potential_rules)):
+
+            """for rule_idx in range(len(self.potential_rules)):
                 rule = self.potential_rules[rule_idx]
                 if rule in self.potential_obligations:
                     if not self.role_exists_for_rule(rule):
                         if self.rule_beliefs[rule_idx] > self.threshold:
-                            self.rule_beliefs[rule_idx] = 0.0
+                            self.rule_beliefs[rule_idx] = 0.0"""
         else:
             if len(self.current_obligations) != 0:
                 for obligation in list(self.current_obligations):

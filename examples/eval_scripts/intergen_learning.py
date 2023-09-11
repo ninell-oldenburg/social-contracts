@@ -54,6 +54,7 @@ def main(roles,
           log_output=False, 
           log_weights=False,
           save_csv=False,
+          render=True,
           ):
 
   level_name = get_name_from_rules(rules)
@@ -81,7 +82,7 @@ def main(roles,
     bots.append(RuleAdjustingPolicy(env=env, 
                                     player_idx=i,
                                     log_output=log_output,
-                                    log_rule_prob_output=False,
+                                    log_rule_prob_output=True,
                                     log_weights=log_weights,
                                     look=ROLE_TO_INT[role],
                                     role=role, 
@@ -115,14 +116,15 @@ def main(roles,
   scale = 4
   fps = 5
 
-  pygame.init()
-  # start_time = time.time()  # Start the timer
-  clock = pygame.time.Clock()
-  pygame.display.set_caption("DM Lab2d")
-  obs_spec = env.observation_spec()
-  shape = obs_spec[0]["WORLD.RGB"].shape
-  game_display = pygame.display.set_mode(
-      (int(shape[1] * scale), int(shape[0] * scale)))
+  if render:
+    pygame.init()
+    # start_time = time.time()  # Start the timer
+    clock = pygame.time.Clock()
+    pygame.display.set_caption("DM Lab2d")
+    obs_spec = env.observation_spec()
+    shape = obs_spec[0]["WORLD.RGB"].shape
+    game_display = pygame.display.set_mode(
+        (int(shape[1] * scale), int(shape[0] * scale)))
 
   """ 
   The below is only for reading in policies from earlier runs. 
@@ -148,14 +150,15 @@ def main(roles,
   for k in range(episodes):
     obs = timestep.observation[0]["WORLD.RGB"]
     obs = np.transpose(obs, (1, 0, 2))
-    surface = pygame.surfarray.make_surface(obs)
-    rect = surface.get_rect()
-    surf = pygame.transform.scale(surface,
-                                  (int(rect[2] * scale), int(rect[3] * scale)))
+    if render:
+      surface = pygame.surfarray.make_surface(obs)
+      rect = surface.get_rect()
+      surf = pygame.transform.scale(surface,
+                                    (int(rect[2] * scale), int(rect[3] * scale)))
 
-    game_display.blit(surf, dest=(0, 0))
-    pygame.display.update()
-    clock.tick(fps)
+      game_display.blit(surf, dest=(0, 0))
+      pygame.display.update()
+      clock.tick(fps)
 
     timestep_list = [bot.add_non_physical_info(timestep, actions, i) for i, bot in enumerate(bots)]
     last_actions = np.copy(actions)
@@ -164,14 +167,15 @@ def main(roles,
       bot.append_to_history(timestep_list)
       actions[i] = bot.step()
 
-      if bot.age == bot.MAX_LIFE_SPAN:
+      if bot.freeze_counter == 1:
         bot.rule_beliefs = [DEFAULT_INIT_PRIOR] * len(bot.rule_beliefs)
         actions = [0] * len(bots) # reset current actions
 
     for i, bot in enumerate(bots):
       if len(bot.history) > 1:
         bot.update_beliefs(last_actions)
-        bot.obligations, bot.prohibitions = bot.threshold_rules()
+        if len(bot.history) % 10 == 0:
+          bot.obligations, bot.prohibitions = bot.sample_rules()
     
     dead_apple_ratio = bots[-1].history[-1][-1].observation['DEAD_APPLE_RATIO'] # same for every player
             
@@ -195,8 +199,9 @@ def main(roles,
       bot_dicts[i] = new_data_dict
 
     # Saving files in superdircetory
-    filename = '../videos/screen_%04d.png' % (k)
-    pygame.image.save(game_display, filename)
+    if create_video:
+      filename = '../videos/screen_%04d.png' % (k)
+      pygame.image.save(game_display, filename)
 
   name = f'vers{num_iteration}_{role_str}'[:-1]
   filename = 'videos/evals/' + name + '.mov'
@@ -383,7 +388,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 1
   episodes = 100
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
