@@ -435,10 +435,11 @@ class RuleObeyingPolicy(policy.Policy):
   
   def update_surroundings(self, new_pos, observation, idx):
       x, y = new_pos[0], new_pos[1]
-      cur_pos = list(zip(*np.where(observation['SURROUNDINGS'] == idx+1)))
-      if not self.exceeds_map(x, y):
-        observation['SURROUNDINGS'][cur_pos[0][0]][cur_pos[0][1]] = 0
-        observation['SURROUNDINGS'][x][y] = idx+1
+      if idx+1 in observation['SURROUNDINGS']:
+        cur_pos = list(zip(*np.where(observation['SURROUNDINGS'] == idx+1)))
+        if not self.exceeds_map(x, y):
+          observation['SURROUNDINGS'][cur_pos[0][0]][cur_pos[0][1]] = 0
+          observation['SURROUNDINGS'][x][y] = idx+1
 
   def increase_action_steps(self, observation: dict) -> None:
       observation['SINCE_AGENT_LAST_ZAPPED'] = observation['SINCE_AGENT_LAST_ZAPPED'] + 1
