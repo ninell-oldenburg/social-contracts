@@ -94,6 +94,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.gamma = gamma
     self.n_rollouts = n_rollouts
     self.obligation_reward = obligation_reward
+    self.punish_cost = punish_cost
     
     # GLOBAL INITILIZATIONS
     self.history = deque(maxlen=10)
@@ -108,6 +109,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.goal = None
     self.x_max = 15
     self.y_max = 15
+    self.self.avg_steps_to_punishment = 3
 
     # non-physical info
     self.last_zapped = 0
@@ -911,7 +913,9 @@ class RuleObeyingPolicy(policy.Policy):
       if bot.current_obligations[0].satisfied(observation):
         r_cur = bot.obligation_reward
 
-    cost = 0 if act in available else self.violation_cost # rule violation
+    cost = 0 if act in available else self.intrinsic_violation_cost # rule violation
+    if self.riot_rule_is_active():
+      cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
 
     if bot.is_agent_in_position(ts_cur.observation, pos):
       r_cur -= self.element_blocking_cost
@@ -980,6 +984,12 @@ class RuleObeyingPolicy(policy.Policy):
   def intersection(self, lst1, lst2):
     out = [value for value in lst1 if value in lst2]
     return out
+  
+  def riot_rule_is_active(self):
+    for rule in self.obligations:
+      if "RIOTS" in rule.make_str_repr():
+        return True
+    return False
   
   def available_action_history(self):
     action_list = self.available_actions(self.history[0])

@@ -33,7 +33,7 @@ DIRT_SPAWN_PROB = 0.2 # TODO to be unified
 DEFAULT_N_STEPS = 2
 DEFAULT_N_ROLLOUTS = 2
 DEFAULT_TAU = 0.5
-DEFAULT_GAMMA = 0.8
+DEFAULT_GAMMA = 0.65
 DEFAULT_MAX_DEPTH = 15
 
 # AGENT CLASS
@@ -44,7 +44,7 @@ DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
 DEFAULT_SELECTION_MODE = "threshold"
 DEFAULT_THRESHOLD = 0.8
-DEFAULT_INIT_PRIOR = 0.2
+DEFAULT_INIT_PRIOR = 0.1
 DEFAULT_P_OBEY = 0.9
 DEFAULT_OBLIGATION_DEPTH = 20
 DEFAULT_AGE = 0
@@ -108,7 +108,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 is_learner: bool = False, 
                 default_obligation_depth: int = DEFAULT_OBLIGATION_DEPTH,
                 age: int = DEFAULT_AGE,
-                MAX_LIFE_SPAN: int = DEFAULT_MAX_LIFE_SPAN) -> None:
+                MAX_LIFE_SPAN: int = DEFAULT_MAX_LIFE_SPAN,
+                punish_cost: int = PENALTY_FOR_BEING_ZAPPED) -> None:
         
         # CALLING PARAMETERS
         self.py_index = player_idx
@@ -131,7 +132,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
         # CONSTANTS
         self.max_depth = max_depth
-        self.violation_cost = violation_cost
+        self.intrinsic_violation_cost = violation_cost
         self.tau = tau
         self.n_steps = n_steps
         self.threshold = threshold
@@ -154,6 +155,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.max_obligation_depth = default_obligation_depth
         self.age = age
         self.MAX_LIFE_SPAN = MAX_LIFE_SPAN
+        self.punish_cost = punish_cost
         
         # GLOBAL INITILIZATIONS
         self.history = deque(maxlen=10)
@@ -178,6 +180,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.y_max = 15
         self.dirt_fraction = 0.5
         self.interpolation = 0.5
+        self.avg_steps_to_punishment = 50 / self.num_players
 
         # non-physical info
         self.last_zapped = 0
