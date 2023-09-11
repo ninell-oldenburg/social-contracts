@@ -82,7 +82,7 @@ def main(roles,
     bots.append(RuleAdjustingPolicy(env=env, 
                                     player_idx=i,
                                     log_output=log_output,
-                                    log_rule_prob_output=False,
+                                    log_rule_prob_output=True,
                                     log_weights=log_weights,
                                     look=ROLE_TO_INT[role],
                                     role=role, 
@@ -192,7 +192,7 @@ def main(roles,
       data_dict = bot_dicts[i]
       is_frozen = bot.freeze_counter > 0
       new_data_dict = append_to_dict(data_dict=data_dict, 
-                                reward=timestep.reward[i], 
+                                reward=timestep.reward[i].item(), 
                                 is_frozen=is_frozen,
                                 beliefs=bot.rule_beliefs, 
                                 action=actions[i],
@@ -319,9 +319,11 @@ def append_to_dict(data_dict: dict, reward, beliefs, is_frozen, action, dead_app
   data_dict['dead_apple_ratio'].append(dead_apple_ratio)
   data_dict['is_frozen'].append(is_frozen)
 
+  print(beliefs)
+
   for i, key in enumerate(data_dict):
     if i > 3:
-      data_dict[key].append(beliefs[i-9]) # get beliefs (start at indec 0)
+      data_dict[key].append(beliefs[i-3]) # get beliefs (start at indec 0)
 
   return data_dict
 
@@ -389,7 +391,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 2 + ("farmer",) * 2 + ('free',) * 2
+  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0
   episodes = 100
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
