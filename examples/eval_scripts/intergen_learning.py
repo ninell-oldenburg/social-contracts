@@ -82,7 +82,7 @@ def main(roles,
     bots.append(RuleAdjustingPolicy(env=env, 
                                     player_idx=i,
                                     log_output=log_output,
-                                    log_rule_prob_output=True,
+                                    log_rule_prob_output=False,
                                     log_weights=log_weights,
                                     look=ROLE_TO_INT[role],
                                     role=role, 
@@ -176,6 +176,7 @@ def main(roles,
         bot.update_beliefs(last_actions)
         if len(bot.history) % 10 == 0:
           bot.obligations, bot.prohibitions = bot.sample_rules()
+          #bot.obligations, bot.prohibitions = bot.threshold_rules()
     
     dead_apple_ratio = bots[-1].history[-1][-1].observation['DEAD_APPLE_RATIO'] # same for every player
             
@@ -388,7 +389,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 0 + ("farmer",) * 1 + ('free',) * 0
+  roles = ("cleaner",) * 2 + ("farmer",) * 2 + ('free',) * 2
   episodes = 100
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
