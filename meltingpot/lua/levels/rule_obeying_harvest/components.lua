@@ -673,6 +673,7 @@ function Age:_handleTimedFreeze()
   if oldFreezeCounter == 1 then
     self.gameObject:setState(avatar:getAliveState())
     self.gameObject:getComponent('Property'):markRectangle()
+    self._config.age = 0
   end
   self._freezeCounter = math.max(self._freezeCounter - 1, 0)
 end

@@ -1426,9 +1426,6 @@ def build(
   del config
   num_players = len(roles)
   ages = list(range(10, len(roles)*10, 10)) + [0]
-  print('AGES')
-  print(ages)
-  print()
   # Build the rest of the substrate definition.
   substrate_definition = dict(
       levelName="rule_obeying_harvest",
