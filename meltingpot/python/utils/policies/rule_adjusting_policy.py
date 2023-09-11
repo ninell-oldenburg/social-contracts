@@ -47,6 +47,8 @@ DEFAULT_THRESHOLD = 0.5
 DEFAULT_INIT_PRIOR = 0.2
 DEFAULT_P_OBEY = 0.9
 DEFAULT_OBLIGATION_DEPTH = 20
+DEFAULT_AGE = 30
+DEFAULT_MAX_LIFE_SPAN = 20
 
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
@@ -104,7 +106,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 max_apple_growth_rate: float = MAX_APPLE_GROWTH_RATE,
                 dirt_spawn_prob: float = DIRT_SPAWN_PROB,
                 is_learner: bool = False, 
-                default_obligation_depth: int = DEFAULT_OBLIGATION_DEPTH) -> None:
+                default_obligation_depth: int = DEFAULT_OBLIGATION_DEPTH,
+                age: int = DEFAULT_AGE,
+                MAX_LIFE_SPAN: int = DEFAULT_MAX_LIFE_SPAN) -> None:
         
         # CALLING PARAMETERS
         self.py_index = player_idx
@@ -148,6 +152,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.max_apple_growth_rate = max_apple_growth_rate
         self.dirt_spawn_prob = dirt_spawn_prob
         self.max_obligation_depth = default_obligation_depth
+        self.age = age
+        self.MAX_LIFE_SPAN = MAX_LIFE_SPAN
         
         # GLOBAL INITILIZATIONS
         self.history = deque(maxlen=10)
@@ -299,6 +305,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         """
 
         ts_cur = self.history[-1][self.py_index]
+
+        self.age += 1
         
         self.x_max = ts_cur.observation['WORLD.RGB'].shape[1] / 8
         self.y_max = ts_cur.observation['WORLD.RGB'].shape[0] / 8 - 5 # inventory display

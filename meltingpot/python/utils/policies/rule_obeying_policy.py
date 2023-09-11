@@ -280,6 +280,8 @@ class RuleObeyingPolicy(policy.Policy):
     ts.observation['RIOTS'] = self.update_riots(actions, ts.observation)
     self.set_interpolation_and_dirt_fraction(ts.observation)
     ts.observation['DIRT_FRACTION'] = self.dirt_fraction
+    ts.age = self.age
+    ts.MAX_LIFE_SPAN = self.MAX_LIFE_SPAN
 
     return ts
   
@@ -515,6 +517,8 @@ class RuleObeyingPolicy(policy.Policy):
       next_timestep.reward = reward
       next_timestep.observation = observation
       next_timestep.goal = self.all_bots[idx].goal
+      next_timestep.age = timestep.age + 1
+      next_timestep.MAX_LIFE_SPAN = timestep.MAX_LIFE_SPAN
 
       return next_timestep
   

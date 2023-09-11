@@ -54,7 +54,6 @@ def main(roles,
           log_output=False, 
           log_weights=False,
           save_csv=False,
-          death_rate: int = 50,
           ):
 
   level_name = get_name_from_rules(rules)
@@ -64,10 +63,10 @@ def main(roles,
 
   config = {'substrate': substrate_name,
             'roles': roles}
-
-  env = substrate.build(config['substrate'], roles=config['roles'], env_seed=env_seed)
-
-  # obeyed_prohibitions, obeyed_obligations = split_rules(rules)
+  
+  env = substrate.build(config['substrate'], 
+                        roles=config['roles'], 
+                        env_seed=env_seed)
 
   bots = [] # list of currently active bots
   bot_dicts = [] # stores data of each bot: reward, action, beleifs for every step
@@ -94,7 +93,7 @@ def main(roles,
                                     active_obligations=DEFAULT_OBLIGATIONS,
                                     is_learner=False,
                                     ))
-      bot_dicts[i] = make_empty_dict(POTENTIAL_RULES)
+      bot_dicts.append(make_empty_dict(POTENTIAL_RULES))
       bot_appearance[i] = [role, i]
 
     else:
@@ -110,9 +109,9 @@ def main(roles,
                                     potential_prohibitions=POTENTIAL_PROHIBITIONS,
                                     active_prohibitions=[],
                                     active_obligations=[],
-                                    is_learner=True,
+                                    is_learner=True
                                     ))
-      bot_dicts[i] = make_empty_dict(POTENTIAL_RULES)
+      bot_dicts.append(make_empty_dict(POTENTIAL_RULES))
       bot_appearance[i] = [role, i]
       
     for bot in bots:
@@ -179,42 +178,24 @@ def main(roles,
     """
     Disappearing and appearing.
     """
-    if k % death_rate == 0:
-      dead_agent = bots.pop()
-      dead_agent_role = dead_agent.role
-      role = dead_agent_role
-
-      bots.append(RuleAdjustingPolicy(env=env, 
-                                    player_idx=i,
-                                    log_output=log_output,
-                                    log_rule_prob_output=False,
-                                    log_weights=log_weights,
-                                    look=ROLE_TO_INT[role],
-                                    role=role,
-                                    num_players=num_bots,
-                                    potential_obligations=POTENTIAL_OBLIGATIONS,
-                                    potential_prohibitions=POTENTIAL_PROHIBITIONS,
-                                    active_prohibitions=[],
-                                    active_obligations=[],
-                                    is_learner=True,
-                                    ))
+    if bot.age == bot.MAX_LIFE_SPAN:
+      bot.potential_obligations=POTENTIAL_OBLIGATIONS
+      bot.potential_prohibitions=POTENTIAL_PROHIBITIONS
+      bot.active_prohibitions=[]
+      bot.active_obligations=[]
       
       bot_dicts.append(make_empty_dict(POTENTIAL_RULES)) # new data dict for the bot
       actions = [0] * len(bots) # reset current actions
       prev_bots = len(bot_appearance.keys()) # how many bots have lived yet
       bot_appearance[prev_bots] = [role, len(bots)] # append new bot to the global bot registery
 
-      # update active status + current game index for each bot
+      """# update active status + current game index for each bot
       for j, bot in enumerate(bot_appearance):
         # ignores dead bots
         if bot_appearance[j][1] == 0:
           bot_appearance[j][1] = None # set dead index to None
         elif bot_appearance[j][1] != None:
-          bot_appearance[j][1] -= 1 # otherwise decrease all other agents
-      
-      # set new game indices
-      for bot in bots:
-        bot.set_all_bots(bots)
+          bot_appearance[j][1] -= 1 # otherwise decrease all other agents"""
 
     timestep_list = [bot.add_non_physical_info(timestep, actions, i) for i, bot in enumerate(bots)]
     last_actions = np.copy(actions)
@@ -245,6 +226,7 @@ def main(roles,
         data_dict = bot_dicts[j]
         new_data_dict = append_to_dict(data_dict=data_dict, 
                                   reward_arr=timestep.reward[idx], 
+                                  all_roles=roles,
                                   beliefs=bot.rule_beliefs, 
                                   actions=actions[idx],
                                   dead_apple_ratio=dead_apple_ratio)
@@ -475,7 +457,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 1 + ('learner',) * 1
+  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 1
   episodes = 200
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
@@ -505,8 +487,6 @@ if __name__ == "__main__":
                                     log_output=False,
                                     log_weights=False,
                                     save_csv=False,
-                                    plot_q_vals=False,
-                                    passive_learning=True,
                                     )
 
   """results[(gamma, tau)]['cleaner'] += sum(data_dict['cleaner'])

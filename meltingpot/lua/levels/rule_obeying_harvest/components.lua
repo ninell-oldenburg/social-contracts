@@ -638,6 +638,61 @@ function AllNonselfCumulants:getOthersWhoAteThisStep()
   return self.num_others_who_ate_this_step
 end
 
+local Age = class.Class(component.Component)
+
+function Age:__init__(kwargs)
+  kwargs = args.parse(kwargs, {
+      {'name', args.default('Age')},
+      {'age', args.numberType},
+      {'max_life_span', args.numberType},
+  })
+  Age.Base.__init__(self, kwargs)
+
+  self._config.age = kwargs.age
+  self._config.maxLifeSpan = kwargs.max_life_span
+end
+
+function Age:start()
+  self._freezeCounter = 0
+end
+
+function Age:increaseAge()
+  if self.max_life_span ~= 0 then
+    self._config.age = self._config.age + 1
+    local avatar = self.gameObject:getComponent('Avatar')
+    if self._config.age == self._config.maxLifeSpan then
+      self.gameObject:setState(avatar:getWaitState())
+      self._freezeCounter = 5
+    end
+  end
+end
+
+function Age:_handleTimedFreeze()
+  oldFreezeCounter = self._freezeCounter
+  local avatar = self.gameObject:getComponent('Avatar')
+  if oldFreezeCounter == 1 then
+    self.gameObject:setState(avatar:getAliveState())
+    self.gameObject:getComponent('Property'):markRectangle()
+  end
+  self._freezeCounter = math.max(self._freezeCounter - 1, 0)
+end
+
+function Age:registerUpdaters(updaterRegistry)
+  local function handleWaitAliveState()
+    local avatar = self.gameObject:getComponent('Avatar')
+    if self.gameObject:getState() == avatar:getAliveState() then
+      self:increaseAge()
+    else
+      self:_handleTimedFreeze()
+    end
+  end
+
+  updaterRegistry:registerUpdater{
+      updateFn = handleWaitAliveState,
+      priority = 4,
+  }
+end
+    
 --[[ The Cleaner component provides a beam that can be used to clean dirt.
 
 Arguments:
@@ -1647,6 +1702,7 @@ local allComponents = {
 
     -- Avatar components
     AllNonselfCumulants = AllNonselfCumulants,
+    Age = Age,
     AvatarCopy = AvatarCopy,
     Cleaner = Cleaner,
     Eating = Eating,
