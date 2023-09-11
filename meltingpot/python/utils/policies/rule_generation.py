@@ -21,7 +21,7 @@ DEFAULT_FEATURES = {
         # "TOTAL_NUM_CLEANERS": ('<', [1, 2, 3, 4, 5], '>'),
         "DIRT_FRACTION": ('>', list(np.arange(0.375,0.51,0.025)), '== 0'),
         "SINCE_AGENT_LAST_PAID": ('>', list(np.arange(10,31,5)), '== 0'),
-        "RIOTS": ("len(obs['RIOTS']) >= 1", None, "len(obs['RIOTS']) == 0"),
+        "RIOTS": ('len(obs["RIOTS"]) >= 1', None, 'len(obs["RIOTS"]) == 0'),
         "NUM_APPLES_AROUND": ('<', [1, 2, 3, 4, 5, 6, 7, 8], '>'),
         "ORIENTATION": ('==', [0, 1, 2, 3], '!='),
         },
@@ -127,10 +127,17 @@ class RuleGenerator():
         if "DIRT_FRACTION" in rule_elements:
             goals = ['obs["SINCE_AGENT_LAST_CLEANED"] == 0']
 
-        if 'SINCE_AGENT_LAST_PAID' in rule_elements:
+        if "SINCE_AGENT_LAST_PAID" in rule_elements:
             goals = ['obs["SINCE_AGENT_LAST_PAID"] == 0']
+
+        if 'RIOTS' in rule_elements:
+            string_combinations = list(all_conditions[i])
+            goals = ['len(obs["RIOTS"]) == 0']
             
-        obligations = [ObligationRule(condition + f' and obs["AGENT_LOOK"] == {look}', goal) for \
+        if 'RIOTS' in rule_elements:
+            obligations = [ObligationRule(condition, goal) for condition in string_combinations for goal in goals]
+        else:
+            obligations = [ObligationRule(condition + f' and obs["AGENT_LOOK"] == {look}', goal) for \
                         condition in string_combinations for goal in goals for look in self.looks]
         
         return obligations
@@ -155,7 +162,7 @@ class RuleGenerator():
             properties = self.discretes[elem_name]
             compare_sign = properties[0]
             if properties[1] == None:
-                return(compare_sign)
+                return([compare_sign])
             else:
                 return [(f'obs["{elem_name}"] {compare_sign} {param}') for param in properties[1]]
 

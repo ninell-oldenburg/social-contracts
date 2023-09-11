@@ -662,6 +662,7 @@ function Age:increaseAge()
     local avatar = self.gameObject:getComponent('Avatar')
     if self._config.age == self._config.maxLifeSpan then
       self.gameObject:setState(avatar:getWaitState())
+      self.gameObject:getComponent('Inventory'):reset()
       self._freezeCounter = 5
     end
   end

@@ -90,7 +90,7 @@ def main(roles,
                                     potential_obligations=POTENTIAL_OBLIGATIONS,
                                     active_prohibitions=DEFAULT_PROHIBITIONS,
                                     active_obligations=DEFAULT_OBLIGATIONS,
-                                    is_learner=True,
+                                    is_learner=False,
                                     age=ages[i],
                                     ))
     bot_dicts.append(make_empty_dict(POTENTIAL_RULES))
@@ -166,11 +166,7 @@ def main(roles,
 
       if bot.age == bot.MAX_LIFE_SPAN:
         bot.rule_beliefs = [DEFAULT_INIT_PRIOR] * len(bot.rule_beliefs)
-        
-        bot_dicts.append(make_empty_dict(POTENTIAL_RULES)) # new data dict for the bot
         actions = [0] * len(bots) # reset current actions
-        prev_bots = len(bot_appearance.keys()) # how many bots have lived yet
-        bot_appearance[prev_bots] = [role, len(bots)] # append new bot to the global bot registery
 
     for i, bot in enumerate(bots):
       if len(bot.history) > 1:
@@ -189,11 +185,12 @@ def main(roles,
     """
     for i, bot in enumerate(bots):
       data_dict = bot_dicts[i]
+      is_frozen = bot.freeze_counter > 0
       new_data_dict = append_to_dict(data_dict=data_dict, 
-                                reward_arr=timestep.reward[i], 
-                                all_roles=roles,
+                                reward=timestep.reward[i], 
+                                is_frozen=is_frozen,
                                 beliefs=bot.rule_beliefs, 
-                                actions=actions[i],
+                                action=actions[i],
                                 dead_apple_ratio=dead_apple_ratio)
       bot_dicts[i] = new_data_dict
 
@@ -237,6 +234,7 @@ def make_empty_dict(potential_rules) -> dict:
     'reward': [],
     'action': [],
     'dead_apple_ratio': [],
+    'is_frozen': [],
     }
   
   for rule in potential_rules:
@@ -290,7 +288,7 @@ def read_from_csv(filename):
 
   return data
 
-def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dead_apple_ratio) -> dict:
+def append_to_dict(data_dict: dict, reward, beliefs, is_frozen, action, dead_apple_ratio) -> dict:
   """
     Appends reward and action data to the given dictionary for different roles.
 
@@ -310,51 +308,14 @@ def append_to_dict(data_dict: dict, reward_arr, beliefs, all_roles, actions, dea
     - The next four keys in `data_dict` must relate to player actions.
     - If there are two 'free' agents, the second one's data will be appended to the 'learner' key.
     """
-  second_free = None
+  data_dict['reward'].append(reward)
+  data_dict['action'].append(action)
+  data_dict['dead_apple_ratio'].append(dead_apple_ratio)
+  data_dict['is_frozen'].append(is_frozen)
 
   for i, key in enumerate(data_dict):
-    # If dealing with rewards
-    if i < 4:  
-      role = key  # Role is directly the key for rewards
-      # Check if the role is in all_roles list
-      if role in all_roles:
-          player_idx = get_index(role, all_roles, skip_first=False)
-          
-          # Special case for having two 'free' agents
-          if role == 'free' and all_roles.count(role) == 2:
-              if second_free is None:
-                  second_free = get_index(role, all_roles, skip_first=True)
-              data_dict['learner'].append(reward_arr[second_free].item())
-              data_dict['free'].append(reward_arr[player_idx].item())
-              continue
-          
-          data_dict[role].append(reward_arr[player_idx].item())
-      elif not (role == 'learner' and second_free != None):  # For cases where the role does not exist
-          data_dict[role].append(0)
-
-    # If dealing with actions
-    elif i < 8:
-        role = key.replace('_action', '')
-        if role in all_roles:
-            player_idx = get_index(role, all_roles, skip_first=False)
-            
-            # Special case for two 'free' agents
-            if role == 'free' and all_roles.count(role) == 2:
-                data_dict['learner_action'].append(actions[second_free].item())
-                data_dict['free_action'].append(actions[player_idx].item())
-                continue
-
-            data_dict[key].append(actions[player_idx].item())
-        elif not (role == 'learner' and second_free != None):  # For cases where the role does not exist
-            data_dict[key].append('')
-
-    elif i == 8:
-      data_dict[key].append(dead_apple_ratio)
-
-    else: # beliefs
-      if len(beliefs) > i-9: # check if there are learner beliefs (in baseline there aren't)
-        data_dict[key].append(beliefs[i-9]) # get beliefs (start at indec 0)
-      else: data_dict[key].append(0)
+    if i > 3:
+      data_dict[key].append(beliefs[i-9]) # get beliefs (start at indec 0)
 
   return data_dict
 
@@ -423,7 +384,7 @@ def make_video(filename):
 
 if __name__ == "__main__":
   roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0
-  episodes = 200
+  episodes = 100
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
   gammas = [0.99999]
@@ -472,6 +433,4 @@ if __name__ == "__main__":
 """
   #for item, value in data_dict.items():
   #print(f'{item}: {value}')
-  print(sum(data_dict['cleaner']))
-  print(sum(data_dict['farmer']))
-  print(sum(data_dict['free']))
+  print(data_dict)

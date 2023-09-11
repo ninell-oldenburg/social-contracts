@@ -38,9 +38,8 @@ for k in range(stats_relevance):
                         )
       
     for j, cur_result in enumerate(bot_dicts):
-        print(cur_result)
         cur_df = pd.DataFrame.from_dict(cur_result)
-        path = f'examples/results_intergen/base/max_life_span{DEFAULT_MAX_LIFE_SPAN}/bot{j+1}/trial{k+1}.csv'
+        path = f'examples/results_intergen/max_life_span{DEFAULT_MAX_LIFE_SPAN}/bot{j+1}/trial{k+1}.csv'
         cur_df.to_csv(path_or_buf=path)
 
     print('='*50)

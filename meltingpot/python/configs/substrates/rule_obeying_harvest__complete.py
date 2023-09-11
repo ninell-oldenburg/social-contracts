@@ -81,17 +81,17 @@ W      P     <~Sf  P  W
 W          P <~S>     W
 WT^TT^T^T^T^T;~S^T^T^TW
 W__________A__________W
-W_________AAA__GG_____W
-W_____GG_AAAAA________W
-W_________AAA_________W
+W_GGGGGG__AAA__GGGGGG_W
+W_____GG_AAAAA_GGGGGG_W
+W_GGGGGG__AAA__GGGGGG_W
 W___GG_____A______Q___W
-W_____A_________A_____W
+W_____A_GGGGGGG_A_____W
 W____AAA__Q____AAA____W
 W___AAAAA_____AAAAA___W
-W_G__AAA_______AAA_G__W
-W_____A_________A_____W
-W__GGGGGGGGGGGGGGGGG__W
-WGGGGGGGGGGGGGGGGGGGGGW
+W_G__AAA_GGGGG_AAA_G__W
+W_____A__GGGGGG_A_____W
+W__GGGGGG_____GGGGGG__W
+WGGGG___GGGGGGG____GGGW
 WWWWWWWWWWWWWWWWWWWWWWW
 WD---------WD---------W
 WWWWWWWWWWWWWWWWWWWWWWW
