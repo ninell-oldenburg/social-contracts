@@ -193,12 +193,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.num_rules = len(self.potential_rules)
         active_rule_strings = [rule.make_str_repr() for rule in self.active_rules]
         # if rules are coming in as active rules then they'll have a prior f self.threshold otherwise self.init_prior
-        self.rule_beliefs = np.array([self.threshold if rule.make_str_repr() in active_rule_strings else self.init_prior for rule in self.potential_rules])
-        for rule in active_rule_strings:
-            print(rule)
-        for i, rule in enumerate(self.potential_rules):
-            print(f'{rule.make_str_repr()}: {self.rule_beliefs[i]}')
-            print()
+        self.rule_beliefs = np.array([0.99 if rule.make_str_repr() in active_rule_strings else self.init_prior for rule in self.potential_rules])
         self.nonself_active_obligations_count = np.array([dict() for _ in range(self.num_players)])
         self.others_history = deque(maxlen=10)
         self.history = deque(maxlen=10)

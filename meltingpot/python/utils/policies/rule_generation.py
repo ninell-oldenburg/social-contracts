@@ -76,6 +76,7 @@ class RuleGenerator():
 
     def generate_rules_of_length(self, target_length):
         obligations = []
+        obligation_str = []
         prohibitions = []
 
         for i in range(1, target_length+1):
@@ -92,7 +93,11 @@ class RuleGenerator():
 
                     prohibitions.extend(self.make_prohib_str(comb))
 
-                obligations.extend(self.make_oblig_str(comb))
+                new_oblig = self.make_oblig_str(comb)
+                for oblig in new_oblig:
+                    if oblig.make_str_repr() not in obligation_str:
+                        obligations.append(oblig)
+                        obligation_str.append(oblig.make_str_repr())
 
         return obligations, prohibitions
             
@@ -136,6 +141,7 @@ class RuleGenerator():
             
         if 'RIOTS' in rule_elements:
             obligations = [ObligationRule(condition, goal) for condition in string_combinations for goal in goals]
+
         else:
             obligations = [ObligationRule(condition + f' and obs["AGENT_LOOK"] == {look}', goal) for \
                         condition in string_combinations for goal in goals for look in self.looks]

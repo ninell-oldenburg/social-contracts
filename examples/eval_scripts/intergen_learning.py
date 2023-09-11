@@ -43,7 +43,7 @@ from meltingpot.python.utils.policies.rule_adjusting_policy import RuleAdjusting
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
 generator = RuleGenerator()
 POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_length(2)
-POTENTIAL_RULES = POTENTIAL_OBLIGATIONS + POTENTIAL_PROHIBITIONS
+POTENTIAL_RULES = POTENTIAL_PROHIBITIONS + POTENTIAL_OBLIGATIONS
 
 def main(roles, 
           episodes, 
@@ -323,7 +323,7 @@ def append_to_dict(data_dict: dict, reward, beliefs, is_frozen, action, dead_app
 
   for i, key in enumerate(data_dict):
     if i > 3:
-      data_dict[key].append(beliefs[i-3]) # get beliefs (start at indec 0)
+      data_dict[key].append(beliefs[i-4]) # get beliefs (start at indec 0)
 
   return data_dict
 
