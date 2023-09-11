@@ -189,9 +189,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         # self.player_looks = other_player_looks
         self.num_rules = len(self.potential_rules)
         active_rule_strings = [rule.make_str_repr() for rule in self.active_rules]
-        print(active_rule_strings)
-        for rule in self.potential_rules:
-            print(rule.make_str_repr())
         # if rules are coming in as active rules then they'll have a prior f self.threshold otherwise self.init_prior
         self.rule_beliefs = np.array([self.threshold if rule.make_str_repr() in active_rule_strings else self.init_prior for rule in self.potential_rules])
         self.nonself_active_obligations_count = np.array([dict() for _ in range(self.num_players)])
@@ -388,9 +385,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         if self.freeze_counter == 1:
             self.age = 0
         self.freeze_counter = max(self.freeze_counter-1, 0)
-
-        print()
-        print(f'self.freeze_counter: {self.freeze_counter}')
     
     def role_exists_for_rule(self, rule) -> bool:
         for agent_history in self.history[-1]:

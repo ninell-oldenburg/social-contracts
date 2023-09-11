@@ -37,7 +37,7 @@ from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import 
 from meltingpot.python.utils.policies.rule_generation import RuleGenerator
 
 # from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
-from meltingpot.python.utils.policies.rule_adjusting_policy import RuleAdjustingPolicy
+from meltingpot.python.utils.policies.rule_adjusting_policy import RuleAdjustingPolicy, DEFAULT_INIT_PRIOR
 # from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
 
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
@@ -78,8 +78,7 @@ def main(roles,
   """
 
   for i, role in enumerate(roles):
-    if not role == 'learner':
-      bots.append(RuleAdjustingPolicy(env=env, 
+    bots.append(RuleAdjustingPolicy(env=env, 
                                     player_idx=i,
                                     log_output=log_output,
                                     log_rule_prob_output=True,
@@ -94,27 +93,8 @@ def main(roles,
                                     is_learner=True,
                                     age=ages[i],
                                     ))
-      bot_dicts.append(make_empty_dict(POTENTIAL_RULES))
-      bot_appearance[i] = [role, i]
-
-    else:
-      bots.append(RuleAdjustingPolicy(env=env, 
-                                    player_idx=i,
-                                    log_output=log_output,
-                                    log_rule_prob_output=True,
-                                    log_weights=log_weights,
-                                    look=ROLE_TO_INT[role],
-                                    role=role, 
-                                    num_players=num_bots,
-                                    potential_obligations=POTENTIAL_OBLIGATIONS,
-                                    potential_prohibitions=POTENTIAL_PROHIBITIONS,
-                                    active_prohibitions=[],
-                                    active_obligations=[],
-                                    is_learner=True,
-                                    age=ages[i],
-                                    ))
-      bot_dicts.append(make_empty_dict(POTENTIAL_RULES))
-      bot_appearance[i] = [role, i]
+    bot_dicts.append(make_empty_dict(POTENTIAL_RULES))
+    bot_appearance[i] = [role, i]
       
     for bot in bots:
       bot.set_all_bots(bots)
@@ -185,10 +165,7 @@ def main(roles,
       actions[i] = bot.step()
 
       if bot.age == bot.MAX_LIFE_SPAN:
-        for prohibtion in bot.prohibitions:
-          print(prohibtion.make_str_repr())
-        bot.prohibitions=[]
-        bot.obligations=[]
+        bot.rule_beliefs = [DEFAULT_INIT_PRIOR] * len(bot.rule_beliefs)
         
         bot_dicts.append(make_empty_dict(POTENTIAL_RULES)) # new data dict for the bot
         actions = [0] * len(bots) # reset current actions
