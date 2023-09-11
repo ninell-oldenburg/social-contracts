@@ -6,17 +6,17 @@ from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, Obligati
 ################## OBLIGATIONS ################## 
 #################################################
 """
-cleaning_precon_free_30 = "obs['DIRT_FRACTION'] > 0.45 and obs['AGENT_LOOK'] == 0"
-cleaning_goal_free_30 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
+cleaning_precon_free_30 = 'obs["DIRT_FRACTION"] > 0.45 and obs["AGENT_LOOK"] == 0'
+cleaning_goal_free_30 = 'obs["SINCE_AGENT_LAST_CLEANED"] == 0'
 
-payment_precon_farmer_15 = "obs['SINCE_AGENT_LAST_PAID'] > 20 and obs['AGENT_LOOK'] == 2"
-payment_goal_farmer_15 = "obs['SINCE_AGENT_LAST_PAID'] == 0"
+payment_precon_farmer_15 = 'obs["SINCE_AGENT_LAST_PAID"] > 20 and obs["AGENT_LOOK"] == 2'
+payment_goal_farmer_15 = 'obs["SINCE_AGENT_LAST_PAID"] == 0'
 
-cleaning_precon_cleaner_5 = "obs['DIRT_FRACTION'] > 0.425 and obs['AGENT_LOOK'] == 1"
-cleaning_goal_cleaner_5 = "obs['SINCE_AGENT_LAST_CLEANED'] == 0"
+cleaning_precon_cleaner_5 = 'obs["DIRT_FRACTION"] > 0.425 and obs["AGENT_LOOK"] == 1'
+cleaning_goal_cleaner_5 = 'obs["SINCE_AGENT_LAST_CLEANED"] == 0'
 
-zap_precondition = "len(obs['RIOTS']) > 0"
-zap_goal = "len(obs['RIOTS']) == 0"
+zap_precondition = 'len(obs["RIOTS"]) > 0'
+zap_goal = 'len(obs["RIOTS"]) == 0'
 
 DEFAULT_OBLIGATIONS = [
   # clean the water if less than 1 agent is cleaning
@@ -41,8 +41,8 @@ CLEANING_RULES = [
 """ 
 ################# PROHIBITIONS ################## 
 """
-harvest_apple_precon_standard = "obs['CUR_CELL_HAS_APPLE'] and obs['NUM_APPLES_AROUND'] < 3"
-steal_from_forgein_cell_precon = "obs['CUR_CELL_HAS_APPLE'] and obs['CUR_CELL_IS_FOREIGN_PROPERTY']"
+harvest_apple_precon_standard = 'obs["CUR_CELL_HAS_APPLE"] and obs["NUM_APPLES_AROUND"] < 3'
+steal_from_forgein_cell_precon = 'obs["CUR_CELL_HAS_APPLE"] and obs["CUR_CELL_IS_FOREIGN_PROPERTY"]'
 
 DEFAULT_PROHIBITIONS = [
   # don't go if <2 apples around

@@ -75,16 +75,16 @@ for k in range(stats_relevance):
   for i in range(len(BASELINE_SCENARIOS)):
     roles = BASELINE_SCENARIOS[i]
     _, bot_dicts = main(roles=roles, 
-                                      episodes=300, 
-                                      num_iteration=k, 
-                                      rules=DEFAULT_RULES, 
-                                      env_seed=k, 
-                                      create_video=False, 
-                                      log_output=False, 
-                                      log_weights=False,
-                                      save_csv=False,
-                                      death_rate=50,
-                                      )
+                        episodes=300, 
+                        num_iteration=k, 
+                        rules=DEFAULT_RULES, 
+                        env_seed=k, 
+                        create_video=False, 
+                        log_output=False, 
+                        log_weights=False,
+                        save_csv=False,
+                        death_rate=50,
+                        )
       
     for j, cur_result in enumerate(bot_dicts):
         cur_df = pd.DataFrame.from_dict(cur_result)

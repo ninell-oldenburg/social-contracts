@@ -47,7 +47,7 @@ DEFAULT_THRESHOLD = 0.5
 DEFAULT_INIT_PRIOR = 0.2
 DEFAULT_P_OBEY = 0.9
 DEFAULT_OBLIGATION_DEPTH = 20
-DEFAULT_AGE = 30
+DEFAULT_AGE = 0
 DEFAULT_MAX_LIFE_SPAN = 20
 
 ROLE_SPRITE_DICT = {
@@ -184,11 +184,16 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.last_paid = 0
         self.last_cleaned = 0
         self.old_pos = None
+        self.freeze_counter = 0
 
         # self.player_looks = other_player_looks
         self.num_rules = len(self.potential_rules)
+        active_rule_strings = [rule.make_str_repr() for rule in self.active_rules]
+        print(active_rule_strings)
+        for rule in self.potential_rules:
+            print(rule.make_str_repr())
         # if rules are coming in as active rules then they'll have a prior f self.threshold otherwise self.init_prior
-        self.rule_beliefs = np.array([self.threshold if rule in self.active_rules else self.init_prior for rule in self.potential_rules])
+        self.rule_beliefs = np.array([self.threshold if rule.make_str_repr() in active_rule_strings else self.init_prior for rule in self.potential_rules])
         self.nonself_active_obligations_count = np.array([dict() for _ in range(self.num_players)])
         self.others_history = deque(maxlen=10)
         self.history = deque(maxlen=10)
@@ -305,8 +310,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         """
 
         ts_cur = self.history[-1][self.py_index]
-
-        self.age += 1
         
         self.x_max = ts_cur.observation['WORLD.RGB'].shape[1] / 8
         self.y_max = ts_cur.observation['WORLD.RGB'].shape[0] / 8 - 5 # inventory display
@@ -355,6 +358,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             
         self.set_goal()
         ts_cur.goal = self.goal
+
+        self.handle_age()
                 
         if self.log_output:
             print(f"player: {self.lua_index} obligation active?: {len(self.current_obligations) != 0}")
@@ -375,6 +380,17 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
 
     def set_all_bots(self, all_bots):
         self.all_bots = all_bots
+
+    def handle_age(self):
+        self.age += 1
+        if self.age == self.MAX_LIFE_SPAN:
+            self.freeze_counter = 5
+        if self.freeze_counter == 1:
+            self.age = 0
+        self.freeze_counter = max(self.freeze_counter-1, 0)
+
+        print()
+        print(f'self.freeze_counter: {self.freeze_counter}')
     
     def role_exists_for_rule(self, rule) -> bool:
         for agent_history in self.history[-1]:
