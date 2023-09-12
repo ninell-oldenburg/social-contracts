@@ -35,7 +35,7 @@ for k in range(stats_relevance):
                         log_output=False, 
                         log_weights=False,
                         save_csv=False,
-                        render=False,
+                        render=True,
                         )
       
     for j, cur_result in enumerate(bot_dicts):
