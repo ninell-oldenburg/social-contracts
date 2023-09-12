@@ -43,12 +43,12 @@ DEFAULT_VIOLATION_COST = 3
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
 DEFAULT_SELECTION_MODE = "threshold"
-DEFAULT_THRESHOLD = 0.8
-DEFAULT_INIT_PRIOR = 0.01
+DEFAULT_THRESHOLD = 0.95
+DEFAULT_INIT_PRIOR = 0.05
 DEFAULT_P_OBEY = 0.9
 DEFAULT_OBLIGATION_DEPTH = 20
 DEFAULT_AGE = 0
-DEFAULT_MAX_LIFE_SPAN = 30
+DEFAULT_MAX_LIFE_SPAN = 10
 
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
@@ -193,7 +193,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.num_rules = len(self.potential_rules)
         active_rule_strings = [rule.make_str_repr() for rule in self.active_rules]
         # if rules are coming in as active rules then they'll have a prior f self.threshold otherwise self.init_prior
-        self.rule_beliefs = np.array([0.99 if rule.make_str_repr() in active_rule_strings else self.init_prior for rule in self.potential_rules])
+        self.rule_beliefs = np.array([self.threshold if rule.make_str_repr() in active_rule_strings else self.init_prior for rule in self.potential_rules])
         self.nonself_active_obligations_count = np.array([dict() for _ in range(self.num_players)])
         self.others_history = deque(maxlen=10)
         self.history = deque(maxlen=10)

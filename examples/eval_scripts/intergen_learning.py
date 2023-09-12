@@ -82,7 +82,7 @@ def main(roles,
     bots.append(RuleAdjustingPolicy(env=env, 
                                     player_idx=i,
                                     log_output=log_output,
-                                    log_rule_prob_output=True,
+                                    log_rule_prob_output=False,
                                     log_weights=log_weights,
                                     look=ROLE_TO_INT[role],
                                     role=role, 
@@ -174,7 +174,7 @@ def main(roles,
     for i, bot in enumerate(bots):
       if len(bot.history) > 1:
         bot.update_beliefs(last_actions)
-        if len(bot.history) % 10 == 0:
+        if k % 10 == 0:
           bot.obligations, bot.prohibitions = bot.sample_rules()
           #bot.obligations, bot.prohibitions = bot.threshold_rules()
     
@@ -302,7 +302,6 @@ def append_to_dict(data_dict: dict, reward, beliefs, is_frozen, action, dead_app
     - data_dict (dict):   The dictionary to which the data will be appended.
     - reward_arr:         The array containing reward values.
     - beliefs:            Array of posteriors about potential rules at that timestep.
-    - all_roles (list):   A list of roles that players have.
     - actions:            The array containing action values.
     - dead_apple_ratio:   Ratio of apples that won't grow again.
 
@@ -318,8 +317,6 @@ def append_to_dict(data_dict: dict, reward, beliefs, is_frozen, action, dead_app
   data_dict['action'].append(action)
   data_dict['dead_apple_ratio'].append(dead_apple_ratio)
   data_dict['is_frozen'].append(is_frozen)
-
-  print(beliefs)
 
   for i, key in enumerate(data_dict):
     if i > 3:
