@@ -131,7 +131,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             # BAYESIAN UPDATING
             # get boltzmann distribution for both q value vectors
             p_a_obs_no_rules = boltzmann_dis_no_rules[player_act]
-            
+
             # P(r = 1)
             prior = self.rule_beliefs[rule_idx]
 
@@ -149,6 +149,12 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             # P(r=1 | a) = P(a | r = 1) * P(r = 1) / P(a)
             log_posterior = (log_prior + log_llh) - log_marginal
             posterior = np.exp(log_posterior)
+
+            if rule.make_str_repr() == 'obs["CUR_CELL_HAS_APPLE"] and obs["NUM_APPLES_AROUND"] < 3 -> !MOVE_ACTION':
+                print()
+                print(f'p_a_obs_no_rules: {p_a_obs_no_rules}')
+                print(f'prior: {prior}')
+                print(f'posterior: {posterior}')
 
             #print()
             #print(f'rule: {rule.make_str_repr()}')
