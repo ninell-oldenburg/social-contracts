@@ -713,7 +713,7 @@ class RuleObeyingPolicy(policy.Policy):
       ts_next = self.env_step(ts_cur, act, self.py_index)
       s_next = self.init_process_next_ts(ts_next, self.py_index)
 
-      Q[act], Q_wo_rule[act]  = self.get_estimated_return(ts_next, s_next, act, available, ts_cur, self.py_index)
+      Q[act], Q_wo_rule[act], _  = self.get_estimated_return(ts_next, s_next, act, available, ts_cur, self.py_index)
 
     self.V[self.goal][s_cur] = Q
     self.V_wo_rules[s_cur] = Q_wo_rule
@@ -931,8 +931,9 @@ class RuleObeyingPolicy(policy.Policy):
 
     v_rules = r_forward + r_cur - cost
     v_wo_rule = r_forward_no_rule + r_no_rule
+    v_one_ts_rule = v_wo_rule - cost
 
-    return v_rules, v_wo_rule
+    return v_rules, v_wo_rule, v_one_ts_rule
   
   """def a_star(self, s_start: int) -> list[int]:
     # Perform a A* search to generate plan.

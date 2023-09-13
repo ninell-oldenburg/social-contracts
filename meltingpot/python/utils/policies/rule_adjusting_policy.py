@@ -33,18 +33,18 @@ DIRT_SPAWN_PROB = 0.2 # TODO to be unified
 DEFAULT_N_STEPS = 2
 DEFAULT_N_ROLLOUTS = 2
 DEFAULT_TAU = 0.5
-DEFAULT_GAMMA = 0.75
+DEFAULT_GAMMA = 0.65
 DEFAULT_MAX_DEPTH = 15
 
 # AGENT CLASS
 DEFAULT_ACTION_COST = 0.01
 DEFAULT_BLOCKING_COST = 0.05
-DEFAULT_VIOLATION_COST = 10
+DEFAULT_VIOLATION_COST = 3
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
 DEFAULT_SELECTION_MODE = "threshold"
-DEFAULT_THRESHOLD = 0.5
-DEFAULT_INIT_PRIOR = 0.2
+DEFAULT_THRESHOLD = 0.95
+DEFAULT_INIT_PRIOR = 0.05
 DEFAULT_P_OBEY = 0.9
 DEFAULT_OBLIGATION_DEPTH = 20
 DEFAULT_AGE = 0
@@ -335,9 +335,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 if self.payees == []:
                     self.payees = None
 
-            for rule in self.potential_rules:
-                print(rule.make_str_repr())
-
         else:
             if len(self.current_obligations) != 0:
                 for obligation in list(self.current_obligations):
@@ -353,8 +350,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 if not obligation in self.current_obligations:
                     self.current_obligations.append(obligation)
                 break
-
-        print(f'own index: {self.py_index}, role: {self.role}')
             
         self.set_goal()
         ts_cur.goal = self.goal
@@ -419,7 +414,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 action = actions[player_idx]
                 self.compute_posterior(player_idx, action, this_ts, past_ts, boltzmann_dis_no_rules)
 
-        print(self.rule_beliefs)
+        # print(self.rule_beliefs)
 
     def maybe_mark_riot(self, player_idx, rule):
         """Saves the ones who are violating rules in the global riots variable."""
@@ -451,7 +446,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         for act in range(self.num_actions):
             ts_next =  self.all_bots[player_idx].env_step(past_ts, act, player_idx)
             s_next = self.all_bots[player_idx].init_process_next_ts(ts_next, player_idx)
-            q_vals_rule_is_active[act], _ = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
+            q_vals_rule_is_active[act], _, _ = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
         
         boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active)
 
@@ -516,7 +511,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         for act in range(self.num_actions):
             ts_next =  self.all_bots[player_idx].env_step(past_ts, act, player_idx)
             s_next = self.all_bots[player_idx].init_process_next_ts(ts_next, player_idx)
-            _, q_vals_rule_is_active[act]  = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
+            _, _, q_vals_rule_is_active[act]  = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
         boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active)
 
         for act in prohib_actions:
@@ -526,16 +521,18 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         p_a_obs_no_rules = boltzmann_dis_no_rules[action]
         p_a_obs_rule_is_active = boltzmann_dis_rule_is_active[action]
 
+        if rule.make_str_repr() == 'obs["CUR_CELL_HAS_APPLE"] and obs["NUM_APPLES_AROUND"] < 8 -> !MOVE_ACTION':
+            print()
+            print(f'could_be_violated: {could_be_violated}')
+            print(f'prohibited: {prohib_actions}')
+            print(f'action taken: {action}')
+            print(f'boltzmann_dis_rule_is_active: {boltzmann_dis_rule_is_active}')
+            print(f'p_a_obs_no_rules: {p_a_obs_no_rules}')
+            print(f'p_a_obs_rule_is_active: {p_a_obs_rule_is_active}')
+
         # always discount a violation
         # holds precondition means that with the step taken we have already violated the rule
         # what we want is something like: could be violated
-        if rule.make_str_repr() == 'obs["CUR_CELL_HAS_APPLE"] and obs["NUM_APPLES_AROUND"] < 3 -> !MOVE_ACTION':
-            print()
-            print(could_be_violated)
-            print(player_idx)
-            print(p_a_obs_rule_is_active)
-            print(p_a_obs_no_rules)
-
         if could_be_violated:
             # P(disobedient action | rule = true) = 0 * p_action + p_action * (1-p_obey) 
             if was_violated:
