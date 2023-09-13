@@ -32,14 +32,14 @@ DIRT_SPAWN_PROB = 0.2 # TODO to be unified
 # RUN
 DEFAULT_N_STEPS = 2
 DEFAULT_N_ROLLOUTS = 2
-DEFAULT_TAU = 0.5
-DEFAULT_GAMMA = 0.65
+DEFAULT_TAU = 1.0
+DEFAULT_GAMMA = 0.9
 DEFAULT_MAX_DEPTH = 15
 
 # AGENT CLASS
 DEFAULT_ACTION_COST = 0.01
-DEFAULT_BLOCKING_COST = 0.05
-DEFAULT_VIOLATION_COST = 3
+DEFAULT_BLOCKING_COST = 0.1
+DEFAULT_VIOLATION_COST = 2
 DEFAULT_OBLIGATION_REWARD = 1
 DEFAULT_APPLE_REWARD = 1
 DEFAULT_SELECTION_MODE = "threshold"
@@ -520,15 +520,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         # get probabilities for observed action according to those distributions
         p_a_obs_no_rules = boltzmann_dis_no_rules[action]
         p_a_obs_rule_is_active = boltzmann_dis_rule_is_active[action]
-
-        if rule.make_str_repr() == 'obs["CUR_CELL_HAS_APPLE"] and obs["NUM_APPLES_AROUND"] < 8 -> !MOVE_ACTION':
-            print()
-            print(f'could_be_violated: {could_be_violated}')
-            print(f'prohibited: {prohib_actions}')
-            print(f'action taken: {action}')
-            print(f'boltzmann_dis_rule_is_active: {boltzmann_dis_rule_is_active}')
-            print(f'p_a_obs_no_rules: {p_a_obs_no_rules}')
-            print(f'p_a_obs_rule_is_active: {p_a_obs_rule_is_active}')
 
         # always discount a violation
         # holds precondition means that with the step taken we have already violated the rule

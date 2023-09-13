@@ -779,8 +779,10 @@ class RuleObeyingPolicy(policy.Policy):
       pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
       remain_inv = observation['INVENTORY'] - 1 if observation['INVENTORY'] > 0 and act == 10 else observation['INVENTORY']
       r_inv_apple = (self.apple_reward - self.default_action_cost) * remain_inv
-      r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, 'apple')
-      r_apple += r_cur_apples + r_inv_apple 
+      r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, goal='apple')
+      pos_fut_apples = [apple for apple in self.pos_all_possible_apples if (apple not in pos_cur_apples)]
+      r_fut_apples = bot.get_discounted_reward(pos_fut_apples, pos, observation, goal='apple', respawn_type='apple')
+      r_apple += r_cur_apples + r_inv_apple + r_fut_apples
 
       if self.log_weights:
         print(f"len cur_apples: {len(pos_cur_apples)}, reward: {ts_next.reward}, r_cur_apples: {r_cur_apples}, r_inv_apple: {r_inv_apple}")
@@ -812,7 +814,7 @@ class RuleObeyingPolicy(policy.Policy):
   def get_discounted_reward(self, target_pos, own_pos, obs, goal, respawn_type=None) -> float:
     reward = 0.0
     r_amount = self.apple_reward if goal == 'apple' else self.obligation_reward
-    # dirt_conditioned_regrowth_rate = self.get_dirt_conditioned_regrowth_rate()
+    dirt_conditioned_regrowth_rate = self.get_dirt_conditioned_regrowth_rate()
 
     for pos in target_pos:
       n_steps_to_reward = int(self.manhattan_dis(pos, own_pos)) + 1
@@ -821,8 +823,15 @@ class RuleObeyingPolicy(policy.Policy):
         reward += r_amount * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
       
       else: # Future objects
-        respawn_rate = self.dirt_spawn_prob
-        reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
+        if respawn_type == 'apple':
+          apples_around = self.get_apples(obs, pos[0], pos[1])
+          idx = min(apples_around, len(self.regrowth_probabilities)-1)
+          respawn_rate = self.regrowth_probabilities[idx] * dirt_conditioned_regrowth_rate
+          reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
+
+        else: # respawn_type='dirt'
+          respawn_rate = self.dirt_spawn_prob
+          reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward)
       
       for i in range(n_steps_to_reward): # Costs
         reward -= self.default_action_cost * self.gamma**i
