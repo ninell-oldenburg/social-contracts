@@ -149,11 +149,7 @@ class RuleLearningPolicy(RuleObeyingPolicy):
             # P(r=1 | a) = P(a | r = 1) * P(r = 1) / P(a)
             log_posterior = (log_prior + log_llh) - log_marginal
             posterior = np.exp(log_posterior)
-
-            if rule.make_str_repr() == 'obs["CUR_CELL_HAS_APPLE"] and obs["NUM_APPLES_AROUND"] < 8 -> !MOVE_ACTION':
-                print()
-                print(f'prior: {prior}, np.exp(log_llh): {np.exp(log_llh)}, marginal: {marginal}, posterior: {posterior}')
-
+            
             #print()
             #print(f'rule: {rule.make_str_repr()}')
             #print(f'prior: {prior}, np.exp(log_llh): {np.exp(log_llh)}, marginal: {marginal}, posterior: {posterior}')

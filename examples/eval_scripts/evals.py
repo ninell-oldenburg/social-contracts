@@ -104,7 +104,7 @@ print('STARTING BASELINE SCENARIOS')
 print('*'*50)
 print()
 
-for k in range(stats_relevance):
+"""for k in range(stats_relevance):
   for i in range(len(BASELINE_SCENARIOS)):
       roles = BASELINE_SCENARIOS[i]
       cur_settings, cur_result = main(roles=roles, 
@@ -120,10 +120,10 @@ for k in range(stats_relevance):
                                       )
       
       cur_df = pd.DataFrame.from_dict(cur_result)
-      path = f'examples/results/base/scenario{i+1}/trial{k+1}.csv'
+      path = f'examples/results_learning/base/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
-      print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
+      print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')"""
 
 print()
 print('*'*50)
@@ -146,7 +146,7 @@ for k in range(stats_relevance):
                                       plot_q_vals=False,
                                     )
       cur_df = pd.DataFrame.from_dict(cur_result)
-      path = f'examples/results/test/scenario{i+1}/trial{k+1}.csv'
+      path = f'examples/results_learning/test/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
       print(f'ITERATION {k+1} TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
@@ -157,7 +157,7 @@ print('STARTING RULE BASELINE')
 print('*'*50)
 print()
 
-for k in range(stats_relevance):
+"""for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
     cur_settings, cur_result = main(roles=BASELINE_ROLES,
                                     episodes=300, 
@@ -172,10 +172,10 @@ for k in range(stats_relevance):
                                     )
     
     cur_df = pd.DataFrame.from_dict(cur_result)
-    path = f'examples/results/rule_baseline/scenario{rule_set_idx+1}/trial{k+1}.csv'
+    path = f'examples/results_learning/rule_baseline/scenario{rule_set_idx+1}/trial{k+1}.csv'
     cur_df.to_csv(path_or_buf=path)
     print('='*50)
-    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
+    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')"""
 
 print()
 print('*'*50)
@@ -198,7 +198,7 @@ for k in range(stats_relevance):
                                     )
     
     cur_df = pd.DataFrame.from_dict(cur_result)
-    path = f'examples/results/rule_trials/scenario{rule_set_idx+1}/trial{k+1}.csv'
+    path = f'examples/results_learning/rule_trials/scenario{rule_set_idx+1}/trial{k+1}.csv'
     cur_df.to_csv(path_or_buf=path)
     print('='*50)
     print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
