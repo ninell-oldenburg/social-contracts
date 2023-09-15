@@ -83,6 +83,11 @@ for tup in ALL_ROLE_COMB:
         TEST_SCENARIOS.append(tup)
         
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
+for rule in DEFAULT_RULES:
+    if "RIOTS" in rule.make_str_repr():
+        DEFAULT_RULES.remove(rule)
+
+print(DEFAULT_RULES)
 # STR_RULES = [rule.make_str_repr() for rule in DEFAULT_RULES]
 # Generate all possible combinations of the rules
 RULE_COMBINATIONS = [] # include empty rule set
@@ -123,7 +128,7 @@ print()
       path = f'examples/results_learning/base/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
-      print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')"""
+      print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
 
 print()
 print('*'*50)
@@ -157,7 +162,7 @@ print('STARTING RULE BASELINE')
 print('*'*50)
 print()
 
-"""for k in range(stats_relevance):
+for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
     cur_settings, cur_result = main(roles=BASELINE_ROLES,
                                     episodes=300, 
