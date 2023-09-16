@@ -1,5 +1,5 @@
 
-from examples.eval_scripts.view_custom_model import main
+from examples.eval_scripts.view_learning_model import main
 import pandas as pd
 import time
 import datetime
