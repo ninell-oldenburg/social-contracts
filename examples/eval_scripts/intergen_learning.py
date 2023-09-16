@@ -174,12 +174,12 @@ def main(roles,
     for i, bot in enumerate(bots):
       if len(bot.history) > 1:
         bot.update_beliefs(last_actions)
-        if k % 10 == 0:
-          bot.obligations, bot.prohibitions = bot.sample_rules()
-          #bot.obligations, bot.prohibitions = bot.threshold_rules()
+        # if k % 10 == 0:
+          #bot.obligations, bot.prohibitions = bot.sample_rules()
+        bot.obligations, bot.prohibitions = bot.threshold_rules()
     
     dead_apple_ratio = bots[-1].history[-1][-1].observation['DEAD_APPLE_RATIO'] # same for every player
-            
+    
     if log_output:
       print('Actions: ' + str(actions)) 
 
@@ -388,7 +388,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0
   episodes = 100
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
@@ -415,7 +415,7 @@ if __name__ == "__main__":
                                     episodes=episodes,
                                     num_iteration=1,
                                     create_video=False,
-                                    log_output=False,
+                                    log_output=True,
                                     log_weights=False,
                                     save_csv=False,
                                     )
