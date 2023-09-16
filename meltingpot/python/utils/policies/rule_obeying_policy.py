@@ -781,7 +781,7 @@ class RuleObeyingPolicy(policy.Policy):
     
       pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
       r_inv_apple = (self.apple_reward - self.default_action_cost) * observation['INVENTORY']
-      r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, goal='apple')
+      r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, ts_next.age, goal='apple')
 
       r_apple += r_cur_apples + r_inv_apple - self.default_action_cost
 
@@ -790,13 +790,13 @@ class RuleObeyingPolicy(policy.Policy):
 
       if goal != 'apple':
         pos_cur_obl = bot.get_cur_obl_pos(observation)
-        r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, observation, goal)
+        r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, observation, ts_next.age, goal)
         r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
 
         r_fut_obl = 0
         if self.goal == 'clean':
           pos_fut_obl = [dirt for dirt in self.pos_all_possible_dirt if dirt not in pos_cur_obl]
-          r_fut_obl = bot.get_discounted_reward(pos_fut_obl, pos, observation, goal, respawn_type='dirt')
+          r_fut_obl = bot.get_discounted_reward(pos_fut_obl, pos, observation, ts_next.age, goal, respawn_type='dirt')
 
         r_obl = r_cur_obl + r_fulfilled_obl + r_fut_obl - self.default_action_cost
         
@@ -812,12 +812,15 @@ class RuleObeyingPolicy(policy.Policy):
 
     return Q, Q_no_rules
 
-  def get_discounted_reward(self, target_pos, own_pos, obs, goal, respawn_type=None) -> float:
+  def get_discounted_reward(self, target_pos, own_pos, obs, age, goal, respawn_type=None) -> float:
     reward = 0.0
     r_amount = self.apple_reward if goal == 'apple' else self.obligation_reward
 
     for pos in target_pos:
       n_steps_to_reward = int(self.manhattan_dis(pos, own_pos)) + 1
+
+      if n_steps_to_reward > self.MAX_LIFE_SPAN - age:
+        continue
 
       if respawn_type == None: # Consider only currently existing objects
         reward += r_amount * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
@@ -825,9 +828,6 @@ class RuleObeyingPolicy(policy.Policy):
       else: # Future objects
         respawn_rate = self.dirt_spawn_prob
         reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward)
-      
-      """for i in range(n_steps_to_reward): # Costs
-        reward -= self.default_action_cost * self.gamma**i"""
 
     return reward
   
@@ -905,10 +905,10 @@ class RuleObeyingPolicy(policy.Policy):
     goal = ts_next.goal
 
     r_forward = max(bot.V[goal][s_next]) * self.gamma
-    r_cur = ts_next.reward
+    r_cur = ts_next.reward - self.default_action_cost
 
     r_forward_no_rule = max(bot.V_wo_rules[s_next]) * self.gamma
-    r_no_rule = ts_next.reward
+    r_no_rule = ts_next.reward - self.default_action_cost
 
     if len(bot.current_obligations) != 0:        
       r_cur = 0
