@@ -48,7 +48,7 @@ DEFAULT_INIT_PRIOR = 0.05
 DEFAULT_P_OBEY = 0.9
 DEFAULT_OBLIGATION_DEPTH = 20
 DEFAULT_AGE = 0
-DEFAULT_MAX_LIFE_SPAN = 50
+DEFAULT_MAX_LIFE_SPAN = 200
 
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
@@ -446,7 +446,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         for act in range(self.num_actions):
             ts_next =  self.all_bots[player_idx].env_step(past_ts, act, player_idx)
             s_next = self.all_bots[player_idx].init_process_next_ts(ts_next, player_idx)
-            q_vals_rule_is_active[act], _, _ = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
+            q_vals_rule_is_active[act], _, _ = self.all_bots[player_idx].get_bellmann_update(ts_next, s_next, act, available, past_ts, player_idx)
         
         boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active)
 
@@ -511,7 +511,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         for act in range(self.num_actions):
             ts_next =  self.all_bots[player_idx].env_step(past_ts, act, player_idx)
             s_next = self.all_bots[player_idx].init_process_next_ts(ts_next, player_idx)
-            _, _, q_vals_rule_is_active[act]  = self.all_bots[player_idx].get_estimated_return(ts_next, s_next, act, available, past_ts, player_idx)
+            _, _, q_vals_rule_is_active[act]  = self.all_bots[player_idx].get_bellmann_update(ts_next, s_next, act, available, past_ts, player_idx)
         boltzmann_dis_rule_is_active = self.compute_boltzmann(q_vals_rule_is_active)
 
         for act in prohib_actions:

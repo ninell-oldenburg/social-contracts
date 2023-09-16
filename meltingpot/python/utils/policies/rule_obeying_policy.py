@@ -713,7 +713,7 @@ class RuleObeyingPolicy(policy.Policy):
       ts_next = self.env_step(ts_cur, act, self.py_index)
       s_next = self.init_process_next_ts(ts_next, self.py_index)
 
-      Q[act], Q_wo_rule[act], _  = self.get_estimated_return(ts_next, s_next, act, available, ts_cur, self.py_index)
+      Q[act], Q_wo_rule[act], _  = self.get_bellmann_update(ts_next, s_next, act, available, ts_cur, self.py_index)
 
     self.V[self.goal][s_cur] = Q
     self.V_wo_rules[s_cur] = Q_wo_rule
@@ -739,6 +739,7 @@ class RuleObeyingPolicy(policy.Policy):
     goal = ts_cur.goal
     
     if self.exceeds_map(pos[0], pos[1]):
+      print('EMPTY STRING IN INIT PROCESS')
       return ''
 
     s_next = self.hash_ts(ts_cur)
@@ -770,19 +771,23 @@ class RuleObeyingPolicy(policy.Policy):
       ts_next = bot.env_step(timestep, act, bot.py_index)
       observation = ts_next.observation
       pos = observation['POSITION']
-      r_apple = 0.0
+      r_apple = ts_next.reward
       r_obl = 0.0
-
+ 
       if self.exceeds_map(pos[0], pos[1]):
         continue
+
+      if ts_next.age == self.MAX_LIFE_SPAN:
+        continue
     
+      # TODO add life span calculation
       pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
-      remain_inv = observation['INVENTORY'] - 1 if observation['INVENTORY'] > 0 and act == 10 else observation['INVENTORY']
+      remain_inv = observation['INVENTORY'] if observation['INVENTORY'] > 0 and act == 10 else observation['INVENTORY']
       r_inv_apple = (self.apple_reward - self.default_action_cost) * remain_inv
       r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, goal='apple')
-      pos_fut_apples = [apple for apple in self.pos_all_possible_apples if (apple not in pos_cur_apples)]
-      r_fut_apples = bot.get_discounted_reward(pos_fut_apples, pos, observation, goal='apple', respawn_type='apple')
-      r_apple += r_cur_apples + r_inv_apple + r_fut_apples
+      # pos_fut_apples = [apple for apple in self.pos_all_possible_apples if (apple not in pos_cur_apples)]
+      # r_fut_apples = bot.get_discounted_reward(pos_fut_apples, pos, observation, goal='apple', respawn_type='apple')
+      r_apple += r_cur_apples + r_inv_apple
 
       if self.log_weights:
         print(f"len cur_apples: {len(pos_cur_apples)}, reward: {ts_next.reward}, r_cur_apples: {r_cur_apples}, r_inv_apple: {r_inv_apple}")
@@ -905,42 +910,42 @@ class RuleObeyingPolicy(policy.Policy):
     action = np.random.choice(len(q_values), p=probs) 
     return action
 
-  def get_estimated_return(self, ts_next: AgentTimestep, s_next: str, act: int, available: list, ts_cur: AgentTimestep, player_idx: int) -> float:
+  def get_bellmann_update(self, ts_next: AgentTimestep, s_next: str, act: int, available: list, ts_cur: AgentTimestep, player_idx: int) -> float:
     observation = ts_next.observation
     pos = observation['POSITION']
     bot = self.all_bots[player_idx]
     goal = ts_next.goal
 
     r_forward = max(bot.V[goal][s_next]) * self.gamma
-    r_cur = ts_next.reward
+    r_cur = ts_next.reward - self.default_action_cost
 
     r_forward_no_rule = max(bot.V_wo_rules[s_next]) * self.gamma
-    r_no_rule = ts_next.reward
+    r_no_rule = ts_next.reward - self.default_action_cost
 
     if len(bot.current_obligations) != 0:        
       r_cur = 0
       if bot.current_obligations[0].satisfied(observation):
         r_cur = bot.obligation_reward
 
-    cost = 0 if act in available else self.intrinsic_violation_cost # rule violation
-    if self.riot_rule_is_active():
-      cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
+    norm_cost += 0 if act in available else self.intrinsic_violation_cost # rule violation
+    if bot.riot_rule_is_active():
+      norm_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
 
     if bot.is_agent_in_position(ts_cur.observation, pos):
       r_cur -= self.element_blocking_cost
       r_no_rule -= self.element_blocking_cost
 
     if bot.is_water(ts_cur.observation, pos):
-      r_cur -= self.default_action_cost
-      r_no_rule -= self.default_action_cost
+      r_cur -= self.element_blocking_cost
+      r_no_rule -= self.element_blocking_cost
 
     if self.log_weights:
       print()
       print(f'{ts_cur.observation["POSITION"]} for {act} to {ts_next.observation["POSITION"]} gives\t{r_forward} + {r_cur} - {cost}; {s_next}')
 
-    v_rules = r_forward + r_cur - cost
+    v_rules = r_forward + r_cur - norm_cost
     v_wo_rule = r_forward_no_rule + r_no_rule
-    v_one_ts_rule = v_wo_rule - cost
+    v_one_ts_rule = v_wo_rule - norm_cost
 
     return v_rules, v_wo_rule, v_one_ts_rule
   
