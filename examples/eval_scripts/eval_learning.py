@@ -96,7 +96,7 @@ for i in range(0, len(DEFAULT_RULES) + 1):
 
 start_time = time.time()
 
-stats_relevance = 13
+stats_relevance = 5
 
 print(
    f'TEST_SCENARIOS: {TEST_SCENARIOS}\n'\
@@ -128,7 +128,7 @@ print()
       path = f'examples/results_learning/base/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
-      print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
+      print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')"""
 
 print()
 print('*'*50)
@@ -155,7 +155,7 @@ for k in range(stats_relevance):
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
       print(f'ITERATION {k+1} TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
-
+"""
 print()
 print('*'*50)
 print('STARTING RULE BASELINE')
