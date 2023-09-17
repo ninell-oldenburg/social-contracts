@@ -1570,7 +1570,11 @@ function DirtSpawner:update()
 end
 
 function DirtSpawner:removePieceFromPotential(piece)
-  self._potentialDirts[piece] = nil
+  if piece == nil then
+    print("piece is nil")
+  else
+    self._potentialDirts[piece] = nil
+  end
 end
 
 function DirtSpawner:addPieceToPotential(piece)
