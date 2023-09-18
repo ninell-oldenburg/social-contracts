@@ -1578,7 +1578,11 @@ function DirtSpawner:removePieceFromPotential(piece)
 end
 
 function DirtSpawner:addPieceToPotential(piece)
-  self._potentialDirts[piece] = true
+  if piece == nil then
+    print("piece is nil")
+  else
+    self._potentialDirts[piece] = true
+  end
 end
 
 --[[ The GlobalData class holds global records such as property violations
