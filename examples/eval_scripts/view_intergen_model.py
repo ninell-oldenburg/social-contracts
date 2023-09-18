@@ -28,6 +28,7 @@ import csv
 import time
 
 import matplotlib.pyplot as plt
+import random
 
 from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, ObligationRule
 # from meltingpot.python.utils.policies.lambda_rules import POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS
@@ -37,7 +38,7 @@ from meltingpot.python.configs.substrates.rule_obeying_harvest__complete import 
 from meltingpot.python.utils.policies.rule_generation import RuleGenerator
 
 # from meltingpot.python.utils.policies.rule_obeying_policy import RuleObeyingPolicy
-from meltingpot.python.utils.policies.rule_adjusting_policy import RuleAdjustingPolicy, DEFAULT_INIT_PRIOR
+from meltingpot.python.utils.policies.rule_adjusting_policy import RuleAdjustingPolicy, DEFAULT_INIT_PRIOR, DEFAULT_MAX_LIFE_SPAN
 # from meltingpot.python.utils.policies.rule_learning_policy import RuleLearningPolicy
 
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
@@ -60,7 +61,9 @@ def main(roles,
   level_name = get_name_from_rules(rules)
   substrate_name = f'rule_obeying_harvest_{level_name}'
   num_bots = len(roles)
-  ages = list(range(10, len(roles)*10, 10)) + [0]
+  age_range = DEFAULT_MAX_LIFE_SPAN / len(roles)
+  ages = list(range(10, len(roles)*age_range, age_range)) + [0]
+  random.shuffle(ages) # that not nearby agents a likely to die
 
   config = {'substrate': substrate_name,
             'roles': roles}
