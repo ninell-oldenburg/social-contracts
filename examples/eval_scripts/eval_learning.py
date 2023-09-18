@@ -96,7 +96,7 @@ for i in range(0, len(DEFAULT_RULES) + 1):
 
 start_time = time.time()
 
-stats_relevance = 5
+stats_relevance = 1
 
 print(
    f'TEST_SCENARIOS: {TEST_SCENARIOS}\n'\
@@ -128,7 +128,7 @@ print()
       path = f'examples/results_learning/base/scenario{i+1}/trial{k+1}.csv'
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
-      print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')"""
+      print(f'ITERATION {k+1} BASELINE SCENARIO {i+1}/{len(BASELINE_SCENARIOS)} COMPLETED')
 
 print()
 print('*'*50)
@@ -155,7 +155,7 @@ for k in range(stats_relevance):
       cur_df.to_csv(path_or_buf=path)
       print('='*50)
       print(f'ITERATION {k+1} TEST SCENARIO {i+1}/{len(TEST_SCENARIOS)} COMPLETED')
-"""
+
 print()
 print('*'*50)
 print('STARTING RULE BASELINE')
@@ -180,7 +180,7 @@ for k in range(stats_relevance):
     path = f'examples/results_learning/rule_baseline/scenario{rule_set_idx+1}/trial{k+1}.csv'
     cur_df.to_csv(path_or_buf=path)
     print('='*50)
-    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')"""
+    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
 
 print()
 print('*'*50)
@@ -206,7 +206,7 @@ for k in range(stats_relevance):
     path = f'examples/results_learning/rule_trials/scenario{rule_set_idx+1}/trial{k+1}.csv'
     cur_df.to_csv(path_or_buf=path)
     print('='*50)
-    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
+    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')"""
 
 # align length of df columns
 for i in range(len(RULE_COMBINATIONS)):
@@ -220,7 +220,9 @@ settings = {'BASELINE_SCENARIOS': BASELINE_SCENARIOS,
             'TEST_SCENARIOS': TEST_SCENARIOS,
             'RULE_COMBINATIONS': RULE_COMBINATIONS}
 settings_df = pd.DataFrame.from_dict(settings)
-settings_df.to_csv(path_or_buf='examples/results/settings.csv')
+settings_df.to_csv(path_or_buf='examples/results_learning/settings.csv')
+
+# TODO make lambda readable settings
 
 seconds = time.time() - start_time
 hours = str(datetime.timedelta(seconds=seconds))
