@@ -18,7 +18,7 @@ ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1
 start_time = time.time()
 
 stats_relevance = 13
-episodes = 600
+episodes = 300
 
 print()
 print('*'*50)
