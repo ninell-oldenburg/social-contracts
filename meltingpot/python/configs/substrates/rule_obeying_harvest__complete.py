@@ -75,23 +75,23 @@ ASCII_MAP = """
 WWWWWWWWWWWWWWWWWWWWWWW
 WFHFHFHFHFHFHFHHFHFFHFW
 WFHFHFHFHFHFHFHHFHFFHFW
-W========+~FHHHHHHf===W
-W   P     ===+~SSf    W
+W========+~FHFHHFHf===W
+W   P     ===+~Sf     W
 W      P     <~Sf  P  W
 W          P <~S>     W
-WT^TTAAAT^T^T;~AAA^T^TW
-WA____A____A____A____AW
-WAA__GGG__AAA__GGG__AAW
-WAAA_GGG_AAAAA_GGG_AAAW
-WAA__GGG__AAA__GGG__AAW
-WA____A____A____A_Q__AW
-W____AAA__GGG__AAA____W
-W___AAAAA__Q__AAAAA___W
+WT^TAAAAA^T^T;~SAAAT^TW
 W____AAA_______AAA____W
-W_____A___GGG___A_____W
+W_____A____A____A_____W
+W____GGG__AAA__GGG____W
+W____GGG_AAAAA_GGG____W
+W____GGG__AAA__GGG____W
+W_Q__A_____A_____A__Q_W
+W___AAA___GGG___AAA___W
+W__AAAAA___Q___AAAAA__W
+W___AAA_________AAA___W
+W____A____GGG____A____W
 W________GGGGG________W
 W_____GGG_____GGG_____W
-W_______GGGGGGG_______W
 WWWWWWWWWWWWWWWWWWWWWWW
 WD-----WD-----WD------W
 WWWWWWWWWWWWWWWWWWWWWWW
