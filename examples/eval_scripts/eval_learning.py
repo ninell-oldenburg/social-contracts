@@ -96,11 +96,6 @@ for i in range(0, len(DEFAULT_RULES) + 1):
 
 start_time = time.time()
 
-for comb in RULE_COMBINATIONS:
-    print()
-    for rule in comb:
-        print(rule.make_str_repr())
-
 stats_relevance = 1
 
 print(
