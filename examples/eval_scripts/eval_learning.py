@@ -42,6 +42,14 @@ plt.title('Bayesian Inference')
 plt.savefig(fname="update")
 plt.show()"""
 
+RULE_DICT = {
+    'obs["CUR_CELL_HAS_APPLE"] and obs["NUM_APPLES_AROUND"] < 3 -> !MOVE_ACTION': "Too few apples prohibition",
+    'obs["CUR_CELL_HAS_APPLE"] and obs["CUR_CELL_IS_FOREIGN_PROPERTY"] -> !MOVE_ACTION': "Don't steal prohibition",
+    'obs["DIRT_FRACTION"] > 0.45 and obs["AGENT_LOOK"] == 0 -> obs["SINCE_AGENT_LAST_CLEANED"] == 0': "Egalitarian clean obligation",
+    'obs["SINCE_AGENT_LAST_PAID"] > 30 and obs["AGENT_LOOK"] == 2 -> obs["SINCE_AGENT_LAST_PAID"] == 0': "Farmer pay obligation",
+    'obs["DIRT_FRACTION"] > 0.3 and obs["AGENT_LOOK"] == 1 -> obs["SINCE_AGENT_LAST_CLEANED"] == 0': "Cleaner clean obligation"
+}
+
 generator = RuleGenerator()
 POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_length(3)
 
@@ -87,8 +95,7 @@ for rule in DEFAULT_RULES:
     if "RIOTS" in rule.make_str_repr():
         DEFAULT_RULES.remove(rule)
 
-print(DEFAULT_RULES)
-# STR_RULES = [rule.make_str_repr() for rule in DEFAULT_RULES]
+    # STR_RULES = [rule.make_str_repr() for rule in DEFAULT_RULES]
 # Generate all possible combinations of the rules
 RULE_COMBINATIONS = [] # include empty rule set
 for i in range(0, len(DEFAULT_RULES) + 1):
@@ -98,10 +105,26 @@ start_time = time.time()
 
 stats_relevance = 1
 
-print(
+"""print(
    f'TEST_SCENARIOS: {TEST_SCENARIOS}\n'\
    f'BASELINE_SCENARIOS: {BASELINE_SCENARIOS}\n'\
-)
+)"""
+
+RULE_STRINGS = []
+for comb in RULE_COMBINATIONS:
+    row = []
+    for rule in comb:
+        row.append(rule.make_str_repr())
+    RULE_STRINGS.append(tuple(row))
+
+# print(RULE_STRINGS)
+
+RULE_NAMES = []
+for comb in RULE_COMBINATIONS:
+    row = []
+    for rule in comb:
+        row.append(RULE_DICT[rule.make_str_repr()])
+    RULE_NAMES.append(tuple(row))
 
 print()
 print('*'*50)
@@ -190,8 +213,6 @@ print()"""
 
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
-    if not rule_set_idx == 31:
-        continue
     cur_settings, cur_result = main(roles=EXPERIMENT_ROLES,
                                     episodes=300, 
                                     num_iteration=k, 
@@ -218,11 +239,29 @@ for i in range(len(RULE_COMBINATIONS)):
      TEST_SCENARIOS.append('')
 
 # save settings as csv
-settings = {'BASELINE_SCENARIOS': BASELINE_SCENARIOS, 
-            'TEST_SCENARIOS': TEST_SCENARIOS,
-            'RULE_COMBINATIONS': RULE_COMBINATIONS}
+settings = {
+    'BASELINE_SCENARIOS': BASELINE_SCENARIOS, 
+    'TEST_SCENARIOS': TEST_SCENARIOS,
+    'RULE_COMBINATIONS': RULE_COMBINATIONS
+    }
 settings_df = pd.DataFrame.from_dict(settings)
 settings_df.to_csv(path_or_buf='examples/results_learning/settings.csv')
+
+settings_lambda = {
+    'BASELINE_SCENARIOS': BASELINE_SCENARIOS, 
+    'TEST_SCENARIOS': TEST_SCENARIOS,
+    'RULE_COMBINATIONS': RULE_STRINGS,
+}
+settings_lambda_df = pd.DataFrame.from_dict(settings_lambda)
+settings_lambda_df.to_csv(path_or_buf='examples/results_learning/settings_lambda.csv')
+
+settings_names = {
+    'BASELINE_SCENARIOS': BASELINE_SCENARIOS, 
+    'TEST_SCENARIOS': TEST_SCENARIOS,
+    'RULE_COMBINATIONS': RULE_NAMES,
+}
+settings_names_df = pd.DataFrame.from_dict(settings_names)
+settings_names_df.to_csv(path_or_buf='examples/results_learning/settings_names.csv')
 
 # TODO make lambda readable settings
 
