@@ -17,7 +17,7 @@ DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
 ROLES = ('cleaner',) * 2 + ('farmer',) * 2 + ('free',) * 2
 start_time = time.time()
 
-stats_relevance = 13
+stats_relevance = 5
 
 print()
 print('*'*50)

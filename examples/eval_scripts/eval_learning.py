@@ -191,10 +191,12 @@ print()
 print('*'*50)
 print('STARTING RULE TRIALS')
 print('*'*50)
-print()
+print()"""
 
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
+    if not rule_set_idx == 31:
+        continue
     cur_settings, cur_result = main(roles=EXPERIMENT_ROLES,
                                     episodes=300, 
                                     num_iteration=k, 
@@ -211,7 +213,7 @@ for k in range(stats_relevance):
     path = f'examples/results_learning/rule_trials/scenario{rule_set_idx+1}/trial{k+1}.csv'
     cur_df.to_csv(path_or_buf=path)
     print('='*50)
-    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')"""
+    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
 
 # align length of df columns
 for i in range(len(RULE_COMBINATIONS)):

@@ -383,7 +383,7 @@ def get_settings(bots, rules):
 
 def make_video(filename):
     print('\nCreating video.\n')
-    os.system('ffmpeg -r 20 -f image2'
+    os.system('ffmpeg -r 10 -f image2'
               + ' -s 400x400'
               + ' -i ../videos/screen_%04d.png'
               + ' -vcodec libx264 ' 
@@ -392,8 +392,8 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 0
-  episodes = 100
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1
+  episodes = 200
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
   gammas = [0.99999]
@@ -419,7 +419,7 @@ if __name__ == "__main__":
                                     episodes=episodes,
                                     num_iteration=1,
                                     create_video=False,
-                                    log_output=True,
+                                    log_output=False,
                                     log_weights=False,
                                     save_csv=False,
                                     )
@@ -442,4 +442,4 @@ if __name__ == "__main__":
 """
   #for item, value in data_dict.items():
   #print(f'{item}: {value}')
-  print(data_dict)
+  #print(data_dict)

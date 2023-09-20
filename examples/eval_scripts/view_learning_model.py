@@ -86,6 +86,7 @@ def main(roles,
                                     active_prohibitions=DEFAULT_PROHIBITIONS,
                                     active_obligations=DEFAULT_OBLIGATIONS,
                                     is_learner=False,
+                                    age=0,
                                     ))
     else:
       bots.append(RuleAdjustingPolicy(env=env, 
@@ -101,6 +102,7 @@ def main(roles,
                                     active_prohibitions=[],
                                     active_obligations=[],
                                     is_learner=True,
+                                    age=0,
                                     ))
       
     for bot in bots:
@@ -411,7 +413,7 @@ def get_settings(bots, rules):
 
 def make_video(filename):
     print('\nCreating video.\n')
-    os.system('ffmpeg -r 20 -f image2'
+    os.system('ffmpeg -r 10 -f image2'
               + ' -s 400x400'
               + ' -i ../videos/screen_%04d.png'
               + ' -vcodec libx264 ' 
@@ -420,7 +422,7 @@ def make_video(filename):
 
 
 if __name__ == "__main__":
-  roles = ("cleaner",) * 1 + ("farmer",) * 0 + ('free',) * 0 + ('learner',) * 1
+  roles = ("cleaner",) * 1 + ("farmer",) * 1 + ('free',) * 1 + ('learner',) * 1
   episodes = 200
   # Possible values for tau and gamma you want to test
   """taus = [0.0, 0.1, 0.2, 0.3]
@@ -446,7 +448,7 @@ if __name__ == "__main__":
                                     env_seed=1,
                                     episodes=episodes,
                                     num_iteration=1,
-                                    create_video=False,
+                                    create_video=True,
                                     log_output=False,
                                     log_weights=False,
                                     save_csv=False,

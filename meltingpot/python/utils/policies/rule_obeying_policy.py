@@ -793,12 +793,13 @@ class RuleObeyingPolicy(policy.Policy):
         r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, observation, ts_next.age, goal)
         r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
 
-        r_fut_obl = 0
+        """r_fut_obl = 0
         if self.goal == 'clean':
           pos_fut_obl = [dirt for dirt in self.pos_all_possible_dirt if dirt not in pos_cur_obl]
           r_fut_obl = bot.get_discounted_reward(pos_fut_obl, pos, observation, ts_next.age, goal, respawn_type='dirt')
+          + r_fut_obl"""
 
-        r_obl = r_cur_obl + r_fulfilled_obl + r_fut_obl - self.default_action_cost
+        r_obl = r_cur_obl + r_fulfilled_obl - self.default_action_cost
         
         if self.log_weights:
           # print(f"len pos_fut_obl: {len(pos_fut_obl)}, reward: {r_fut_obl}, fulfilled: {r_fulfilled_obl}")
