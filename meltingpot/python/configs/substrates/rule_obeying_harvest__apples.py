@@ -67,7 +67,7 @@ from meltingpot.python.utils.substrates import colors
 from meltingpot.python.utils.substrates import game_object_utils
 from meltingpot.python.utils.substrates import shapes
 from meltingpot.python.utils.substrates import specs
-from meltingpot.python.utils.policies.rule_adjusting_policy import ROLE_SPRITE_DICT, APPLE_RESPAWN_RADIUS, REGROWTH_PROBABILITIES, OBSERVATION_RADIUS, REMOVE_HIT_PLAYER, PENALTY_FOR_BEING_ZAPPED, THRESHOLD_APPLE_DEPLETION, THRESHOLD_APPLE_RESTAURATION
+from meltingpot.python.utils.policies.rule_adjusting_policy import ROLE_SPRITE_DICT, APPLE_RESPAWN_RADIUS, REGROWTH_PROBABILITIES, OBSERVATION_RADIUS, REMOVE_HIT_PLAYER, PENALTY_FOR_BEING_ZAPPED, THRESHOLD_APPLE_DEPLETION, DEFAULT_MAX_LIFE_SPAN, THRESHOLD_APPLE_RESTAURATION
 
 PrefabConfig = game_object_utils.PrefabConfig
 
@@ -748,6 +748,7 @@ def create_scene():
 
 def create_avatar_object(player_idx: int,
                          role: str,
+                         age: int,
                          spawn_group: str) -> Dict[str, Any]:
   """Create an avatar object that always sees itself as blue."""
   # Lua is 1-indexed.
@@ -826,6 +827,13 @@ def create_avatar_object(player_idx: int,
                       "backward": 1,
                       "centered": False
                   },
+              }
+          },
+          {
+             "component": "Age",
+              "kwargs": {
+                  "age": age,
+                  "max_life_span": DEFAULT_MAX_LIFE_SPAN,
               }
           },
           {
@@ -1171,7 +1179,7 @@ def create_inventory_display() -> Mapping[str, Any]:
   }
     return prefab
 
-def create_avatar_and_associated_objects(roles: list):
+def create_avatar_and_associated_objects(roles: list, ages: list):
   """Returns list of avatars and their associated 
   marking objects of length 'num_players'."""
   avatar_objects = []
@@ -1185,6 +1193,7 @@ def create_avatar_and_associated_objects(roles: list):
 
     game_object = create_avatar_object(player_idx,
                                        role,
+                                       ages[player_idx],
                                        spawn_group=spawn_group,
                                        )
     avatar_objects.append(game_object)
@@ -1259,6 +1268,10 @@ def build(
   """Build substrate definition given player roles."""
   del config
   num_players = len(roles)
+  age_range = int(DEFAULT_MAX_LIFE_SPAN / len(roles))
+  ages = [0] * num_players
+  if DEFAULT_MAX_LIFE_SPAN < 200:
+    ages = list(range(5, len(roles)*age_range, age_range)) + [0]
   # Build the rest of the substrate definition.
   substrate_definition = dict(
       levelName="rule_obeying_harvest",
@@ -1271,7 +1284,7 @@ def build(
       topology="BOUNDED",  # Choose from ["BOUNDED", "TORUS"],
       simulation={
           "map": ASCII_MAP,
-          "gameObjects": create_avatar_and_associated_objects(roles),
+          "gameObjects": create_avatar_and_associated_objects(roles, ages),
           "scene": create_scene(),
           "prefabs": create_prefabs(roles,
                                     APPLE_RESPAWN_RADIUS,

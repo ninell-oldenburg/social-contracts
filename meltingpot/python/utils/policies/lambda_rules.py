@@ -6,10 +6,10 @@ from meltingpot.python.utils.policies.ast_rules import ProhibitionRule, Obligati
 ################## OBLIGATIONS ################## 
 #################################################
 """
-cleaning_precon_free_30 = 'obs["DIRT_FRACTION"] > 0.4 and obs["AGENT_LOOK"] == 0'
+cleaning_precon_free_30 = 'obs["DIRT_FRACTION"] > 0.45 and obs["AGENT_LOOK"] == 0'
 cleaning_goal_free_30 = 'obs["SINCE_AGENT_LAST_CLEANED"] == 0'
 
-payment_precon_farmer_15 = 'obs["SINCE_AGENT_LAST_PAID"] > 20 and obs["AGENT_LOOK"] == 2'
+payment_precon_farmer_15 = 'obs["SINCE_AGENT_LAST_PAID"] > 30 and obs["AGENT_LOOK"] == 2'
 payment_goal_farmer_15 = 'obs["SINCE_AGENT_LAST_PAID"] == 0'
 
 cleaning_precon_cleaner_5 = 'obs["DIRT_FRACTION"] > 0.3 and obs["AGENT_LOOK"] == 1'

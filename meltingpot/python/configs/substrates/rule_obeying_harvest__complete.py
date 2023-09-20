@@ -1425,7 +1425,10 @@ def build(
   """Build substrate definition given player roles."""
   del config
   num_players = len(roles)
-  ages = list(range(10, len(roles)*10, 10)) + [0]
+  age_range = int(DEFAULT_MAX_LIFE_SPAN / len(roles))
+  ages = [0] * num_players
+  if DEFAULT_MAX_LIFE_SPAN < 200:
+    ages = list(range(5, len(roles)*age_range, age_range)) + [0]
   # Build the rest of the substrate definition.
   substrate_definition = dict(
       levelName="rule_obeying_harvest",
