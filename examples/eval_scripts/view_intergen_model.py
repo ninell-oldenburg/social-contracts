@@ -62,7 +62,8 @@ def main(roles,
   substrate_name = f'rule_obeying_harvest_{level_name}'
   num_bots = len(roles)
   age_range = int(DEFAULT_MAX_LIFE_SPAN / len(roles))
-  ages = list(range(10, len(roles)*age_range, age_range)) + [0]
+  ages = list(range(5, len(roles)*age_range, age_range)) + [0]
+  print(ages)
   random.shuffle(ages) # that not nearby agents a likely to die
 
   config = {'substrate': substrate_name,

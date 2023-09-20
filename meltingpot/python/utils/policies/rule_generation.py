@@ -218,4 +218,4 @@ if __name__ == "__main__":
     prohibs, obligs = generator.generate_rules_of_length(target_length)
     for rule in prohibs + obligs:
         # continue
-        print(rule.make_str_repr())
+        print("'" + rule.make_str_repr() + "',")
