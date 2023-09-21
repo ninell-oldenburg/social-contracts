@@ -33,7 +33,7 @@ DIRT_SPAWN_PROB = 0.2 # TODO to be unified
 DEFAULT_N_STEPS = 2
 DEFAULT_N_ROLLOUTS = 2
 DEFAULT_TAU = 1.0
-DEFAULT_GAMMA = 0.85
+DEFAULT_GAMMA = 0.9 # 0.85
 DEFAULT_MAX_DEPTH = 20
 
 # AGENT CLASS
@@ -48,7 +48,7 @@ DEFAULT_INIT_PRIOR = 0.05
 DEFAULT_P_OBEY = 0.9
 DEFAULT_OBLIGATION_DEPTH = 20
 DEFAULT_AGE = 0
-DEFAULT_MAX_LIFE_SPAN = 50
+DEFAULT_MAX_LIFE_SPAN = 300
 
 ROLE_SPRITE_DICT = {
    'free': shapes.CUTE_AVATAR,
@@ -188,6 +188,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.last_cleaned = 0
         self.old_pos = None
         self.freeze_counter = 0
+        self.dirt_index = -3
+        self.apple_index = -1
+        self.water_index = -2
 
         # self.player_looks = other_player_looks
         self.num_rules = len(self.potential_rules)

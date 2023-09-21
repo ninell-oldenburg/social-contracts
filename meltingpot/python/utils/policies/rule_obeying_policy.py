@@ -781,7 +781,7 @@ class RuleObeyingPolicy(policy.Policy):
     
       pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
       r_inv_apple = (self.apple_reward - self.default_action_cost) * observation['INVENTORY']
-      r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, observation, ts_next.age, goal='apple')
+      r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, ts_next.age, goal='apple')
 
       r_apple += r_cur_apples + r_inv_apple - self.default_action_cost
 
@@ -790,14 +790,8 @@ class RuleObeyingPolicy(policy.Policy):
 
       if goal != 'apple':
         pos_cur_obl = bot.get_cur_obl_pos(observation)
-        r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, observation, ts_next.age, goal)
+        r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age, goal)
         r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
-
-        """r_fut_obl = 0
-        if self.goal == 'clean':
-          pos_fut_obl = [dirt for dirt in self.pos_all_possible_dirt if dirt not in pos_cur_obl]
-          r_fut_obl = bot.get_discounted_reward(pos_fut_obl, pos, observation, ts_next.age, goal, respawn_type='dirt')
-          + r_fut_obl"""
 
         r_obl = r_cur_obl + r_fulfilled_obl - self.default_action_cost
         
@@ -813,7 +807,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     return Q, Q_no_rules
 
-  def get_discounted_reward(self, target_pos, own_pos, obs, age, goal, respawn_type=None) -> float:
+  def get_discounted_reward(self, target_pos, own_pos, age, goal) -> float:
     reward = 0.0
     r_amount = self.apple_reward if goal == 'apple' else self.obligation_reward
 
@@ -823,24 +817,38 @@ class RuleObeyingPolicy(policy.Policy):
       if n_steps_to_reward > self.MAX_LIFE_SPAN - age:
         continue
 
-      if respawn_type == None: # Consider only currently existing objects
-        reward += r_amount * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
-      
-      else: # Future objects
-        respawn_rate = self.dirt_spawn_prob
-        reward += r_amount * respawn_rate * self.gamma**(n_steps_to_reward)
+      reward += r_amount * self.gamma**(n_steps_to_reward) # Positive reward for eating apple
 
     return reward
   
+  def find_closest_dirt(self, grid, pos):
+    closest_distance = float('inf')
+    closest_dirt = None
+    this_pos = tuple(pos)
+    # start_row, start_col = pos[0], pos[1]
+    
+    for row_index, row in enumerate(grid):
+        for col_index, cell in enumerate(row):
+            if cell == self.dirt_index:  # if cell contains dirt
+                possible_dirt = tuple((row_index, col_index))
+                distance = self.manhattan_dis(this_pos, possible_dirt)
+                if distance < closest_distance:
+                    closest_distance = distance
+                    closest_dirt = [tuple((row_index, col_index))]
+    
+    return closest_dirt
+  
   def get_cur_obl_pos(self, observation: dict) -> list:
     if self.goal == 'clean':
-      # return self.pos_all_possible_dirt
-      return list(zip(*np.where(observation['SURROUNDINGS'] == -3)))
+      pos = observation["POSITION"]
+      surroundings = observation["SURROUNDINGS"]
+      return self.find_closest_dirt(surroundings, pos)
     else:
       return self.get_agent_list(observation)
         
   def get_agent_list(self, observation: dict) -> list:
     agent_idx_vec = self.payees if self.goal == "pay" and observation['INVENTORY'] != 0 else []
+
     if self.goal == "zap":
       agent_idx_vec = self.riots
     
@@ -857,7 +865,12 @@ class RuleObeyingPolicy(policy.Policy):
     return probability
 
   def manhattan_dis(self, pos_cur, pos_goal) -> int:
-    return abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1])
+    try:
+        distance = abs(pos_cur[0] - pos_goal[0]) + abs(pos_cur[1] - pos_goal[1])
+    except TypeError:
+        print(f"TypeError occurred! pos_cur={pos_cur}, type(pos_cur)={type(pos_cur)}, pos_goal={pos_goal}, type(pos_goal)={type(pos_goal)}")
+        raise  # re-raise the exception after printing debug info
+    return distance
   
   def in_unreachable_water(self, obs: AgentTimestep) -> list:
     unreachable = []
@@ -925,8 +938,8 @@ class RuleObeyingPolicy(policy.Policy):
       r_no_rule -= self.element_blocking_cost
 
     if bot.is_water(ts_cur.observation, pos):
-      r_cur -= self.element_blocking_cost
-      r_no_rule -= self.element_blocking_cost
+      r_cur -= self.element_blocking_cost * 10
+      r_no_rule -= self.element_blocking_cost * 10
 
     if self.log_weights:
       print()

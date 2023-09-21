@@ -79,19 +79,17 @@ W========+~FHFHHFHf===W
 W   P     ===+~Sf     W
 W      P     <~Sf  P  W
 W          P <~S>     W
-WT^TAAAAA^T^T;~SAAAT^TW
+WT^T^TA^T^T^T;~SAT^T^TW
+W____AAA_______AAA____W
+W___AAAAA_____AAAAA___W
 W____AAA_______AAA____W
 W_____A____A____A_____W
-W____GGG__AAA__GGG____W
-W____GGG_AAAAA_GGG____W
-W____GGG__AAA__GGG____W
-W_Q__A_____A_____A__Q_W
-W___AAA___GGG___AAA___W
-W__AAAAA___Q___AAAAA__W
-W___AAA_________AAA___W
-W____A____GGG____A____W
-W________GGGGG________W
-W_____GGG_____GGG_____W
+W__A______AAA______A__W
+W_AAA____AAAAA____AAA_W
+WAAAAA____AAA____AAAAAW
+W_AAA______A______AAA_W
+W__A____Q_____G____A__W
+W_G_____________Q_____W
 WWWWWWWWWWWWWWWWWWWWWWW
 WD-----WD-----WD------W
 WWWWWWWWWWWWWWWWWWWWWWW
