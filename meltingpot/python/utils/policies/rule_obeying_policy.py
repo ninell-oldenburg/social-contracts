@@ -778,12 +778,17 @@ class RuleObeyingPolicy(policy.Policy):
 
       if ts_next.age == self.MAX_LIFE_SPAN:
         continue
+
+      n_steps_to_live = self.MAX_LIFE_SPAN - ts_next.age
+      cumulative_action_cost = 0.0
+      for i in range(n_steps_to_live):
+          cumulative_action_cost += self.default_action_cost * self.gamma**(i)
     
       pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
-      r_inv_apple = (self.apple_reward - self.default_action_cost) * observation['INVENTORY']
+      r_inv_apple = self.apple_reward * observation['INVENTORY']
       r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, ts_next.age, goal='apple')
 
-      r_apple += r_cur_apples + r_inv_apple - self.default_action_cost
+      r_apple += r_cur_apples + r_inv_apple
 
       if self.log_weights:
         print(f"len cur_apples: {len(pos_cur_apples)}, reward: {ts_next.reward}, r_cur_apples: {r_cur_apples}, r_inv_apple: {r_inv_apple}")
@@ -799,8 +804,8 @@ class RuleObeyingPolicy(policy.Policy):
           # print(f"len pos_fut_obl: {len(pos_fut_obl)}, reward: {r_fut_obl}, fulfilled: {r_fulfilled_obl}")
           print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
 
-      Q[act] = r_apple - norm_cost if goal == 'apple' else r_obl - norm_cost
-      Q_no_rules[act] = r_apple
+      Q[act] = r_apple - norm_cost - cumulative_action_cost if goal == 'apple' else r_obl - norm_cost - cumulative_action_cost
+      Q_no_rules[act] = r_apple - cumulative_action_cost
 
     if self.log_weights:
       print(Q)
@@ -811,8 +816,17 @@ class RuleObeyingPolicy(policy.Policy):
     reward = 0.0
     r_amount = self.apple_reward if goal == 'apple' else self.obligation_reward
 
+    n_steps_to_live = self.MAX_LIFE_SPAN - age
+    cumulative_action_cost = 0.0
+
     for pos in target_pos:
       n_steps_to_reward = int(self.manhattan_dis(pos, own_pos)) + 1
+
+      if goal != 'apple': # Handle action costs
+        n_steps_left = min(n_steps_to_reward, n_steps_to_live)
+        for i in range(n_steps_left):
+           cumulative_action_cost += self.default_action_cost * self.gamma**(i)
+        reward -= cumulative_action_cost
 
       if n_steps_to_reward > self.MAX_LIFE_SPAN - age:
         continue
