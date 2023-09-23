@@ -103,7 +103,7 @@ for i in range(0, len(DEFAULT_RULES) + 1):
 
 start_time = time.time()
 
-stats_relevance = 1
+stats_relevance = 13
 
 """print(
    f'TEST_SCENARIOS: {TEST_SCENARIOS}\n'\
@@ -203,13 +203,13 @@ for k in range(stats_relevance):
     path = f'examples/results_learning/rule_baseline/scenario{rule_set_idx+1}/trial{k+1}.csv'
     cur_df.to_csv(path_or_buf=path)
     print('='*50)
-    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
+    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')"""
 
 print()
 print('*'*50)
 print('STARTING RULE TRIALS')
 print('*'*50)
-print()"""
+print()
 
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
