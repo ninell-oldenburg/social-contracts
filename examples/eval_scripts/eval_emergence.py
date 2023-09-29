@@ -1,4 +1,4 @@
-from examples.eval_scripts.view_emergence_model import main
+from examples.eval_scripts.view_emergence_model import main, SAMPLE_RHYTHM
 import pandas as pd
 import time
 import datetime
@@ -41,7 +41,7 @@ for k in range(stats_relevance):
       
     for j, cur_result in enumerate(bot_dicts):
         cur_df = pd.DataFrame.from_dict(cur_result)
-        path = f'examples/results_emerge/bot{j+1}/trial{k+1}.csv'
+        path = f'examples/results_emerge/sample_rythm{SAMPLE_RHYTHM}/bot{j+1}/trial{k+1}.csv'
         cur_df.to_csv(path_or_buf=path)
 
     print('='*50)

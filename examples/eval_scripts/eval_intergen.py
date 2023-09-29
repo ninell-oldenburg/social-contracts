@@ -27,7 +27,7 @@ print()
 
 for k in range(stats_relevance):
     _, bot_dicts = main(roles=ROLES, 
-                        episodes=DEFAULT_MAX_LIFE_SPAN*len(ROLES), 
+                        episodes=DEFAULT_MAX_LIFE_SPAN*9,
                         num_iteration=k, 
                         rules=DEFAULT_RULES, 
                         env_seed=k, 

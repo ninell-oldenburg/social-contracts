@@ -62,7 +62,7 @@ def main(roles,
   substrate_name = f'rule_obeying_harvest_{level_name}'
   num_bots = len(roles)
   age_range = int(DEFAULT_MAX_LIFE_SPAN / len(roles))
-  ages = list(range(5, len(roles)*age_range, age_range)) + [0]
+  ages = list(range(0, len(roles)*age_range, age_range))
   print(ages)
   random.shuffle(ages) # that not nearby agents a likely to die
 
@@ -178,9 +178,9 @@ def main(roles,
     for i, bot in enumerate(bots):
       if len(bot.history) > 1:
         bot.update_beliefs(last_actions)
-        # if k % 10 == 0:
-          #bot.obligations, bot.prohibitions = bot.sample_rules()
-        bot.obligations, bot.prohibitions = bot.threshold_rules()
+        if k % 20 == 0:
+          bot.obligations, bot.prohibitions = bot.sample_rules()
+        # bot.obligations, bot.prohibitions = bot.threshold_rules()
     
     dead_apple_ratio = bots[-1].history[-1][-1].observation['DEAD_APPLE_RATIO'] # same for every player
     
