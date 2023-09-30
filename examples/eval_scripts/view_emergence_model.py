@@ -93,7 +93,7 @@ def main(roles,
                                     active_prohibitions=[],
                                     active_obligations=[],
                                     is_learner=True,
-                                    age=ages[i],
+                                    age=0,
                                     ))
     bot_dicts.append(make_empty_dict(POTENTIAL_RULES))
     bot_appearance[i] = [role, i]
