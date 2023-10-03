@@ -14,7 +14,7 @@ generator = RuleGenerator()
 POTENTIAL_OBLIGATIONS, POTENTIAL_PROHIBITIONS = generator.generate_rules_of_length(3)
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
 
-ROLES = ('cleaner',) * 2 + ('farmer',) * 2 + ('free',) * 2
+ROLES = ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1 + ('cleaner',) * 1 + ('farmer',) * 1 + ('free',) * 1
 start_time = time.time()
 
 stats_relevance = 13

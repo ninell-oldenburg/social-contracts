@@ -63,8 +63,8 @@ def main(roles,
   num_bots = len(roles)
   age_range = int(DEFAULT_MAX_LIFE_SPAN / (len(roles)-1))
   ages = list(range(0, len(roles)*age_range, age_range))
+  # random.shuffle(ages) # that not nearby agents a likely to die
   print(ages)
-  random.shuffle(ages) # that not nearby agents a likely to die
 
   config = {'substrate': substrate_name,
             'roles': roles}
