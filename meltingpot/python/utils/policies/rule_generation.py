@@ -214,7 +214,7 @@ class RuleGenerator():
 
 if __name__ == "__main__":
     generator = RuleGenerator()
-    target_length = 2
+    target_length = 3
     prohibs, obligs = generator.generate_rules_of_length(target_length)
     for rule in prohibs + obligs:
         # continue
