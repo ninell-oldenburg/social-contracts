@@ -109,7 +109,7 @@ class RuleObeyingPolicy(policy.Policy):
     self.goal = None
     self.x_max = 15
     self.y_max = 15
-    self.self.avg_steps_to_punishment = 3
+    self.avg_steps_to_punishment = 3
 
     # non-physical info
     self.last_zapped = 0
