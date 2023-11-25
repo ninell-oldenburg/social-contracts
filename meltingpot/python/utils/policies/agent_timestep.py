@@ -9,6 +9,7 @@ class AgentTimestep():
         self.observation = {}
         self.goal = "apple"
         self.age = 0
+        self.goal_count = 0
         self.MAX_LIFE_SPAN = 100
 
     def get_obs(self):

@@ -302,9 +302,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         # prohibitions:
         #   look at best action without policy being true
         #   look at best action with policy being true
+        #
         # obligations:
         #   i don't know
-
     
     def step(self) -> list:
         """
