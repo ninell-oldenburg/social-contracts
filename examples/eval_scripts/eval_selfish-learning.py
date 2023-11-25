@@ -213,7 +213,8 @@ print()
 
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
-    cur_settings, cur_result = main(roles=EXPERIMENT_ROLES,
+    if rule_set_idx == 31:
+        cur_settings, cur_result = main(roles=EXPERIMENT_ROLES,
                                     episodes=300, 
                                     num_iteration=k, 
                                     rules=rule_set, 
@@ -225,11 +226,11 @@ for k in range(stats_relevance):
                                     plot_q_vals=False
                                     )
     
-    cur_df = pd.DataFrame.from_dict(cur_result)
-    path = f'examples/results_selfish-learning/rule_trials/scenario{rule_set_idx+1}/trial{k+1}.csv'
-    cur_df.to_csv(path_or_buf=path)
-    print('='*50)
-    print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
+        cur_df = pd.DataFrame.from_dict(cur_result)
+        path = f'examples/results_selfish-learning/rule_trials/scenario{rule_set_idx+1}/trial{k+1}.csv'
+        cur_df.to_csv(path_or_buf=path)
+        print('='*50)
+        print(f'ITERATION {k+1} RULE SET {rule_set_idx+1}/{len(RULE_COMBINATIONS)} COMPLETED')
 
 # align length of df columns
 for i in range(len(RULE_COMBINATIONS)):

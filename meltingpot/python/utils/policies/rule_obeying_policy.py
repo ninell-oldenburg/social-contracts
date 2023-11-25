@@ -515,10 +515,12 @@ class RuleObeyingPolicy(policy.Policy):
             observation['AGENT_ATE'] = True
 
       observation['INVENTORY'] = cur_inventory
-      # observation['WATER_LOCATION'] = list(zip(*np.where(observation['SURROUNDINGS'] <= -3)))
 
-      if timestep.goal == self.all_bots[idx].goal and timestep.goal != "apple":
-        goal_count = 0 if self.current_obligations[0].satisfied(observation) else timestep.goal_count + 1
+      goal_count = 0
+      if timestep.goal == self.all_bots[idx].goal:
+        if timestep.goal != "apple":
+          if not self.current_obligations[0].satisfied(observation):
+            goal_count = timestep.goal_count + 1
 
       next_timestep.step_type = dm_env.StepType.MID
       next_timestep.reward = reward
@@ -783,7 +785,7 @@ class RuleObeyingPolicy(policy.Policy):
           norm_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
 
       obligation_violation_cost = 0
-      rule_is_active = timestep.rule_active_count <= self.max_obligation_depth
+      rule_is_active = timestep.goal_count <= self.max_obligation_depth
       if not rule_is_active:
         obligation_violation_cost = self.intrinsic_violation_cost
         if bot.riot_rule_is_active():
@@ -811,7 +813,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       if goal != 'apple':
         pos_cur_obl = bot.get_cur_obl_pos(observation)
-        r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age, goal, rule_active_count=ts_next.goal_count)
+        r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age, goal)
         r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
 
         r_obl = r_cur_obl + r_fulfilled_obl - self.default_action_cost
@@ -960,6 +962,19 @@ class RuleObeyingPolicy(policy.Policy):
       if bot.current_obligations[0].satisfied(observation):
         r_cur = bot.obligation_reward
 
+    norm_cost = 0
+    if act not in available:
+      norm_cost = self.intrinsic_violation_cost
+      if bot.riot_rule_is_active():
+        norm_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
+
+    obligation_violation_cost = 0
+    rule_is_active = ts_next.goal_count <= self.max_obligation_depth
+    if not rule_is_active:
+      obligation_violation_cost = self.intrinsic_violation_cost
+      if bot.riot_rule_is_active():
+        obligation_violation_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
+
     norm_cost = 0 if act in available else self.intrinsic_violation_cost # rule violation
     if bot.riot_rule_is_active():
       norm_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
@@ -976,9 +991,9 @@ class RuleObeyingPolicy(policy.Policy):
       print()
       print(f'{ts_cur.observation["POSITION"]} for {act} to {ts_next.observation["POSITION"]} gives\t{r_forward} + {r_cur} - {r_cur}; {s_next}')
 
-    v_rules = r_forward + r_cur - norm_cost
+    v_rules = r_forward + r_cur - norm_cost - obligation_violation_cost
     v_wo_rule = r_forward_no_rule + r_no_rule
-    v_one_ts_rule = v_wo_rule - norm_cost
+    v_one_ts_rule = v_wo_rule - norm_cost - obligation_violation_cost
 
     return v_rules, v_wo_rule, v_one_ts_rule
   
