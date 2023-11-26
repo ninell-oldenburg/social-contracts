@@ -519,7 +519,7 @@ class RuleObeyingPolicy(policy.Policy):
       goal_count = 0
       if timestep.goal == self.all_bots[idx].goal:
         if timestep.goal != "apple":
-          if not self.current_obligations[0].satisfied(observation):
+          if not self.all_bots[idx].current_obligations[0].satisfied(observation):
             goal_count = timestep.goal_count + 1
 
       next_timestep.step_type = dm_env.StepType.MID
@@ -785,7 +785,7 @@ class RuleObeyingPolicy(policy.Policy):
           norm_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
 
       obligation_violation_cost = 0
-      rule_is_active = timestep.goal_count <= self.max_obligation_depth
+      rule_is_active = ts_next.goal_count <= self.max_obligation_depth
       if not rule_is_active:
         obligation_violation_cost = self.intrinsic_violation_cost
         if bot.riot_rule_is_active():
@@ -804,7 +804,7 @@ class RuleObeyingPolicy(policy.Policy):
     
       pos_cur_apples = bot.get_cur_obj_pos(observation['SURROUNDINGS'], object_idx = -1)
       r_inv_apple = self.apple_reward * observation['INVENTORY']
-      r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, ts_next.age, goal='apple')
+      r_cur_apples = bot.get_discounted_reward(pos_cur_apples, pos, ts_next.age)#, goal='apple')
 
       r_apple += r_cur_apples + r_inv_apple
 
@@ -813,7 +813,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       if goal != 'apple':
         pos_cur_obl = bot.get_cur_obl_pos(observation)
-        r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age, goal)
+        r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
         r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
 
         r_obl = r_cur_obl + r_fulfilled_obl - self.default_action_cost
@@ -833,7 +833,7 @@ class RuleObeyingPolicy(policy.Policy):
 
   def get_discounted_reward(self, target_pos, own_pos, age, goal) -> float:
     reward = 0.0
-    r_amount = self.apple_reward if goal == 'apple' else self.obligation_reward
+    r_amount = self.apple_reward #if goal == 'apple' else self.obligation_reward
 
     n_steps_to_live = self.MAX_LIFE_SPAN - age
     cumulative_action_cost = 0.0
@@ -841,11 +841,11 @@ class RuleObeyingPolicy(policy.Policy):
     for pos in target_pos:
       n_steps_to_reward = int(self.manhattan_dis(pos, own_pos)) + 1
 
-      if goal != 'apple': # Handle action costs
-        n_steps_left = min(n_steps_to_reward, n_steps_to_live)
-        for i in range(n_steps_left):
-           cumulative_action_cost += self.default_action_cost * self.gamma**(i)
-        reward -= cumulative_action_cost
+      #if goal != 'apple': # Handle action costs
+      n_steps_left = min(n_steps_to_reward, n_steps_to_live)
+      for i in range(n_steps_left):
+          cumulative_action_cost += self.default_action_cost * self.gamma**(i)
+      reward -= cumulative_action_cost
 
       if n_steps_to_reward > self.MAX_LIFE_SPAN - age:
         continue
@@ -974,10 +974,6 @@ class RuleObeyingPolicy(policy.Policy):
       obligation_violation_cost = self.intrinsic_violation_cost
       if bot.riot_rule_is_active():
         obligation_violation_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
-
-    norm_cost = 0 if act in available else self.intrinsic_violation_cost # rule violation
-    if bot.riot_rule_is_active():
-      norm_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
 
     if bot.is_agent_in_position(ts_cur.observation, pos):
       r_cur -= self.element_blocking_cost
