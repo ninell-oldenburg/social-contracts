@@ -831,7 +831,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     return Q, Q_no_rules
 
-  def get_discounted_reward(self, target_pos, own_pos, age, goal) -> float:
+  def get_discounted_reward(self, target_pos, own_pos, age) -> float:
     reward = 0.0
     r_amount = self.apple_reward #if goal == 'apple' else self.obligation_reward
 
