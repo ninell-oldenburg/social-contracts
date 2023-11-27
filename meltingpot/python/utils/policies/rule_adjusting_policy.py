@@ -343,7 +343,6 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
                 for obligation in list(self.current_obligations):
                     if obligation.satisfied(self.history[-2][self.py_index].observation):
                         self.current_obligations.remove(obligation)
-            
 
         # Check if any of the obligations are active
         # self.current_obligation = None
@@ -356,6 +355,9 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             
         self.set_goal()
         ts_cur.goal = self.goal
+
+        if len(self.history) > 1:
+            self.add_goal_count(self.history[-2][self.py_index], ts_cur, self.py_index, ts_cur.observation)
 
         self.handle_age()
                 

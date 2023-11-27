@@ -233,7 +233,7 @@ class RuleObeyingPolicy(policy.Policy):
          
       self.set_goal()
       ts_cur.goal = self.goal
-               
+
       if self.log_output:
         print(f"player: {self.lua_index} obligation active?: {self.current_obligation != None}")
 
@@ -285,6 +285,7 @@ class RuleObeyingPolicy(policy.Policy):
     ts.observation['DIRT_FRACTION'] = self.dirt_fraction
     ts.age = self.age
     ts.MAX_LIFE_SPAN = self.MAX_LIFE_SPAN
+    ts.observation['GOAL_COUNT'] = 0
 
     return ts
   
@@ -516,21 +517,27 @@ class RuleObeyingPolicy(policy.Policy):
 
       observation['INVENTORY'] = cur_inventory
 
-      goal_count = 0
-      if timestep.goal == self.all_bots[idx].goal:
-        if timestep.goal != "apple":
-          if not self.all_bots[idx].current_obligations[0].satisfied(observation):
-            goal_count = timestep.goal_count + 1
+      self.add_goal_count(timestep, next_timestep, idx, observation)
 
       next_timestep.step_type = dm_env.StepType.MID
       next_timestep.reward = reward
       next_timestep.observation = observation
       next_timestep.goal = self.all_bots[idx].goal
       next_timestep.age = timestep.age + 1
-      next_timestep.goal_count = goal_count
       next_timestep.MAX_LIFE_SPAN = timestep.MAX_LIFE_SPAN
 
       return next_timestep
+  
+  def add_goal_count(self, timestep, next_timestep, idx, observation):
+
+    if not len(self.all_bots[idx].current_obligations) == 0:
+      if not self.all_bots[idx].current_obligations[0].satisfied(observation):
+        if timestep.goal == "clean":
+          next_timestep.observation['GOAL_COUNT'] = timestep.observation['SINCE_AGENT_LAST_CLEANED']
+        elif timestep.goal == "pay":
+          next_timestep.observation['GOAL_COUNT'] = timestep.observation['SINCE_AGENT_LAST_PAID']
+        elif timestep.goal == "zap":
+          next_timestep.observation['GOAL_COUNT'] = timestep.observation['SINCE_AGENT_LAST_ZAPPED']
   
   def compute_zap(self, observation, x, y):
     last_zapped = observation['SINCE_AGENT_LAST_ZAPPED']
@@ -785,7 +792,7 @@ class RuleObeyingPolicy(policy.Policy):
           norm_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
 
       obligation_violation_cost = 0
-      rule_is_active = ts_next.goal_count <= self.max_obligation_depth
+      rule_is_active = ts_next.observation['GOAL_COUNT'] <= self.max_obligation_depth
       if not rule_is_active:
         obligation_violation_cost = self.intrinsic_violation_cost
         if bot.riot_rule_is_active():
@@ -813,14 +820,15 @@ class RuleObeyingPolicy(policy.Policy):
 
       if goal != 'apple':
         pos_cur_obl = bot.get_cur_obl_pos(observation)
-        r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
-        r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
+        r_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
+        #r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
+        #r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
 
-        r_obl = r_cur_obl + r_fulfilled_obl - self.default_action_cost
+        #r_obl = r_cur_obl + r_fulfilled_obl - self.default_action_cost
         
-        if self.log_weights:
+        #if self.log_weights:
           # print(f"len pos_fut_obl: {len(pos_fut_obl)}, reward: {r_fut_obl}, fulfilled: {r_fulfilled_obl}")
-          print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
+          #print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
 
       all_costs = norm_cost + cumulative_action_cost + obligation_violation_cost
       Q[act] = r_apple - all_costs if goal == 'apple' else r_obl - all_costs
@@ -969,7 +977,7 @@ class RuleObeyingPolicy(policy.Policy):
         norm_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
 
     obligation_violation_cost = 0
-    rule_is_active = ts_next.goal_count <= self.max_obligation_depth
+    rule_is_active = ts_next.observation['GOAL_COUNT'] <= self.max_obligation_depth
     if not rule_is_active:
       obligation_violation_cost = self.intrinsic_violation_cost
       if bot.riot_rule_is_active():
