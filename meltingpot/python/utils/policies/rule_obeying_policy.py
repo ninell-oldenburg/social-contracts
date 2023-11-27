@@ -530,6 +530,7 @@ class RuleObeyingPolicy(policy.Policy):
   
   def add_goal_count(self, timestep, next_timestep, idx, observation):
 
+    next_timestep.observation['GOAL_COUNT'] = 0
     if not len(self.all_bots[idx].current_obligations) == 0:
       if not self.all_bots[idx].current_obligations[0].satisfied(observation):
         if timestep.goal == "clean":
@@ -793,7 +794,7 @@ class RuleObeyingPolicy(policy.Policy):
 
       obligation_violation_cost = 0
       rule_is_active = ts_next.observation['GOAL_COUNT'] <= self.max_obligation_depth
-      if not rule_is_active:
+      if not rule_is_active and not bot.current_obligations[0].satisfied(observation):
         obligation_violation_cost = self.intrinsic_violation_cost
         if bot.riot_rule_is_active():
           obligation_violation_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
@@ -978,7 +979,7 @@ class RuleObeyingPolicy(policy.Policy):
 
     obligation_violation_cost = 0
     rule_is_active = ts_next.observation['GOAL_COUNT'] <= self.max_obligation_depth
-    if not rule_is_active:
+    if not rule_is_active and not bot.current_obligations[0].satisfied(observation):
       obligation_violation_cost = self.intrinsic_violation_cost
       if bot.riot_rule_is_active():
         obligation_violation_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
