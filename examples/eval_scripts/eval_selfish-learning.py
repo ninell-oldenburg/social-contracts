@@ -90,10 +90,12 @@ for tup in ALL_ROLE_COMB:
         unique_sorted_tuples.add(sorted_tup)
         TEST_SCENARIOS.append(tup)
         
+RIOT_RULE = []
 DEFAULT_RULES = DEFAULT_PROHIBITIONS + DEFAULT_OBLIGATIONS
 for rule in DEFAULT_RULES:
     if "RIOTS" in rule.make_str_repr():
         DEFAULT_RULES.remove(rule)
+        RIOT_RULE.append(rule)
 
     # STR_RULES = [rule.make_str_repr() for rule in DEFAULT_RULES]
 # Generate all possible combinations of the rules
@@ -211,9 +213,12 @@ print('STARTING RULE TRIALS')
 print('*'*50)
 print()
 
+
+
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
     if rule_set_idx == 31:
+        this_rule_set = rule_set + tuple(RIOT_RULE)
         cur_settings, cur_result = main(roles=EXPERIMENT_ROLES,
                                     episodes=300, 
                                     num_iteration=k, 
