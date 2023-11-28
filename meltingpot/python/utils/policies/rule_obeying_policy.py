@@ -793,8 +793,8 @@ class RuleObeyingPolicy(policy.Policy):
           norm_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
 
       obligation_violation_cost = 0
-      rule_is_active = ts_next.observation['GOAL_COUNT'] <= self.max_obligation_depth
-      if not rule_is_active and not bot.current_obligations[0].satisfied(observation):
+      #rule_is_active = ts_next.observation['GOAL_COUNT'] <= self.max_obligation_depth
+      if not bot.current_obligations[0].satisfied(observation):
         obligation_violation_cost = self.intrinsic_violation_cost
         if bot.riot_rule_is_active():
           obligation_violation_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
@@ -978,8 +978,8 @@ class RuleObeyingPolicy(policy.Policy):
         norm_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
 
     obligation_violation_cost = 0
-    rule_is_active = ts_next.observation['GOAL_COUNT'] <= self.max_obligation_depth
-    if not rule_is_active and not bot.current_obligations[0].satisfied(observation):
+    #rule_is_active = ts_next.observation['GOAL_COUNT'] <= self.max_obligation_depth
+    if not bot.current_obligations[0].satisfied(observation):
       obligation_violation_cost = self.intrinsic_violation_cost
       if bot.riot_rule_is_active():
         obligation_violation_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
