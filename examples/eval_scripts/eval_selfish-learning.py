@@ -218,17 +218,17 @@ print()
 for k in range(stats_relevance):
   for rule_set_idx, rule_set in enumerate(RULE_COMBINATIONS):
     if rule_set_idx == 31:
-        this_rule_set = rule_set + tuple(RIOT_RULE)
         cur_settings, cur_result = main(roles=EXPERIMENT_ROLES,
                                     episodes=300, 
-                                    num_iteration=k, 
-                                    rules=rule_set, 
+                                    num_iteration=k,
+                                    rules=rule_set,
                                     env_seed=k, 
                                     create_video=False, 
                                     log_output=False, 
                                     log_weights=False,
                                     save_csv=False,
-                                    plot_q_vals=False
+                                    plot_q_vals=False,
+                                    passive_learning=True,
                                     )
     
         cur_df = pd.DataFrame.from_dict(cur_result)
