@@ -285,7 +285,6 @@ class RuleObeyingPolicy(policy.Policy):
     ts.observation['DIRT_FRACTION'] = self.dirt_fraction
     ts.age = self.age
     ts.MAX_LIFE_SPAN = self.MAX_LIFE_SPAN
-    ts.observation['GOAL_COUNT'] = 0
 
     return ts
   
@@ -516,8 +515,7 @@ class RuleObeyingPolicy(policy.Policy):
             observation['AGENT_ATE'] = True
 
       observation['INVENTORY'] = cur_inventory
-
-      self.add_goal_count(timestep, next_timestep, idx, observation)
+      observation['GOAL_COUNT'] = self.add_goal_count(timestep, idx, observation)
 
       next_timestep.step_type = dm_env.StepType.MID
       next_timestep.reward = reward
@@ -528,17 +526,13 @@ class RuleObeyingPolicy(policy.Policy):
 
       return next_timestep
   
-  def add_goal_count(self, timestep, next_timestep, idx, observation):
+  def add_goal_count(self, timestep, idx, observation):
 
-    next_timestep.observation['GOAL_COUNT'] = 0
+    goal_count = timestep.observation['GOAL_COUNT']+1
     if not len(self.all_bots[idx].current_obligations) == 0:
-      if not self.all_bots[idx].current_obligations[0].satisfied(observation):
-        if timestep.goal == "clean":
-          next_timestep.observation['GOAL_COUNT'] = timestep.observation['SINCE_AGENT_LAST_CLEANED']
-        elif timestep.goal == "pay":
-          next_timestep.observation['GOAL_COUNT'] = timestep.observation['SINCE_AGENT_LAST_PAID']
-        elif timestep.goal == "zap":
-          next_timestep.observation['GOAL_COUNT'] = timestep.observation['SINCE_AGENT_LAST_ZAPPED']
+      if self.all_bots[idx].current_obligations[0].satisfied(observation):
+        goal_count = 0
+    return goal_count
   
   def compute_zap(self, observation, x, y):
     last_zapped = observation['SINCE_AGENT_LAST_ZAPPED']
@@ -822,18 +816,18 @@ class RuleObeyingPolicy(policy.Policy):
 
       if goal != 'apple':
         pos_cur_obl = bot.get_cur_obl_pos(observation)
-        #r_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
-        r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
-        r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
+        r_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
+        #r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
+        #r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
 
-        r_obl = r_cur_obl + r_fulfilled_obl - self.default_action_cost
+        #r_obl = r_cur_obl + r_fulfilled_obl - self.default_action_cost
         
         #if self.log_weights:
           # print(f"len pos_fut_obl: {len(pos_fut_obl)}, reward: {r_fut_obl}, fulfilled: {r_fulfilled_obl}")
           #print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
 
-      all_costs = norm_cost + cumulative_action_cost
-      Q[act] = r_apple - all_costs if goal == 'apple' else r_obl - all_costs - obligation_violation_cost
+      all_costs = norm_cost + cumulative_action_cost + obligation_violation_cost
+      Q[act] = r_apple - all_costs if goal == 'apple' else r_obl - all_costs #- obligation_violation_cost
       Q_no_rules[act] = r_apple - cumulative_action_cost
 
     if self.log_weights:
@@ -967,10 +961,10 @@ class RuleObeyingPolicy(policy.Policy):
     r_forward_no_rule = max(bot.V_wo_rules[s_next]) * self.gamma
     r_no_rule = ts_next.reward - self.default_action_cost
 
-    if len(bot.current_obligations) != 0:        
+    """if len(bot.current_obligations) != 0:        
       r_cur = 0
       if bot.current_obligations[0].satisfied(observation):
-        r_cur = bot.obligation_reward
+        r_cur = bot.obligation_reward"""
 
     norm_cost = 0
     if act not in available:

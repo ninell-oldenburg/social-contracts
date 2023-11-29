@@ -356,8 +356,14 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
         self.set_goal()
         ts_cur.goal = self.goal
 
-        if len(self.history) > 1:
-            self.add_goal_count(self.history[-2][self.py_index], ts_cur, self.py_index, ts_cur.observation)
+        # add initial goal count
+        ts_cur.observation['GOAL_COUNT'] = 0
+        if ts_cur.goal == "clean":
+            ts_cur.observation['GOAL_COUNT'] = ts_cur.observation['SINCE_AGENT_LAST_CLEANED']
+        elif ts_cur.goal == "pay":
+            ts_cur.observation['GOAL_COUNT'] = ts_cur.observation['SINCE_AGENT_LAST_PAID']
+        elif ts_cur.goal == "zap":
+            ts_cur.observation['GOAL_COUNT'] = ts_cur.observation['SINCE_AGENT_LAST_ZAPPED']
 
         self.handle_age()
                 
