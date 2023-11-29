@@ -105,6 +105,7 @@ def main(roles,
                                     potential_prohibitions=POTENTIAL_PROHIBITIONS,
                                     active_prohibitions=[],
                                     active_obligations=[],
+                                    violation_cost=0,
                                     is_learner=True,
                                     age=0,
                                     ))

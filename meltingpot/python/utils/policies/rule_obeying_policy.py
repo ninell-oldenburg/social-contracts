@@ -793,9 +793,9 @@ class RuleObeyingPolicy(policy.Policy):
           norm_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
 
       obligation_violation_cost = 0
-      #rule_is_active = ts_next.observation['GOAL_COUNT'] <= self.max_obligation_depth
+      rule_is_active = ts_next.observation['GOAL_COUNT'] <= self.max_obligation_depth
       if len(bot.current_obligations) > 0:
-        if not bot.current_obligations[0].satisfied(observation):
+        if not rule_is_active and not bot.current_obligations[0].satisfied(observation):
           obligation_violation_cost = self.intrinsic_violation_cost
           if bot.riot_rule_is_active():
             obligation_violation_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
@@ -822,18 +822,18 @@ class RuleObeyingPolicy(policy.Policy):
 
       if goal != 'apple':
         pos_cur_obl = bot.get_cur_obl_pos(observation)
-        r_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
-        #r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
-        #r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
+        #r_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
+        r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
+        r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
 
-        #r_obl = r_cur_obl + r_fulfilled_obl - self.default_action_cost
+        r_obl = r_cur_obl + r_fulfilled_obl - self.default_action_cost
         
         #if self.log_weights:
           # print(f"len pos_fut_obl: {len(pos_fut_obl)}, reward: {r_fut_obl}, fulfilled: {r_fulfilled_obl}")
           #print(f"len pos_cur_obl: {len(pos_cur_obl)}, reward: {r_cur_obl}, fulfilled: {r_fulfilled_obl}")
 
-      all_costs = norm_cost + cumulative_action_cost + obligation_violation_cost
-      Q[act] = r_apple - all_costs if goal == 'apple' else r_obl - all_costs
+      all_costs = norm_cost + cumulative_action_cost
+      Q[act] = r_apple - all_costs if goal == 'apple' else r_obl - all_costs - obligation_violation_cost
       Q_no_rules[act] = r_apple - cumulative_action_cost
 
     if self.log_weights:
@@ -979,9 +979,9 @@ class RuleObeyingPolicy(policy.Policy):
         norm_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
 
     obligation_violation_cost = 0
-    #rule_is_active = ts_next.observation['GOAL_COUNT'] <= self.max_obligation_depth
-    if len(bot.current_obligations) > 0:
-      if not bot.current_obligations[0].satisfied(observation):
+    rule_is_active = ts_next.observation['GOAL_COUNT'] <= self.max_obligation_depth
+    if  len(bot.current_obligations) > 0:
+      if not rule_is_active and not bot.current_obligations[0].satisfied(observation):
         obligation_violation_cost = self.intrinsic_violation_cost
         if bot.riot_rule_is_active():
           obligation_violation_cost += self.punish_cost * self.gamma**self.avg_steps_to_punishment
