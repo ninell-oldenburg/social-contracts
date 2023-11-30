@@ -275,7 +275,8 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
           'pay': [
             'AGENT_PAID',
             'CUR_CELL_HAS_APPLE', 
-            'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'CUR_CELL_IS_FOREIGN_PROPERTY',
+            'GOAL_COUNT',
             'NUM_APPLES_AROUND',
             'ORIENTATION',
             'POSITION', 
@@ -287,6 +288,7 @@ class RuleAdjustingPolicy(RuleLearningPolicy):
             'AGENT_ZAPPED',
             'CUR_CELL_HAS_APPLE', 
             'CUR_CELL_IS_FOREIGN_PROPERTY', 
+            'GOAL_COUNT',
             'NUM_APPLES_AROUND',
             'ORIENTATION',
             'POSITION', 
