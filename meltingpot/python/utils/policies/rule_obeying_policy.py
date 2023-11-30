@@ -816,11 +816,11 @@ class RuleObeyingPolicy(policy.Policy):
 
       if goal != 'apple':
         pos_cur_obl = bot.get_cur_obl_pos(observation)
-        r_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
-        #r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
-        #r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
+        #r_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
+        r_cur_obl = bot.get_discounted_reward(pos_cur_obl, pos, ts_next.age)#, goal)
+        r_fulfilled_obl = self.obligation_reward if bot.current_obligations[0].satisfied(observation) else 0
 
-        #r_obl = r_cur_obl + r_fulfilled_obl - self.default_action_cost
+        r_obl = r_cur_obl + r_fulfilled_obl - self.default_action_cost
         
         #if self.log_weights:
           # print(f"len pos_fut_obl: {len(pos_fut_obl)}, reward: {r_fut_obl}, fulfilled: {r_fulfilled_obl}")
@@ -961,10 +961,10 @@ class RuleObeyingPolicy(policy.Policy):
     r_forward_no_rule = max(bot.V_wo_rules[s_next]) * self.gamma
     r_no_rule = ts_next.reward - self.default_action_cost
 
-    """if len(bot.current_obligations) != 0:        
+    if len(bot.current_obligations) != 0:        
       r_cur = 0
       if bot.current_obligations[0].satisfied(observation):
-        r_cur = bot.obligation_reward"""
+        r_cur = bot.obligation_reward
 
     norm_cost = 0
     if act not in available:
