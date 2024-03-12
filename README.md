@@ -5,9 +5,9 @@ With this piece of code, we formalize the problem of constrained norm learning f
 You can use this code to test your own version of this. The main test scenarios are (1) Pure norm learning from a predefined set of norms, (2) Intergenerational norm transmission, and (3) Spontaneous norm emergence.
 
 <p align="center">
-<img src="assets/norm-compliant-planning.jpg" width="300" />
+<img src="assets/norm-compliant-planning.jpg" width="350" />
+<img src="assets/norm-learning.jpg" width="350" />
 <img src="assets/example.gif" width="200" />
-<img src="assets/norm-learning.jpg" width="300" />
 </p>
 
 For more information, see [our paper](https://arxiv.org/abs/2402.13399)
