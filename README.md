@@ -17,5 +17,11 @@ For more information, see [our paper](https://arxiv.org/abs/2402.13399)
 ---
 ## Setup
 
+For this code, your machine requires `Python 3.10` or higher. Follow these steps:
+
+> 1. Go to the [Melting Pot](https://github.com/google-deepmind/meltingpot) repository and follow their installation steps. From their docs: If you get a `ModuleNotFoundError: No module named 'meltingpot.python'` error, you can solve it by exporting the `meltingpot` home directory as PYTHONPATH (e.g. by calling export PYTHONPATH=$(pwd))
+> 2. Download the [meltingpot](https://github.com/ninell-oldenburg/social-contracts/tree/main/meltingpot) directory from this repo and replace the `meltingpot` directory of your newly installed Melting Pot instance. Note: make sure the to-be-replaced directory is your local version of [this one](https://github.com/google-deepmind/meltingpot/tree/main/meltingpot) -- their repository structure is something like `meltingpot/meltingpot` so watch out to not confuse these two.
+> 3. Done! Now you can run the files.
+
 ---
 ## Repository Structure
