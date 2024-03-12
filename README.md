@@ -6,7 +6,7 @@ You can use this code to test your own version of this. The main test scenarios 
 
 <p align="center">
 <img src="assets/norm-compliant-planning.jpg" width="250" />
-[example](https://github.com/ninell-oldenburg/social-contracts/assets/55545843/722bc603-993d-4908-90be-f1605b7a307e)
+<img src="assets/55545843/722bc603-993d-4908-90be-f1605b7a307e" width="250" />
 <img src="assets/norm-learning.jpg" width="250" />
 </p>
 
